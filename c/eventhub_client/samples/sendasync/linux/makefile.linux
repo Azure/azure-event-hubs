@@ -1,0 +1,90 @@
+# Microsoft Azure IoT Device Libraries
+# Copyright (c) Microsoft Corporation
+# All rights reserved. 
+# MIT License
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
+# documentation files (the Software), to deal in the Software without restriction, including without limitation 
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED 
+# TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
+# CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
+# IN THE SOFTWARE.
+
+#this makefile has the purpose of building the Send sample from its source file and eventhub_client
+
+#this sets the output file name
+SENDASYNC_EXE=./sendasync
+
+#this sets the INCLUDE paths
+HEADERS_FILES_LOCATION=../../../inc ../../../../common/inc ../
+
+#setting SEND_FILES_LOCATION to the folder where send has its source code
+SEND_FILES_LOCATION=../
+
+#setting the sources to be all the .c files in the SEND_FILES_LOCATION 
+SOURCES=\
+	$(wildcard $(SEND_FILES_LOCATION)/*.c) main.c \
+
+#this is eventhub_client lib
+EVENTHUBCLIENTLIB=../../../build/linux/libeventhub_client.a
+
+#this is eventhub_client makefile location
+EVENTHUB_CLIENT_MAKEFILE_LOCATION=../../../build/linux
+
+#these are other libraries that we needs
+OTHER_LIBRARIES=curl pthread qpid-proton
+
+#INCLUDES is the list of folders (relative to the location of the makefile) that are used for include path search
+INCLUDES=$(HEADERS_FILES_LOCATION)
+
+#this is the name of the compiler we use
+CC=gcc
+
+#these are compilation flags passed to the compiler for every file
+CFLAGS=-c -g -std=c99 -DUSING_PTHREAD -pthread \
+	-Wall -Wfatal-errors -Wno-missing-braces -Wextra \
+	-Wno-missing-field-initializers -Wformat=2 \
+	-Wswitch-default -Wcast-align -Wpointer-arith \
+	-Wbad-function-cast -Wstrict-overflow=5 -Wstrict-prototypes -Winline \
+	-Wundef -Wnested-externs -Wshadow -Wunreachable-code \
+	-Wlogical-op -Wfloat-equal -Wstrict-aliasing=2 \
+	-Wold-style-definition -Werror -Wno-unused-function -Wno-unused-value -Wno-unused-variable \
+    -DGB_DEBUG_ALLOC -DGB_MEASURE_MEMORY_FOR_THIS
+
+#this is a substitution reference http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
+#this substitution reference said that for all the files in SOURCES, replace .c at the end with .o and those are the names of the object files
+OBJECTS=$(SOURCES:.c=.o)
+
+#to feed INCLUDES to the compiler, every folder needs to be turned into a -IfolderName command line parameter
+#this is what this lines does
+CC_INCLUDES = $(patsubst %, -I%, $(INCLUDES))
+
+#the other libraries are fed to the command line with -llibName
+CC_OTHER_LIBRARIES = $(patsubst %, -l%, $(OTHER_LIBRARIES))
+
+#this is our target: the target has as prerequisites (http://www.gnu.org/software/make/manual/make.html#Rule-Syntax) all the object files of all the source files 
+all: $(OBJECTS)
+	$(MAKE) -C $(EVENTHUB_CLIENT_MAKEFILE_LOCATION) -f makefile.linux all
+	$(CC) $(OBJECTS) $(EVENTHUBCLIENTLIB) $(CC_OTHER_LIBRARIES) -L $(HOME)/lib -o $(SENDASYNC_EXE)
+
+#next we describe how to build the said object files from the source files
+
+#this is the common command line that is used by every source file to be turned into an object file
+# $< means "the first prerequisite" (see http://ftp.gnu.org/old-gnu/Manuals/make-3.79.1/html_chapter/make_10.html#SEC101)
+# $@ is "The file name of the target of the rule."
+COMMON_COMMAND_LINE=$(CC) $(CC_INCLUDES) $(CFLAGS) $< -o $@
+
+#this is a pattern rule http://www.gnu.org/software/make/manual/make.html#Pattern-Rules
+#this rule says: "for anything that is a target ending in .o (such as Device.o) have as prerequisite the .c file)
+%.o: %.c
+	$(COMMON_COMMAND_LINE)
+
+#this is the clean target.
+clean:
+	$(MAKE) -C $(EVENTHUB_CLIENT_MAKEFILE_LOCATION) -f makefile.linux clean
+	$(RM) $(OBJECTS) $(SENDASYNC_EXE)

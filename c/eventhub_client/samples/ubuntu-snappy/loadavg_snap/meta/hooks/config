@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+
+import os.path
+import sys
+import yaml
+
+CONFIG_FILE = os.path.join(os.environ["SNAP_APP_DATA_PATH"], "conf.yaml")
+
+def get_config():
+   if not os.path.exists(CONFIG_FILE):
+      return config
+   with open(CONFIG_FILE) as fp:
+      config = yaml.load(fp)
+   return config
+
+def set_config():
+   config = yaml.load(sys.stdin)
+   if not config:
+      return
+   with open(CONFIG_FILE, "w") as fp:
+      yaml.dump(config, stream=fp, default_flow_style=False)
+
+if __name__ == "__main__":
+   set_config()
+   config = get_config()
+   yaml.dump(config, stream=sys.stdout, default_flow_style=False)
