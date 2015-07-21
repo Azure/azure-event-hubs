@@ -78,6 +78,7 @@ static int base64toValue(char base64character, unsigned char* value)
     }
     else
     {
+        *value = 0;
         result = -1;
     }
     return result;
