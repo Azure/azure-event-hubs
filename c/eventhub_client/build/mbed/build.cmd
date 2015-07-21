@@ -14,11 +14,11 @@ rem ----------------------------------------------------------------------------
 rem -- build eventhub samples
 rem -----------------------------------------------------------------------------
 
-REM call %build-root%\samples\send\mbed\buildsample.bat
-REM if not %errorlevel%==0 exit /b %errorlevel%
+call %build-root%\samples\send\mbed\buildsample.bat
+if not %errorlevel%==0 exit /b %errorlevel%
 
-REM call %build-root%\samples\send_batch\mbed\buildsample.bat
-REM if not %errorlevel%==0 exit /b %errorlevel%
+call %build-root%\samples\send_batch\mbed\buildsample.bat
+if not %errorlevel%==0 exit /b %errorlevel%
 
 goto :eof
 

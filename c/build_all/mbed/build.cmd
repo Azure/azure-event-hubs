@@ -15,7 +15,7 @@ rem -- build eventhub client samples
 rem -----------------------------------------------------------------------------
 
 call %repo-build-root%\eventhub_client\build\mbed\build.cmd
-REM if not %errorlevel%==0 exit /b %errorlevel%
+if not %errorlevel%==0 exit /b %errorlevel%
 
 goto :eof
 

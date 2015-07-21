@@ -10,15 +10,18 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 build_root=$(cd "${script_dir}/../.." && pwd)
 log_dir=$build_root
 skip_tests=0
+skip_e2e_tests=0
 
 usage ()
 {
     echo "build.sh [options]"
     echo "options"
     echo " -x,  --xtrace                 print a trace of each command"
-    echo " -c,  --clean                  artifacts from previous build before building"
-    echo " -cl, --compileoption <value>  specifies a compile option to be passed to gcc"
-    echo "     Example: -cl -O1 -cl ..."
+    echo " -c,  --clean                  remove artifacts from previous build before building"
+    echo " -cl, --compileoption <value>  specify a compile option to be passed to gcc"
+    echo "   Example: -cl -O1 -cl ..."
+    echo " --skip-tests                  build only, do not run any tests"
+    echo " --skip-e2e-tests              do not run end-to-end tests"
     exit 1
 }
 
@@ -27,7 +30,6 @@ process_args ()
     build_clean=0
     save_next_arg=0
     extracloptions=" "
-    run_end2end=0
 
     for arg in $*
     do
@@ -41,6 +43,8 @@ process_args ()
               "-x" | "--xtrace" ) set -x;;
               "-c" | "--clean" ) build_clean=1;;
               "-cl" | "--compileoption" ) save_next_arg=1;;
+              "--skip-tests" ) skip_tests=1;;
+              "--skip-e2e-tests" ) skip_e2e_tests=1;;
               * ) usage;;
           esac
       fi
@@ -134,14 +138,8 @@ print_test_pass_result ()
     color reset
 }
 
-run_tests ()
+_run_tests ()
 {
-    if [ $skip_tests -eq 1 ]
-    then
-        echo "Skipping test runs as requested by user."
-        return 0
-    fi
-
     num_failed=0
     for test_module in $(find . -maxdepth 1 -name "*$1*" -executable)
     do
@@ -155,6 +153,12 @@ run_tests ()
 
 run_unit_tests()
 {
+    if [ $skip_tests -eq 1 ]
+    then
+        echo "Skipping unit tests..."
+        return 0
+    fi
+
     logfile=$log_dir/${log_prefix}_run.log
     rm -f $logfile
 
@@ -163,11 +167,17 @@ run_unit_tests()
     echo "  Discovering and running tests under ${PWD#$build_root/}/ ..."
     color reset
 
-    run_tests "unittests"
+    _run_tests "unittests"
 }
 
 run_end2end_tests ()
 {
+    if [[ $skip_tests -eq 1 || skip_e2e_tests -eq 1 ]]
+    then
+        echo "Skipping end-to-end tests..."
+        return 0
+    fi
+
     logfile=$log_dir/${log_prefix}_run.log
     rm -f $logfile
 
@@ -175,7 +185,7 @@ run_end2end_tests ()
     echo "  Discovering and running e2e tests under ${PWD#$build_root/}/ ..."
     color reset
 
-    run_tests "e2etests"
+    _run_tests "e2etests"
 }
 
 
