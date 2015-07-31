@@ -129,6 +129,7 @@
     <ClInclude Include="..\..\inc\iot_logging.h" />
     <ClInclude Include="..\..\inc\lock.h" />
     <ClInclude Include="..\..\inc\macro_utils.h" />
+    <ClInclude Include="..\..\inc\map.h" />
     <ClInclude Include="..\..\inc\strings.h" />
     <ClInclude Include="..\..\inc\string_tokenizer.h" />
     <ClInclude Include="..\..\inc\threadapi.h" />
@@ -145,6 +146,7 @@
     <ClCompile Include="..\..\src\doublylinkedlist.c" />
     <ClCompile Include="..\..\src\gballoc.c" />
     <ClCompile Include="..\..\src\httpheaders.c" />
+    <ClCompile Include="..\..\src\map.c" />
     <ClCompile Include="..\..\src\strings.c" />
     <ClCompile Include="..\..\src\string_tokenizer.c" />
     <ClCompile Include="..\..\src\urlencode.c" />

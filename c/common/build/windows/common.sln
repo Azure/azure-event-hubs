@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common", "common.vcxproj", "{9F55377B-6C37-4700-9866-E070D64ADE0F}"
 EndProject
@@ -47,6 +47,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "doublylinkedlist_unittests", "..\..\unittests\doublylinkedlist_unittests\doublylinkedlist_unittests.vcxproj", "{1840976F-D8C5-47A9-8D9C-5F21113A73DC}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "httpheaders_unittests", "..\..\unittests\httpheaders_unittests\httpheaders_unittests.vcxproj", "{639102FA-E1EF-4179-8066-F258FB25FA32}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "map_unittests", "..\..\unittests\map_unittests\map_unittests.vcxproj", "{B131B6BC-D532-4D1B-A618-A548429D0B5C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -270,6 +272,20 @@ Global
 		{639102FA-E1EF-4179-8066-F258FB25FA32}.Release|Win32.ActiveCfg = Release|Win32
 		{639102FA-E1EF-4179-8066-F258FB25FA32}.Release|Win32.Build.0 = Release|Win32
 		{639102FA-E1EF-4179-8066-F258FB25FA32}.Release|x64.ActiveCfg = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|ARM.ActiveCfg = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|Win32.Build.0 = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Debug|x64.ActiveCfg = Debug|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|Any CPU.ActiveCfg = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|ARM.ActiveCfg = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|Win32.ActiveCfg = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|Win32.Build.0 = Release|Win32
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -288,5 +304,6 @@ Global
 		{666CB3A1-1ECC-4350-857B-CD6F4F00C4E2} = {381D9077-E6D4-4B0B-AEED-3CF488D6F3C3}
 		{1840976F-D8C5-47A9-8D9C-5F21113A73DC} = {381D9077-E6D4-4B0B-AEED-3CF488D6F3C3}
 		{639102FA-E1EF-4179-8066-F258FB25FA32} = {381D9077-E6D4-4B0B-AEED-3CF488D6F3C3}
+		{B131B6BC-D532-4D1B-A618-A548429D0B5C} = {381D9077-E6D4-4B0B-AEED-3CF488D6F3C3}
 	EndGlobalSection
 EndGlobal
