@@ -35,7 +35,7 @@ typedef struct EVENT_DATA_TAG
 {
     BUFFER_HANDLE buffer;
     STRING_HANDLE partitionKey;
-    VECTOR_HANDLE propertiesHandle;
+    MAP_HANDLE properties;
 } EVENT_DATA;
 
 typedef struct EVENT_PROPERTY_TAG
@@ -100,8 +100,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
         else
         {
             eventData->partitionKey = NULL;
-            eventData->propertiesHandle = VECTOR_create(sizeof(EVENT_PROPERTY));
-            if (eventData->propertiesHandle == NULL)
+            if ( (eventData->properties = Map_Create(NULL) ) == NULL)
             {
                 BUFFER_delete(eventData->buffer);
                 free(eventData);
@@ -118,8 +117,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
     else
     {
         eventData->partitionKey = NULL;
-        eventData->propertiesHandle = VECTOR_create(sizeof(EVENT_PROPERTY));
-        if (eventData->propertiesHandle == NULL)
+        if ( (eventData->properties = Map_Create(NULL) ) == NULL)
         {
             BUFFER_delete(eventData->buffer);
             free(eventData);
@@ -141,24 +139,12 @@ void EventData_Destroy(EVENTDATA_HANDLE eventDataHandle)
     /* Codes_SRS_EVENTDATA_03_006: [EventData_Destroy shall not do anything if eventDataHandle is NULL.] */
     if (eventDataHandle != NULL)
     {
-        size_t len;
         /* Codes_SRS_EVENTDATA_03_005: [EventData_Destroy shall deallocate all resources related to the eventDataHandle specified.] */
         eventData = (EVENT_DATA*)eventDataHandle;
         BUFFER_delete(eventData->buffer);
         STRING_delete(eventData->partitionKey);
         eventData->partitionKey = NULL;
-        
-        len = VECTOR_size(eventData->propertiesHandle);
-        for (size_t index = 0; index < len; index++)
-        {
-            EVENT_PROPERTY* eventProp = VECTOR_element(eventData->propertiesHandle, index);
-            if (eventProp != NULL)
-            {
-                STRING_delete(eventProp->key);
-                STRING_delete(eventProp->value);
-            }
-        }
-        VECTOR_destroy(eventData->propertiesHandle);
+        Map_Destroy(eventData->properties);
 
         free(eventData);
     }
@@ -254,157 +240,6 @@ EVENTDATA_RESULT EventData_SetPartitionKey(EVENTDATA_HANDLE eventDataHandle, con
     return result;
 }
 
-EVENTDATA_RESULT EventData_GetPropertyByName(EVENTDATA_HANDLE eventDataHandle, const char* propertyName, const char** propertyValue)
-{
-    EVENTDATA_RESULT result;
-    if (eventDataHandle == NULL || propertyName == NULL || propertyValue == NULL)
-    {
-        /* Codes_SRS_EVENTDATA_07_040: [EventData_GetPropertyByKey shall return NULL if EventDataHandle or propertyName is NULL.] */
-        result = EVENTDATA_INVALID_ARG;
-        LogError("EventData_GetProperty result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-    }
-    else
-    {
-        EVENT_PROPERTY eventProp;
-        eventProp.key = STRING_construct(propertyName);
-        if (eventProp.key == NULL)
-        {
-            /* Codes_SRS_EVENTDATA_07_042: [EventData_GetPropertyByKey shall return NULL if any errors are encountered.] */
-            result = EVENTDATA_ERROR;
-            LogError("EventData_SetProperties result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-        }
-        else
-        {
-            EVENT_DATA* eventData = (EVENT_DATA*)eventDataHandle;
-
-            EVENT_PROPERTY* existingEventProp = (EVENT_PROPERTY*)VECTOR_find_if(eventData->propertiesHandle, (PREDICATE_FUNCTION)VectorPredicateFunc, &eventProp);
-            if (existingEventProp == NULL)
-            {
-                /* Codes_SRS_EVENTDATA_07_041: [If propertyName does not specify a property that is currently in the property vector list then EventData_GetPropertyByKey shall return NULL.] */
-                result = EVENTDATA_MISSING_PROPERTY_NAME;
-                LogError("EventData_GetPropertyByKey result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-            }
-            else
-            {
-                /* Codes_SRS_EVENTDATA_07_039: [On Success EventData_GetPropertyByKey shall return the value of the property that is specified by propertyName.] */
-                *propertyValue = STRING_c_str(existingEventProp->value);
-                result = EVENTDATA_OK;
-            }
-            STRING_delete(eventProp.key);
-        }
-    }
-    return result;
-}
-
-extern EVENTDATA_RESULT EventData_GetPropertyByIndex(EVENTDATA_HANDLE eventDataHandle, size_t propertyIndex, const char** propertyName, const char** propertyValue)
-{
-    EVENTDATA_RESULT result;
-    /* Codes_SRS_EVENTDATA_07_044: [If eventDataHandle,  propertyName, propertyValue, or valueSize is NULL then EventData_GetPropertyByIndex shall return EVENTDATA_INVALID_ARG.] */
-    if (eventDataHandle == NULL || propertyName == NULL || propertyValue == NULL)
-    {
-        result = EVENTDATA_INVALID_ARG;
-        LogError("EventData_GetPropertyByIndex result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-    }
-    else
-    {
-        EVENT_DATA* eventData = (EVENT_DATA*)eventDataHandle;
-        EVENT_PROPERTY* eventProp = VECTOR_element(eventData->propertiesHandle, propertyIndex);
-        if (eventProp == NULL)
-        {
-            /* Codes_SRS_EVENTDATA_07_045: [If an error is encounters then EventData_GetPropertyByIndex shall return EVENTDATA_ERROR.] */
-            result = EVENTDATA_INDEX_OUT_OF_BOUNDS;
-            LogError("EventData_GetPropertyByIndex result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-        }
-        else
-        {
-            *propertyName = STRING_c_str(eventProp->key);
-            /* Codes_SRS_EVENTDATA_07_043: [On Success EventData_GetPropertyByIndex shall set the propertyName as the Name of the Property, propertyValue as the value of the property and will return EVENTDATA_OK.] */
-            *propertyValue = STRING_c_str(eventProp->value);
-            result = EVENTDATA_OK;
-        }
-    }
-    return result;
-}
-
-EVENTDATA_RESULT EventData_SetProperty(EVENTDATA_HANDLE eventDataHandle, const char* propertyName, const char* propertyValue)
-{
-    EVENTDATA_RESULT result;
-    if (eventDataHandle == NULL || propertyName == NULL)
-    {
-        /* Codes_SRS_EVENTDATA_07_034: [EventData_SetProperty shall return EVENTDATA_INVALID_ARG if eventDataHandle, or propertyName parameters are NULL.] */
-        result = EVENTDATA_INVALID_ARG;
-        LogError("EventData_SetProperty result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-    }
-    else
-    {
-        EVENT_DATA* eventData = (EVENT_DATA*)eventDataHandle;
-
-        EVENT_PROPERTY eventProp;
-        /* Codes_SRS_EVENTDATA_07_035: [EventData_SetProperty shall create an EVENT_PROPERTY object with the STRING_HANDLE Key variable being assigned to propertyName and the STRING_HANDLE value being assigned to value.] */
-        eventProp.key = STRING_construct(propertyName);
-        if (eventProp.key == NULL)
-        {
-            /* Codes_SRS_EVENTDATA_07_048: [If an error is encountered then EventData_SetProperty shall return EVENT_DATA_ERROR.] */
-            result = EVENTDATA_ERROR;
-            LogError("EventData_SetProperties result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-        }
-        else
-        {
-            /* Codes_SRS_EVENTDATA_07_038: [If the propertyName is encountered in the property list then EventData_SetProperty shall return EVENTDATA_ERROR.] */
-            // Check to see if the propertyName exists
-            EVENT_PROPERTY* existingEventProp = VECTOR_find_if(eventData->propertiesHandle, VectorPredicateFunc, &eventProp);
-            if (existingEventProp != NULL)
-            {
-                STRING_delete(eventProp.key);
-                result = EVENTDATA_ERROR;
-                LogError("EventData_SetProperties result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-            }
-            else 
-            {
-                if ( (eventProp.value = STRING_construct(propertyValue) ) == NULL)
-                {
-                    /* Codes_SRS_EVENTDATA_07_048: [If an error is encountered then EventData_SetProperty shall return EVENT_DATA_ERROR.] */
-                    result = EVENTDATA_ERROR;
-                    STRING_delete(eventProp.key);
-                    LogError("EventData_SetProperties result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-                }
-                /* Codes_SRS_EVENTDATA_07_037: [EventData_SetProperty shall push_back the EVENT_PROPERTY object to the propertyHandle VECTOR contained in the EVENTDATA_HANDLE.] */
-                else if (VECTOR_push_back(eventData->propertiesHandle, &eventProp, 1) != 0)
-                {
-                    /* Codes_SRS_EVENTDATA_07_048: [If an error is encountered then EventData_SetProperty shall return EVENT_DATA_ERROR.] */
-                    result = EVENTDATA_ERROR;
-                    STRING_delete(eventProp.key);
-                    STRING_delete(eventProp.value);
-                    LogError("EventData_SetProperties result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, result));
-                }
-                else
-                {
-                    result = EVENTDATA_OK;
-                }
-            }
-        }
-    }
-    return result;
-}
-
-/* Codes_SRS_EVENTDATA_07_046: [EventData_GetPropertyCount shall return the number of properties contained in the vector list.] */
-size_t EventData_GetPropertyCount(EVENTDATA_HANDLE eventDataHandle)
-{
-    size_t result;
-    if (eventDataHandle == NULL)
-    {
-        /* Codes_SRS_EVENTDATA_07_047: [If eventDataHandle is NULL EventData_GetPropertyCount shall return 0.] */
-        result = 0;
-        LogError("EventData_GetPropertyCount result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_INVALID_ARG));
-    }
-    else
-    {
-        EVENT_DATA* eventData = (EVENT_DATA*)eventDataHandle;
-        result = VECTOR_size(eventData->propertiesHandle);
-    }
-    return result;
-}
-
 EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
 {
     EVENT_DATA* result;
@@ -412,7 +247,7 @@ EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
     {
         /* Codes_SRS_EVENTDATA_07_050: [EventData_Clone shall return NULL when the eventDataHandle is NULL.] */
         result = NULL;
-        LogError("EventData_GetPropertyCount result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_INVALID_ARG));
+        LogError("EventData_Clone result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_INVALID_ARG));
     }
     else
     {
@@ -446,7 +281,7 @@ EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
                 result = NULL;
                 LogError("result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_ERROR));
             }
-            else if ( (result->propertiesHandle = VECTOR_create(sizeof(EVENT_PROPERTY))) == NULL)
+            else if ( (result->properties = Map_Clone(srcData->properties)) == NULL)
             {
                 /* Codes_SRS_EVENTDATA_07_053: [EventData_Clone shall return NULL if it fails for any reason.] */
                 STRING_delete(result->partitionKey);
@@ -455,62 +290,25 @@ EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
                 result = NULL;
                 LogError("result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_ERROR));
             }
-            else
-            {
-                size_t length;
-                size_t index;
-                length = VECTOR_size(srcData->propertiesHandle);
-                /* Codes_SRS_EVENTDATA_07_054: [EventData_Clone shall iterate the EVENTDATA VECTOR object and clone each element.] */
-                for (index = 0; index < length; index++)
-                {
-                    EVENT_PROPERTY* eventProp = VECTOR_element(srcData->propertiesHandle, index);
-                    if (eventProp == NULL)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        EVENT_PROPERTY newEventProp;
-                        if ( (newEventProp.key = STRING_clone(eventProp->key) ) == NULL)
-                        {
-                            break;
-                        }
-                        else if ( (newEventProp.value = STRING_clone(eventProp->value) ) == NULL)
-                        {
-                            STRING_delete(newEventProp.key);
-                            break;
-                        }
-                        else if (VECTOR_push_back(result->propertiesHandle, &newEventProp, 1) != 0)
-                        {
-                            STRING_delete(newEventProp.key);
-                            STRING_delete(newEventProp.value);
-                            break;
-                        }
-                    }
-                }
-
-                if (index < length)
-                {
-                    /* Codes_SRS_EVENTDATA_07_053: [EventData_Clone shall return NULL if it fails for any reason.] */
-                    length = VECTOR_size(result->propertiesHandle);
-                    for (index = 0; index < length; index++)
-                    {
-                        EVENT_PROPERTY* eventProp = VECTOR_element(result->propertiesHandle, index);
-                        if (eventProp != NULL)
-                        {
-                            STRING_delete(eventProp->key);
-                            STRING_delete(eventProp->value);
-                        }
-                    }
-                    VECTOR_destroy(result->propertiesHandle);
-                    STRING_delete(result->partitionKey);
-                    BUFFER_delete(result->buffer);
-                    free(result);
-                    result = NULL;
-                    LogError("result = %s\r\n", ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_ERROR));
-                }
-            }
         }
     }
     return (EVENTDATA_HANDLE)result; 
+}
+
+MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
+{
+    MAP_HANDLE result;
+    /*Codes_SRS_IOTHUBMESSAGE_02_001: [If iotHubMessageHandle is NULL then IoTHubMessage_Properties shall return NULL.]*/
+    if (eventDataHandle == NULL)
+    {
+        LogError("invalid arg (NULL) passed to IoTHubMessage_Properties\r\n")
+        result = NULL;
+    }
+    else
+    {
+        /*Codes_SRS_IOTHUBMESSAGE_02_002: [Otherwise, for any non-NULL iotHubMessageHandle it shall return a non-NULL MAP_HANDLE.]*/
+        EVENT_DATA* handleData = (EVENT_DATA*)eventDataHandle;
+        result = handleData->properties;
+    }
+    return result;
 }

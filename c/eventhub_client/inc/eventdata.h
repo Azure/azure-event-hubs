@@ -21,6 +21,7 @@ IN THE SOFTWARE.
 #define EVENTDATA_H
 
 #include "macro_utils.h"
+#include "map.h" 
 
 #ifdef __cplusplus
 #include <cstddef>
@@ -50,10 +51,7 @@ extern void EventData_Destroy(EVENTDATA_HANDLE eventDataHandle);
 extern const char* EventData_GetPartitionKey(EVENTDATA_HANDLE eventDataHandle);
 extern EVENTDATA_RESULT EventData_SetPartitionKey(EVENTDATA_HANDLE eventDataHandle, const char* partitionKey);
 
-extern EVENTDATA_RESULT EventData_GetPropertyByName(EVENTDATA_HANDLE eventDataHandle, const char* propertyName, const char** propertyValue);
-extern EVENTDATA_RESULT EventData_GetPropertyByIndex(EVENTDATA_HANDLE eventDataHandle, size_t propertyIndex, const char** propertyName, const char** propertyValue);
-extern EVENTDATA_RESULT EventData_SetProperty(EVENTDATA_HANDLE eventDataHandle, const char* propertyName, const char* propertyValue);
-extern size_t EventData_GetPropertyCount(EVENTDATA_HANDLE eventDataHandle);
+extern MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle);
 
 #ifdef __cplusplus
 }

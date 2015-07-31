@@ -81,26 +81,28 @@ int SendBatch_Sample(void)
             }
 
 
-            if ( (EventData_SetProperty(eventDataList[0], "SendBatch_HL_1", TEST_STRING_VALUE_1) != EVENTDATA_OK) || 
-                (EventData_SetProperty(eventDataList[0], "SendBatch_HL_A", TEST_STRING_VALUE_A) != EVENTDATA_OK) || 
-                (EventData_SetProperty(eventDataList[1], "SendBatch_HL_2", TEST_STRING_VALUE_2) != EVENTDATA_OK) )
+            MAP_HANDLE mapProperties = EventData_Properties(eventDataList[0]);
+            if (mapProperties != NULL)
             {
-                (void)printf("ERROR: EventData_SetProperty failed!\r\n");
+                if ( (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_1", TEST_STRING_VALUE_1) != MAP_ERROR) ||
+                    (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_A", TEST_STRING_VALUE_A) != MAP_ERROR) ||
+                    (Map_AddOrUpdate(eventDataList[1], "SendBatch_HL_2", TEST_STRING_VALUE_2) != MAP_ERROR)
+                    )
+                {
+                    (void)printf("ERROR: Map_AddOrUpdate failed!\r\n");
+                }
+            }
+
+            //Send all 3 data created above on the same call (Batched)
+            if (EventHubClient_SendBatch(eventHubClientHandle, eventDataList, NUM_OF_MSG_TO_SEND) != EVENTHUBCLIENT_OK)
+            {
+                (void)printf("ERROR: EventHubClient_SendBatch failed!\r\n");
                 result = 1;
             }
             else
             {
-                //Send all 3 data created above on the same call (Batched)
-                if (EventHubClient_SendBatch(eventHubClientHandle, eventDataList, NUM_OF_MSG_TO_SEND) != EVENTHUBCLIENT_OK)
-                {
-                    (void)printf("ERROR: EventHubClient_SendBatch failed!\r\n");
-                    result = 1;
-                }
-                else
-                {
-                    (void)printf("EventHubClient_SendBatch.......Successful\r\n");
-                    result = 0;
-                }
+                (void)printf("EventHubClient_SendBatch.......Successful\r\n");
+                result = 0;
             }
             EventHubClient_Destroy(eventHubClientHandle);
         }

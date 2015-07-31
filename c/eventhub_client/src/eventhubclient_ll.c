@@ -93,8 +93,22 @@ static int SetMessageBatchProperty(EVENTDATA_HANDLE eventDataHandle, char** prot
 {
     int result;
     size_t index;
-    size_t propertyCount = EventData_GetPropertyCount(eventDataHandle);
-    if (propertyCount > 0)
+    const char*const* keys;
+    const char*const* values;
+    size_t propertyCount = 0;
+
+    MAP_HANDLE mapProperties = EventData_Properties(eventDataHandle);
+    if (mapProperties == NULL)
+    {
+        LogError("Failure pn_data.\r\n");
+        result = __LINE__;
+    }
+    else if (Map_GetInternals(mapProperties, &keys, &values, &propertyCount) != MAP_OK)
+    {
+        LogError("Failure Map_GetInternals.\r\n");
+        result = __LINE__;
+    }
+    else if (propertyCount > 0)
     {
         pn_data_t* propertyData;
         if ( (propertyData = pn_data(0) ) == NULL)
@@ -117,28 +131,18 @@ static int SetMessageBatchProperty(EVENTDATA_HANDLE eventDataHandle, char** prot
             *propertyLen = PROTON_PROPERTY_HEADER_SIZE;
             for (index = 0; index < propertyCount; index++)
             {
-                const char* propertyName = NULL;
-                const char* propertyInfo;
-                EVENTDATA_RESULT eventResult = EventData_GetPropertyByIndex(eventDataHandle, index, &propertyName, &propertyInfo);
-                if (eventResult != EVENTDATA_OK || propertyInfo == NULL || propertyName == NULL)
+                *propertyLen += strlen(keys[index])+2;
+                *propertyLen += strlen(values[index])+2;
+
+                if (pn_data_put_symbol(propertyData, pn_bytes(strlen(keys[index]), keys[index])) != 0)
                 {
+                    LogError("Failure pn_data_put_symbol.\r\n");
                     break;
                 }
-                else
+                else if (pn_data_put_string(propertyData, pn_bytes(strlen(values[index]), values[index])) != 0)
                 {
-                    *propertyLen += strlen(propertyInfo)+2;
-                    *propertyLen += strlen(propertyName)+2;
-
-                    if (pn_data_put_symbol(propertyData, pn_bytes(strlen(propertyName), propertyName)) != 0)
-                    {
-                        LogError("Failure pn_data_put_symbol.\r\n");
-                        break;
-                    }
-                    else if (pn_data_put_string(propertyData, pn_bytes(strlen(propertyInfo), propertyInfo)) != 0)
-                    {
-                            LogError("Failure pn_data_put_string.\r\n");
-                        break;
-                    }
+                        LogError("Failure pn_data_put_string.\r\n");
+                    break;
                 }
             }
             

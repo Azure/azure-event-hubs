@@ -37,6 +37,7 @@ IN THE SOFTWARE.
 #include "version.h"
 #include "lock.h"
 #include "doublylinkedlist.h"
+#include "map.h"
 
 DEFINE_MICROMOCK_ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES);
 
@@ -77,6 +78,8 @@ EVENTHUBCLIENT_CONFIRMATION_RESULT g_confirmationResult;
 
 #define TEST_STRING_TOKENIZER_HANDLE (STRING_TOKENIZER_HANDLE)0x48
 
+#define TEST_MAP_HANDLE (MAP_HANDLE)0x49
+
 #define TEST_SIZE 7
 #define TEST_BYTES "MyTestBytes"
 #define NULL_PN_MESSENGER_NAME NULL
@@ -110,9 +113,13 @@ static const char* PROPERTY_NAME = "PropertyName";
 static const char TEST_STRING_VALUE[] = "Property_String_Value_1";
 static const char TEST_STRING_VALUE2[] = "Property_String_Value_2";
 
-const int BUFFER_SIZE = 8;
-bool g_setProperty = false;
+static const char* TEST_PROPERTY_KEY[] = {"Key1", "Key2"};
+static const char* TEST_PROPERTY_VALUE[] = {"Value1", "Value2"};
+
+static const int BUFFER_SIZE = 8;
+static bool g_setProperty = false;
 static bool g_lockInitFail = false;
+static bool g_includeProperties = false;
 
 static size_t currentmalloc_call;
 static size_t whenShallmalloc_fail;
@@ -369,16 +376,6 @@ public:
     MOCK_STATIC_METHOD_2(, EVENTDATA_HANDLE, EventData_CreateWithNewMemory, const unsigned char*, data, size_t, length)
     MOCK_METHOD_END(EVENTDATA_HANDLE, (EVENTDATA_HANDLE)BASEIMPLEMENTATION::gballoc_malloc(1))
 
-    MOCK_STATIC_METHOD_4(, EVENTDATA_RESULT, EventData_GetPropertyByIndex, EVENTDATA_HANDLE, eventDataHandle, size_t, propertyIndex, const char**, propertyName, const char**, propertyValue)
-        EVENTDATA_RESULT eventdataResult = EVENTDATA_MISSING_PROPERTY_NAME;
-        if (g_setProperty)
-        {
-            *propertyName = PROPERTY_NAME;
-            *propertyValue = TEST_STRING_VALUE;
-            eventdataResult = EVENTDATA_OK;
-        }
-    MOCK_METHOD_END(EVENTDATA_RESULT, eventdataResult)
-
     MOCK_STATIC_METHOD_3(, EVENTDATA_RESULT, EventData_GetData, EVENTDATA_HANDLE, eventDataHandle, const unsigned char**, data, size_t*, dataLength)
     {
         g_currentEventDataGetData_call++;
@@ -402,8 +399,8 @@ public:
     MOCK_STATIC_METHOD_1(, const char*, EventData_GetPartitionKey, EVENTDATA_HANDLE, eventDataHandle)
     MOCK_METHOD_END(const char*, NULL)
 
-    MOCK_STATIC_METHOD_1(, size_t, EventData_GetPropertyCount, EVENTDATA_HANDLE, eventDataHandle)
-    MOCK_METHOD_END(size_t, 0)
+    MOCK_STATIC_METHOD_1(, MAP_HANDLE, EventData_Properties, EVENTDATA_HANDLE, eventDataHandle)
+    MOCK_METHOD_END(MAP_HANDLE, TEST_MAP_HANDLE)
 
     MOCK_STATIC_METHOD_1(, EVENTDATA_HANDLE, EventData_Clone, EVENTDATA_HANDLE, eventDataHandle)
         EVENTDATA_HANDLE evHandle;
@@ -417,6 +414,15 @@ public:
             evHandle = (EVENTDATA_HANDLE)BASEIMPLEMENTATION::gballoc_malloc(1);
         }
     MOCK_METHOD_END(EVENTDATA_HANDLE, evHandle)
+
+    MOCK_STATIC_METHOD_4(, MAP_RESULT, Map_GetInternals, MAP_HANDLE, handle, const char*const**, keys, const char*const**, values, size_t*, count)
+        if (g_includeProperties)
+        {
+            *keys = TEST_PROPERTY_KEY;
+            *values = TEST_PROPERTY_VALUE;
+            *count = 2;
+        }
+    MOCK_METHOD_END(MAP_RESULT, MAP_OK)
 
     /* Version Mocks */
     MOCK_STATIC_METHOD_0(, const char*, EventHubClient_GetVersionString)
@@ -566,13 +572,11 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , LOCK_RESULT, Lock, LOCK_H
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , LOCK_RESULT, Unlock, LOCK_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , LOCK_RESULT, Lock_Deinit, LOCK_HANDLE, handle)
 
-
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , EVENTDATA_HANDLE, EventData_CreateWithNewMemory, const unsigned char*, data, size_t, length);
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , EVENTDATA_RESULT, EventData_GetData, EVENTDATA_HANDLE, eventDataHandle, const unsigned char**, data, size_t*, dataLength);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, EventData_Destroy, EVENTDATA_HANDLE, eventDataHandle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , const char*, EventData_GetPartitionKey, EVENTDATA_HANDLE, eventDataHandle);
-DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , EVENTDATA_RESULT, EventData_GetPropertyByIndex, EVENTDATA_HANDLE, eventDataHandle, size_t, propertyIndex, const char**, propertyName, const char**, propertyValue)
-DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , size_t, EventData_GetPropertyCount, EVENTDATA_HANDLE, eventDataHandle);
+DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , MAP_HANDLE, EventData_Properties, EVENTDATA_HANDLE, eventDataHandle);
 
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , EVENTDATA_HANDLE, EventData_Clone, EVENTDATA_HANDLE, eventDataHandle);
 
@@ -594,6 +598,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, STRING_TOKENIZER_de
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , void, sendAsyncConfirmationCallback, EVENTHUBCLIENT_CONFIRMATION_RESULT, result2, void*, userContextCallback);
 
+DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MAP_RESULT, Map_GetInternals, MAP_HANDLE, handle, const char*const**, keys, const char*const**, values, size_t*, count);
 
 // ** End of Mocks **
 static MICROMOCK_GLOBAL_SEMAPHORE_HANDLE g_dllByDll;
@@ -675,6 +680,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         g_confirmationResult = EVENTHUBCLIENT_CONFIRMATION_ERROR;
         g_whenEventDataGetData_fail = 0;
         g_currentEventDataGetData_call = 0;
+
+        g_includeProperties = false;
     }
 
     TEST_FUNCTION_CLEANUP(TestMethodCleanup)
@@ -2096,16 +2103,16 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(ehMocks, pn_messenger_status(IGNORED_PTR_ARG, IGNORE))
             .SetReturn((pn_status_t)PN_STATUS_ACCEPTED);
         EXPECTED_CALL(ehMocks, pn_messenger_settle(IGNORED_PTR_ARG, IGNORE, 0));
-        EXPECTED_CALL(ehMocks, EventData_GetPropertyCount(IGNORED_PTR_ARG))
-            .SetReturn(1);
-        EXPECTED_CALL(ehMocks, EventData_GetPropertyByIndex(IGNORED_PTR_ARG, 0, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        EXPECTED_CALL(ehMocks, EventData_Properties(IGNORED_PTR_ARG));
+        EXPECTED_CALL(ehMocks, Map_GetInternals(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(ehMocks, pn_data(0));
         EXPECTED_CALL(ehMocks, pn_data_put_map(IGNORED_PTR_ARG));
         EXPECTED_CALL(ehMocks, pn_data_enter(IGNORED_PTR_ARG));
         EXPECTED_CALL(ehMocks, pn_bytes(IGNORE, IGNORED_PTR_ARG))
-            .ExpectedTimesExactly(5);
+            .ExpectedTimesExactly(15);
         
         g_setProperty = true;
+        g_includeProperties = true;
 
         //act
         EventHubClient_LL_DoWork(eventHubHandle); //At this point the message is marked as WAITFORACK
