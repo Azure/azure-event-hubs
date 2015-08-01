@@ -44,20 +44,33 @@ typedef struct EVENT_PROPERTY_TAG
     STRING_HANDLE value;
 } EVENT_PROPERTY;
 
-static bool VectorPredicateFunc(const void* handle, const void* otherHandle)
+static bool ContainsOnlyUsAscii(const char* asciiValue)
 {
-    bool result;
-    EVENT_PROPERTY* eventhandle1 = (EVENT_PROPERTY*)handle;
-    EVENT_PROPERTY* eventhandle2 = (EVENT_PROPERTY*)otherHandle;
-    if (eventhandle1 != NULL && eventhandle2 != NULL)
+    bool result = true;;
+    const char* iterator = asciiValue;
+    while (iterator != NULL && *iterator != '\0')
     {
-        result = (STRING_compare(eventhandle1->key, eventhandle2->key) == 0);
+        // Allow only printable ascii char 
+        if (*iterator < ' ' || *iterator > '~')
+        {
+            result = false;
+            break;
+        }
+        iterator++;
+    }
+    return result;
+}
+
+static int ValidateAsciiCharactersFilter(const char* mapKey, const char* mapValue)
+{
+    int result;
+    if (!ContainsOnlyUsAscii(mapKey) || !ContainsOnlyUsAscii(mapValue) )
+    {
+        result = __LINE__;
     }
     else
     {
-        // This should not happen by convention, but ...
-        result = false;
-        LogError("VectorPredicate function fail\r\n");
+        result = 0;
     }
     return result;
 }
@@ -100,7 +113,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
         else
         {
             eventData->partitionKey = NULL;
-            if ( (eventData->properties = Map_Create(NULL) ) == NULL)
+            if ( (eventData->properties = Map_Create(ValidateAsciiCharactersFilter) ) == NULL)
             {
                 BUFFER_delete(eventData->buffer);
                 free(eventData);
@@ -298,7 +311,7 @@ EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
 MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
 {
     MAP_HANDLE result;
-    /*Codes_SRS_IOTHUBMESSAGE_02_001: [If iotHubMessageHandle is NULL then IoTHubMessage_Properties shall return NULL.]*/
+    /* SRS_EVENTDATA_07_034: [if eventDataHandle is NULL then EventData_Properties shall return NULL.] */
     if (eventDataHandle == NULL)
     {
         LogError("invalid arg (NULL) passed to IoTHubMessage_Properties\r\n")
@@ -306,7 +319,7 @@ MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
     }
     else
     {
-        /*Codes_SRS_IOTHUBMESSAGE_02_002: [Otherwise, for any non-NULL iotHubMessageHandle it shall return a non-NULL MAP_HANDLE.]*/
+        /* SRS_EVENTDATA_07_035: [Otherwise, for any non-NULL eventDataHandle it shall return a non-NULL MAP_HANDLE.] */
         EVENT_DATA* handleData = (EVENT_DATA*)eventDataHandle;
         result = handleData->properties;
     }

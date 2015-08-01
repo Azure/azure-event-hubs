@@ -61,6 +61,8 @@ namespace BASEIMPLEMENTATION
     #undef Lock_Deinit
 };
 
+#define NUMBER_OF_CHAR      8
+
 static const BUFFER_HANDLE TEST_BUFFER_HANDLE = (BUFFER_HANDLE)0x42;
 
 static MICROMOCK_MUTEX_HANDLE g_testByTest;
@@ -1012,6 +1014,69 @@ TEST_FUNCTION(EventData_GetPartitionKey_SUCCEED)
     mocks.AssertActualAndExpectedCalls();
 
     // cleanup
+    EventData_Destroy(eventDataHandle);
+}
+
+TEST_FUNCTION(EventData_Properties_with_NULL_handle_returns_NULL)
+{
+    ///arrange
+    CEventDataMocks mocks;
+    mocks.ResetAllCalls();
+
+    ///act
+    MAP_HANDLE result = EventData_Properties(NULL);
+
+    ///assert
+    ASSERT_IS_NULL(result);
+    mocks.AssertActualAndExpectedCalls();
+
+    ///cleanup
+}
+
+TEST_FUNCTION(EventData_Map_Filter_Succeed)
+{
+    ///arrange
+    CEventDataMocks mocks;
+    unsigned char expectedData[] = { 0x42, 0x43, 0x44 };
+    size_t expectedSize = sizeof(expectedData);
+
+    EVENTDATA_HANDLE eventDataHandle = EventData_CreateWithNewMemory(expectedData, expectedSize);
+    mocks.ResetAllCalls();
+
+    ASSERT_IS_NOT_NULL(g_mapFilterFunc);
+
+    ///act
+    char* validNameChar = "validNameChar";
+    char* validValueChar = "validValueChar";
+
+    char invalidNameChar[NUMBER_OF_CHAR];
+    char invalidValueChar[NUMBER_OF_CHAR];
+    for (size_t index = 0; index < NUMBER_OF_CHAR; index++)
+    {
+        invalidNameChar[index] = (char)index+2;
+        invalidValueChar[index] = (char)index+2;
+    }
+
+    auto result1 = g_mapFilterFunc(validNameChar, validValueChar);
+    auto result2 = g_mapFilterFunc(invalidNameChar, invalidValueChar);
+    auto result3 = g_mapFilterFunc(invalidNameChar, validValueChar);
+    auto result4 = g_mapFilterFunc(validNameChar, invalidValueChar);
+    auto result5 = g_mapFilterFunc(NULL, validValueChar);
+    auto result6 = g_mapFilterFunc(validNameChar, NULL);
+    auto result7 = g_mapFilterFunc(NULL, NULL);
+
+    ///assert
+    ASSERT_ARE_EQUAL(int, 0, result1);
+    ASSERT_ARE_NOT_EQUAL(int, 0, result2);
+    ASSERT_ARE_NOT_EQUAL(int, 0, result3);
+    ASSERT_ARE_NOT_EQUAL(int, 0, result4);
+    ASSERT_ARE_EQUAL(int, 0, result5);
+    ASSERT_ARE_EQUAL(int, 0, result6);
+    ASSERT_ARE_EQUAL(int, 0, result7);
+
+    mocks.AssertActualAndExpectedCalls();
+
+    ///cleanup
     EventData_Destroy(eventDataHandle);
 }
 

@@ -84,9 +84,9 @@ int SendBatch_Sample(void)
             MAP_HANDLE mapProperties = EventData_Properties(eventDataList[0]);
             if (mapProperties != NULL)
             {
-                if ( (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_1", TEST_STRING_VALUE_1) != MAP_ERROR) ||
-                    (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_A", TEST_STRING_VALUE_A) != MAP_ERROR) ||
-                    (Map_AddOrUpdate(eventDataList[1], "SendBatch_HL_2", TEST_STRING_VALUE_2) != MAP_ERROR)
+                if ( (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_1", TEST_STRING_VALUE_1) == MAP_ERROR) ||
+                    (Map_AddOrUpdate(eventDataList[0], "SendBatch_HL_A", TEST_STRING_VALUE_A) == MAP_ERROR) ||
+                    (Map_AddOrUpdate(eventDataList[1], "SendBatch_HL_2", TEST_STRING_VALUE_2) == MAP_ERROR)
                     )
                 {
                     (void)printf("ERROR: Map_AddOrUpdate failed!\r\n");
