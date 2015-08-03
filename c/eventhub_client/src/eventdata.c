@@ -130,7 +130,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
     else
     {
         eventData->partitionKey = NULL;
-        if ( (eventData->properties = Map_Create(NULL) ) == NULL)
+        if ( (eventData->properties = Map_Create(ValidateAsciiCharactersFilter) ) == NULL)
         {
             BUFFER_delete(eventData->buffer);
             free(eventData);
