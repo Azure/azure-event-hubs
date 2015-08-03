@@ -314,7 +314,7 @@ MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
     /* SRS_EVENTDATA_07_034: [if eventDataHandle is NULL then EventData_Properties shall return NULL.] */
     if (eventDataHandle == NULL)
     {
-        LogError("invalid arg (NULL) passed to IoTHubMessage_Properties\r\n")
+        LogError("invalid arg (NULL) passed to EventData_Properties\r\n")
         result = NULL;
     }
     else

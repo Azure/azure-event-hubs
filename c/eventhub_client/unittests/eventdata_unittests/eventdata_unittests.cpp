@@ -541,6 +541,8 @@ TEST_FUNCTION_INITIALIZE(TestMethodInitialize)
 
     currentMap_Clone_call = 0;
     whenShallMap_Clone_fail = 0;
+
+    g_mapFilterFunc = NULL;
 }
 
 TEST_FUNCTION_CLEANUP(TestMethodCleanup)
