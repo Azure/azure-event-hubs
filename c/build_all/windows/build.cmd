@@ -32,6 +32,8 @@ rem // default build options
 set build-clean=0
 set build-config=Debug
 set build-platform=Win32
+set skip-tests=0
+set skip-e2e-tests=0
 
 :args-loop
 if "%1" equ "" goto args-done
@@ -39,6 +41,8 @@ if "%1" equ "-c" goto arg-build-clean
 if "%1" equ "--clean" goto arg-build-clean
 if "%1" equ "--config" goto arg-build-config
 if "%1" equ "--platform" goto arg-build-platform
+if "%1" equ "--skip-tests" goto arg-skip-tests
+if "%1" equ "--skip-e2e-tests" goto arg-skip-e2e-tests
 call :usage && exit /b 1
 
 :arg-build-clean
@@ -57,6 +61,14 @@ if "%1" equ "" call :usage && exit /b 1
 set build-platform=%1
 goto args-continue
 
+:arg-skip-tests
+set skip-tests=1
+goto args-continue
+
+:arg-skip-e2e-tests
+set skip-e2e-tests=1
+goto args-continue
+
 :args-continue
 shift
 goto args-loop
@@ -68,11 +80,11 @@ rem -- clean solutions
 rem -----------------------------------------------------------------------------
 
 if %build-clean%==1 (
-	call :clean-a-solution "%build-root%\common\build\windows\common.sln"
-	if not %errorlevel%==0 exit /b %errorlevel%
-
-	call :clean-a-solution "%build-root%\eventhub_client\build\windows\eventhubclient.sln"
-	if not %errorlevel%==0 exit /b %errorlevel%
+    call :clean-a-solution "%build-root%\common\build\windows\common.sln"
+    if not %errorlevel%==0 exit /b %errorlevel%
+    
+    call :clean-a-solution "%build-root%\eventhub_client\build\windows\eventhubclient.sln"
+    if not %errorlevel%==0 exit /b %errorlevel%
 )
 
 rem -----------------------------------------------------------------------------
@@ -89,18 +101,28 @@ rem ----------------------------------------------------------------------------
 rem -- run unit tests
 rem -----------------------------------------------------------------------------
 
-call :run-unit-tests "common"
-if not %errorlevel%==0 exit /b %errorlevel%
+if %skip-tests%==1 (
+    echo Skipping unit tests...
+) else (
+    call :run-unit-tests "common"
+    if not %errorlevel%==0 exit /b %errorlevel%
 
-call :run-unit-tests "eventhub_client"
-if not %errorlevel%==0 exit /b %errorlevel%
-
+    call :run-unit-tests "eventhub_client"
+    if not %errorlevel%==0 exit /b %errorlevel%
+)
 rem -----------------------------------------------------------------------------
 rem -- run end-to-end tests
 rem -----------------------------------------------------------------------------
 
-call :run-e2e-tests "eventhub_client"
-if not %errorlevel%==0 exit /b %errorlevel%
+set __skip=1
+if %skip-tests%==0 if %skip-e2e-tests%==0 set __skip=0
+
+if %__skip%==1 (
+    echo Skipping end-to-end tests...
+) else (
+    call :run-e2e-tests "eventhub_client"
+    if not %errorlevel%==0 exit /b %errorlevel%
+)
 
 rem -----------------------------------------------------------------------------
 rem -- done
@@ -136,9 +158,11 @@ goto :eof
 :usage
 echo build.cmd [options]
 echo options:
-echo  -c, --clean        delete artifacts from previous build before building
-echo  --config ^<value^>   [Debug] build configuration (e.g. Debug, Release)
-echo  --platform ^<value^> [Win32] build platform (e.g. Win32, x64, ...)
+echo  -c, --clean           delete artifacts from previous build before building
+echo  --config ^<value^>      [Debug] build configuration (e.g. Debug, Release)
+echo  --platform ^<value^>    [Win32] build platform (e.g. Win32, x64, ...)
+echo  --skip-tests          build only, do not run any tests
+echo  --skip-e2e-tests      do not run end-to-end tests
 goto :eof
 
 

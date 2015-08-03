@@ -109,7 +109,13 @@ void VECTOR_erase(VECTOR_HANDLE handle, void* elements, size_t numElements)
         }
         else
         {
-            vec->storage = realloc(vec->storage, (vec->elementSize * vec->count));
+            // Realloc can return NULL, so we ensure that this is valid memory address before
+            // assigning to storage
+            void* tempStorage = realloc(vec->storage, (vec->elementSize * vec->count));
+            if (tempStorage != NULL)
+            {
+                vec->storage = tempStorage;
+            }
         }
     }
 }
