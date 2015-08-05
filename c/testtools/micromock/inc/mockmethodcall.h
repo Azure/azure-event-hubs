@@ -111,6 +111,13 @@ public:
         m_OnlySpecifiesActions = true;
         return *this;
     }
+
+	CMockMethodCall<returnType>& IgnoreAllCalls()
+	{
+		m_IgnoreAllCalls = true;
+		return *this;
+	}
+
     CMockMethodCall<returnType>& ValidateArgumentBuffer(_In_ size_t argumentNo,
         _In_reads_bytes_opt_(bytesToValidate) const void* expectedBuffer, _In_ size_t bytesToValidate, _In_ size_t byteOffset = 0)
     {

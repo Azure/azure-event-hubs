@@ -47,6 +47,7 @@ public:
 
     CMockMethodCallBase* m_MatchedCall;
     bool m_OnlySpecifiesActions;
+	bool m_IgnoreAllCalls;
     bool m_AlwaysReport;
     size_t m_ExpectedTimes;
     size_t m_MatchedTimes;

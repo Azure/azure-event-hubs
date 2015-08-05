@@ -75,7 +75,7 @@ namespace Microsoft \
             { \
                 __VA_ARGS__ \
             }; \
-            template <> static std::wstring ToString < EnumName > (const EnumName & q)  \
+            template <> std::wstring ToString < EnumName > (const EnumName & q)  \
             {  \
                 if((size_t)q>=sizeof(EnumName##_Strings)/sizeof(EnumName##_Strings[0])) \
                 { \

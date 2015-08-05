@@ -34,7 +34,12 @@ IN THE SOFTWARE.
 
 #define MOCK_ASSERT(expected, actual, assertString)     ASSERT_ARE_EQUAL((expected), (actual), (assertString))
 #define MOCK_FAIL(expression)                           ASSERT_FAIL(expression)
+
+#ifndef MBED_BUILD_TIMESTAMP
 #define MOCK_THROW(mockException)                       throw(mockException)
+#else
+#define MOCK_THROW(mockException)
+#endif
 
 #else // MOCK_ASSERT
 #define MOCK_THROW(...)

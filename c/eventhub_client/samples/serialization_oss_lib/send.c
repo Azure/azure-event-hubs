@@ -39,6 +39,8 @@ SOFTWARE.
 #include <stdlib.h>
 #include <time.h>
 
+// Serialization library information can be found http://ccodearchive.net/info/json.html
+
 static const char* connectionString = "Endpoint=sb://[namespace].servicebus.windows.net/;SharedAccessKeyName=[key name];SharedAccessKey=[key value]";
 static const char* eventHubPath = "[event hub name]";
 

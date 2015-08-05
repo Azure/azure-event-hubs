@@ -54,6 +54,7 @@ void CMockMethodCallBase::Init(std::tstring methodName)
     m_MethodName = methodName;
     m_MatchedCall = NULL;
     m_OnlySpecifiesActions = false;
+	m_IgnoreAllCalls = false;
     m_ExpectedTimes = 1;
     m_MatchedTimes = 0;
     m_AlwaysReport = false;

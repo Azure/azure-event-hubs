@@ -31,7 +31,6 @@ IN THE SOFTWARE.
 #include "mockvalue.h"
 #include "mockcallargumentbase.h"
 #include "micromockexception.h"
-#include "memory.h"
 #include "stddef.h"
 
 template<typename T>

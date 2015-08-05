@@ -17,6 +17,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 IN THE SOFTWARE.
 */
 
+
 #ifndef STRICTORDEREDCALLCOMPARER_H
 #define STRICTORDEREDCALLCOMPARER_H
 
@@ -73,36 +74,47 @@ public:
         {
             CMockMethodCallBase* expectedCall = expectedCalls[m_ExpectedCallIndex];
 
-            // if the expected call has not yet been matched
-            if (!expectedCall->HasMatch() &&
-                // and it matches the actual call
+			// if the expected call says all calls of this type should be ignored, 
+			// then match
+            if ((expectedCall->m_IgnoreAllCalls) &&
                 (*expectedCall == *actualCall))
-            {
-                // check whether the number of expected calls of this type have been found
-                // in the actual calls array
-                if (expectedCall->m_MatchedTimes < expectedCall->m_ExpectedTimes)
-                {
-                    // record that we found yet another actual call matching the expected call
-                    expectedCall->m_MatchedTimes++;
-                    if (expectedCall->m_MatchedTimes == expectedCall->m_ExpectedTimes)
-                    {
-                        // mark the expected call as fully matched
-                        // (no other actual call will be matched against it)
-                        expectedCall->m_MatchedCall = actualCall;
-                    }
+			{
+				actualCall->m_MatchedCall = expectedCall;
+				expectedCall->m_MatchedCall = actualCall;
+			}
+			else
+			{
+				// if the expected call has not yet been matched
+				if (!expectedCall->HasMatch() &&
+					// and it matches the actual call
+					(*expectedCall == *actualCall))
+				{
+					// check whether the number of expected calls of this type have been found
+					// in the actual calls array
+					if (expectedCall->m_MatchedTimes < expectedCall->m_ExpectedTimes)
+					{
+						// record that we found yet another actual call matching the expected call
+						expectedCall->m_MatchedTimes++;
+						if (expectedCall->m_MatchedTimes == expectedCall->m_ExpectedTimes)
+						{
+							// mark the expected call as fully matched
+							// (no other actual call will be matched against it)
+							expectedCall->m_MatchedCall = actualCall;
+						}
 
-                    // mark the actual call as having a match
-                    actualCall->m_MatchedCall = expectedCall;
-                    result = expectedCall;
-                }
-                else
-                {
-                    // too many calls, check if exact is specified
-                    if (expectedCall->m_ExactExpectedTimes)
-                    {
-                        actualCall->m_AlwaysReport = true;
-                    }
-                }
+						// mark the actual call as having a match
+						actualCall->m_MatchedCall = expectedCall;
+						result = expectedCall;
+					}
+					else
+					{
+						// too many calls, check if exact is specified
+						if (expectedCall->m_ExactExpectedTimes)
+						{
+							actualCall->m_AlwaysReport = true;
+						}
+					}
+				}
             }
         }
 
