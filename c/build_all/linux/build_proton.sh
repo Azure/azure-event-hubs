@@ -57,6 +57,17 @@ process_args ()
 
 sync_proton ()
 {
+    echo AzureIoT Eventhub Client has a dependency on apache qpid-proton-c
+    echo https://github.com/apache/qpid-proton/blob/master/LICENSE
+
+    read -p "Do you want to install the component (y/n)?" input_var
+    if [ "$input_var" == "y" ] || [ "$input_var" == "Y" ]
+    then
+        echo "preparing qpid proton-c"
+    else
+        exit
+    fi
+
     rm $build_root -r -f
     mkdir $build_root
     git clone -b $proton_branch $proton_repo $build_root

@@ -13,6 +13,18 @@ if defined PROTON_PATH set build-root=%PROTON_PATH%\qpid-proton
 echo Build root is %build-root%
 
 rem -----------------------------------------------------------------------------
+rem -- Make sure they know this is a third party component
+rem -----------------------------------------------------------------------------
+
+@Echo AzureIoT Eventhub Client has a dependency on apache qpid-proton-c
+@Echo https://github.com/apache/qpid-proton/blob/master/LICENSE
+
+set /P installComp=Do you want to install the component (y/n)? 
+if "%installComp%"=="N" GOTO End
+if "%installComp%"=="n" GOTO End
+
+
+rem -----------------------------------------------------------------------------
 rem -- sync the Proton source code
 rem -----------------------------------------------------------------------------
 
@@ -37,3 +49,5 @@ if not %errorlevel%==0 exit /b %errorlevel%
 
 msbuild proton.sln
 if not %errorlevel%==0 exit /b %errorlevel%
+
+:End
