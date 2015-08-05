@@ -42,7 +42,6 @@ The following platforms have been tested against this library:
 * Debian 7.5
 * Ubuntu Snappy 
 * Raspbian (tested device Raspberry Pi 2)
-* Mbed (tested device Freescale FRDM-K64F)
 
 
 #Directory structure of repository
@@ -56,7 +55,7 @@ Contains device getting started and setup documentation.
 #common
 Contains components which are not specific to Event Hubs. It includes the following subdirectories:
  
-   * build: Contains one subfolder for each platform (e.g. Windows, Linux, Mbed). Subfolders contain makefiles, batch files, solutions that are used to generate the library binaries.
+   * build: Contains one subfolder for each platform (e.g. Windows, Linux). Subfolders contain makefiles, batch files, solutions that are used to generate the library binaries.
    * docs: Requirements, designs notes, manuals.
    * inc: Public include files.
    * src: Client library source files.
