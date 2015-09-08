@@ -18,9 +18,9 @@ IN THE SOFTWARE.
 */
 
 #include "lock.h"
-#include<pthread.h>
-#include<stdlib.h>
-#include "iot_logging.h"
+#include <pthread.h>
+#include <stdlib.h>
+#include <iot_logging.h>
 
 DEFINE_ENUM_STRINGS(LOCK_RESULT, LOCK_RESULT_VALUES);
 
@@ -119,6 +119,52 @@ LOCK_RESULT Lock_Deinit(LOCK_HANDLE handle)
 	}
 	
 	return result;
+ }
+ 
+ 
+extern COND_HANDLE Condition_Init(int initial_count)
+{
+    pthread_cond_t * cond = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
+    pthread_cond_init(cond, NULL);
+    return cond;
 }
 
+extern COND_RESULT Condition_Post(COND_HANDLE handle)
+{
+    pthread_cond_broadcast((pthread_cond_t*)handle);
+    return COND_OK;
+}
+
+extern COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds)
+{
+    if ( timeout_milliseconds > 0)
+    {
+        struct timespec tm;
+        tm.tv_sec = timeout_milliseconds / 1000;
+        tm.tv_nsec = (timeout_milliseconds % 1000) * 1000000L;
+        int wait_result = pthread_cond_timedwait((pthread_cond_t *)handle, (pthread_mutex_t *)lock, &tm);
+        if ( wait_result == ETIMEDOUT)
+        {
+            return COND_TIMEOUT;
+        }
+        else
+        {
+            return COND_ERROR;
+        }
+    }
+    else
+    {
+        if ( pthread_cond_wait((pthread_cond_t*)handle, (pthread_mutex_t *)lock) != 0 )
+        {
+            return COND_ERROR;
+        }
+    }
+    return COND_OK;
+}
+
+extern COND_RESULT Condition_Deinit(COND_HANDLE  handle)
+{
+    pthread_cond_destroy((pthread_cond_t*)handle);
+    return COND_OK;
+}
 
