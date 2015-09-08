@@ -122,20 +122,20 @@ LOCK_RESULT Lock_Deinit(LOCK_HANDLE handle)
  }
  
  
-extern COND_HANDLE Condition_Init(int initial_count)
+COND_HANDLE Condition_Init(void)
 {
     pthread_cond_t * cond = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
     pthread_cond_init(cond, NULL);
     return cond;
 }
 
-extern COND_RESULT Condition_Post(COND_HANDLE handle)
+COND_RESULT Condition_Post(COND_HANDLE handle)
 {
     pthread_cond_broadcast((pthread_cond_t*)handle);
     return COND_OK;
 }
 
-extern COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds)
+COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds)
 {
     if ( timeout_milliseconds > 0)
     {
@@ -162,7 +162,7 @@ extern COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int tim
     return COND_OK;
 }
 
-extern COND_RESULT Condition_Deinit(COND_HANDLE  handle)
+COND_RESULT Condition_Deinit(COND_HANDLE  handle)
 {
     pthread_cond_destroy((pthread_cond_t*)handle);
     return COND_OK;
