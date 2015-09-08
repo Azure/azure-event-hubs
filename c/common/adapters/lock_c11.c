@@ -121,7 +121,7 @@ LOCK_RESULT Lock_Deinit(LOCK_HANDLE handle)
 	return result;
 }
 
-COND_HANDLE Condition_Init()
+COND_HANDLE Condition_Init(void)
 {
 	cnd_t * cond = (cnd_t*)malloc(sizeof(cnd_t));
 	cnd_init(cond);
