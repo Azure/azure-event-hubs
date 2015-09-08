@@ -49,10 +49,10 @@ typedef void* COND_HANDLE;
 
 DEFINE_ENUM(COND_RESULT, COND_RESULT_VALUES);
     
-extern COND_HANDLE Condition_Init();
-extern COND_RESULT Condition_Post(COND_HANDLE  handle);
-extern COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds);
-extern COND_RESULT Condition_Deinit(COND_HANDLE  handle);
+COND_HANDLE Condition_Init();
+COND_RESULT Condition_Post(COND_HANDLE  handle);
+COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds);
+COND_RESULT Condition_Deinit(COND_HANDLE  handle);
     
 
 #ifdef __cplusplus
