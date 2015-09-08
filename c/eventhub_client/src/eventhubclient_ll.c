@@ -579,11 +579,11 @@ static EVENTHUBCLIENT_RESULT GenerateMessagePayload(EVENTHUBCLIENT_LL_STRUCT* ev
         result = EVENTHUBCLIENT_ERROR;
         LogError("pn_message_body failed.\r\n");
     }
-    else if (pn_message_set_format(eventHubClientLLStruct->message, 0x80013700) != 0)
-    {
-        result = EVENTHUBCLIENT_ERROR;
-        LogError("pn_message_set_format failed.\r\n");
-    }
+    //else if (pn_message_set_format(eventHubClientLLStruct->message, 0x80013700) != 0)
+    //{
+    //    result = EVENTHUBCLIENT_ERROR;
+    //    LogError("pn_message_set_format failed.\r\n");
+    //}
     else
     {
         int tempResult = 0;

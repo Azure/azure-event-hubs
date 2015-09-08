@@ -29,6 +29,7 @@ IN THE SOFTWARE.
 #include "iot_logging.h"
 
 DEFINE_ENUM_STRINGS(LOCK_RESULT, LOCK_RESULT_VALUES);
+DEFINE_ENUM_STRINGS(COND_RESULT, COND_RESULT_VALUES);
 
 /*SRS_LOCK_99_002:[ This API on success will return a valid lock handle which should be a non NULL value]*/
 LOCK_HANDLE Lock_Init(void)
@@ -118,4 +119,50 @@ LOCK_RESULT Lock_Deinit(LOCK_HANDLE handle)
 	}
 	
 	return result;
+}
+
+COND_HANDLE Condition_Init()
+{
+	cnd_t * cond = (cnd_t*)malloc(sizeof(cnd_t));
+	cnd_init(cond);
+	return cond;
+}
+
+COND_RESULT Condition_Post(COND_HANDLE handle)
+{
+	cnd_broadcast((cnd_t*)handle);
+	return COND_OK;
+}
+
+COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds)
+{
+	if (timeout_milliseconds > 0)
+	{
+		struct xtime tm;
+		tm.sec = timeout_milliseconds / 1000;
+		tm.nsec = (timeout_milliseconds % 1000) * 1000000L;
+		int wait_result = cnd_timedwait((cnd_t *)handle, (mtx_t *)lock, &tm);
+		if (wait_result == ETIMEDOUT)
+		{
+			return COND_TIMEOUT;
+		}
+		else
+		{
+			return COND_ERROR;
+		}
+	}
+	else
+	{
+		if (cnd_wait((cnd_t*)handle, (mtx_t *)lock) != 0)
+		{
+			return COND_ERROR;
+		}
+	}
+	return COND_OK;
+}
+
+COND_RESULT Condition_Deinit(COND_HANDLE  handle)
+{
+	cnd_destroy((cnd_t*)handle);
+	return COND_OK;
 }
