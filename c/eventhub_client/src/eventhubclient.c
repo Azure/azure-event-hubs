@@ -86,7 +86,7 @@ static void EventhubClientLLCallback(EVENTHUBCLIENT_CONFIRMATION_RESULT result, 
     }
 }
 
-EVENTHUB_CALLBACK_STRUCT * EventHubClient_InitUserContext()
+EVENTHUB_CALLBACK_STRUCT * EventHubClient_InitUserContext(void)
 {
     EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = malloc(sizeof(EVENTHUB_CALLBACK_STRUCT) );
     if ( eventhubUserContext != NULL)
