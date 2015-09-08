@@ -727,10 +727,18 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle)
     /* Codes_SRS_EVENTHUBCLIENT_LL_03_010: [If the eventHubClientLLHandle is NULL, EventHubClient_LL_Destroy shall not do anything.] */
     if (eventHubClientLLHandle != NULL)
     {
-        PDLIST_ENTRY unsend;
+        
+		PDLIST_ENTRY unsend;
         /* Codes_SRS_EVENTHUBCLIENT_LL_03_009: [EventHubClient_LL_Destroy shall terminate the usage of this EventHubClient specified by the eventHubClientLLHandle and cleanup all associated resources.] */
         EVENTHUBCLIENT_LL_STRUCT* ehLLStruct = (EVENTHUBCLIENT_LL_STRUCT*)eventHubClientLLHandle;
-        STRING_delete(ehLLStruct->keyName);
+        
+		/* Codes_SRS_EVENTHUBCLIENT_LL_03_034: [EventHubClient_LL_Destroy shall then stop the messenger by invoking pn_messenger_stop.] */
+		if (amqpStopMessenger(ehLLStruct->messenger) != true)
+		{
+			LogError("Error trying to stop the messenger.\r\n");
+		}
+		
+		STRING_delete(ehLLStruct->keyName);
         STRING_delete(ehLLStruct->keyValue);
         STRING_delete(ehLLStruct->namespace);
         STRING_delete(ehLLStruct->eventHubpath);
@@ -753,11 +761,7 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle)
             free(temp);
         }
 
-        /* Codes_SRS_EVENTHUBCLIENT_LL_03_034: [EventHubClient_LL_Destroy shall then stop the messenger by invoking pn_messenger_stop.] */		
-        if (amqpStopMessenger(ehLLStruct->messenger) != true)
-        {
-            LogError("Error trying to stop the messenger.\r\n");
-        }
+        
 
         /* SRS_EVENTHUBCLIENT_LL_03_040: [EventHubClient_LL_Destroy shall clean the messenger resource via a call to pn_messenger_free.] */
         pn_messenger_free(ehLLStruct->messenger);
