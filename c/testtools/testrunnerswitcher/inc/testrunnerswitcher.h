@@ -22,7 +22,7 @@ IN THE SOFTWARE.
 
 #ifdef USE_CTEST
 
-#include "ctest.h"
+#include <ctest.h>
 
 #define BEGIN_TEST_SUITE(name)          CTEST_BEGIN_TEST_SUITE(name)
 #define END_TEST_SUITE(name)            CTEST_END_TEST_SUITE(name)

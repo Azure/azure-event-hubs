@@ -18,7 +18,7 @@ IN THE SOFTWARE.
 
 */
 
-#include "testrunnerswitcher.h"
+#include <testrunnerswitcher.h>
 
 int main(void)
 {
