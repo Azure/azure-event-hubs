@@ -20,15 +20,13 @@ find_package(Threads REQUIRED)
 
 add_library(ctest STATIC ${CTEST_SOURCES})
 
-target_link_libraries (ctest ${CMAKE_THREAD_LIBS_INIT})
-
 IF (${CMAKE_MAJOR_VERSION} LESS 3 )
    GET_PROPERTY(ctest_location_prop TARGET ctest PROPERTY LOCATION)
    set(ctest_location ${ctest_location_prop} CACHE FILEPATH "")
 ENDIF()
 
+target_link_libraries (ctest ${CMAKE_THREAD_LIBS_INIT})
 
-add_dependencies(core ctest)
 
 install (TARGETS ctest 
                ARCHIVE DESTINATION ${LIB_INSTALL_DIR}

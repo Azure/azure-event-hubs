@@ -24,4 +24,3 @@ target_link_libraries (eventhub_test
     ${${PROJECT_NAME}_EXTERNAL_LIBRARIES})
 
 add_dependencies(eventhub_test eventhub_client)
-add_dependencies(samples eventhub_test)

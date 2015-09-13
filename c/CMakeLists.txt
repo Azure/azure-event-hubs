@@ -35,8 +35,8 @@ mark_as_advanced (INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
 add_custom_target(core)
 
 add_subdirectory(common)
-add_subdirectory(eventhub_client)
 add_subdirectory(testtools)
+add_subdirectory(eventhub_client)
 
 
 
