@@ -26,7 +26,7 @@ add_library(micromock STATIC ${MICROMOCK_SOURCES})
 target_link_libraries (micromock ${CMAKE_THREAD_LIBS_INIT})
 
 IF (${CMAKE_MAJOR_VERSION} LESS 3 )
-   GET_PROPERTY(micromock_location_prop TARGET MICROMOCK PROPERTY LOCATION)
+   GET_PROPERTY(micromock_location_prop TARGET micromock PROPERTY LOCATION)
    set(micromock_location ${micromock_location_prop} CACHE FILEPATH "")
 ENDIF()
 
