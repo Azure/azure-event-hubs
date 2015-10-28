@@ -17,7 +17,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 IN THE SOFTWARE.
 */
 
-#include "testrunnerswitcher.h"
+#include <testrunnerswitcher.h>
 
 int main(void)
 {

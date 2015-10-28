@@ -1,0 +1,8 @@
+
+add_subdirectory(eventdata_unittests)
+add_subdirectory(eventhubclient_e2etests)
+add_subdirectory(eventhubclient_ll_unittests)
+add_subdirectory(eventhubclient_unittests)
+
+
+

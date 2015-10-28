@@ -60,15 +60,15 @@ typedef int MICROMOCK_CRITICAL_SECTION;
 #define SAL_Releases_lock_(...)
 #endif
 
-#include "string"
-#include "sstream"
-#include "map"
-#include "algorithm"
-#include "iomanip"
-#include "vector"
-#include "set"
+#include <string>
+#include <sstream>
+#include <map>
+#include <algorithm>
+#include <iomanip>
+#include <vector>
+#include <set>
 
-#include "sal.h"
+#include <sal.h>
 
 #ifdef _MSC_VER
 /*'function' : unreferenced local function has been removed*/

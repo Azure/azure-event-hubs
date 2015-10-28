@@ -17,17 +17,17 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 IN THE SOFTWARE.
 */
 
-#include "stdio.h"
-#include "malloc.h"
-#include "string.h"
-#include "ctype.h"
-#include "httpapi.h"
-#include "httpheaders.h"
-#include "crt_abstractions.h"
-#include "curl/curl.h"
-#include "iot_logging.h"
-#include "stddef.h"
-#include "strings.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <httpapi.h>
+#include <httpheaders.h>
+#include <crt_abstractions.h>
+#include <curl/curl.h>
+#include <iot_logging.h>
+#include <stddef.h>
+#include <strings.h>
 
 #define TEMP_BUFFER_SIZE 1024
 

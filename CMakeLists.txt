@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 2.6)
+project(azure_event_hubs C CXX)
+enable_testing()
+
+function(create_source_group sourceGroupName relativeSourcePath)
+    FOREACH(currentSourceFile ${ARGN})
+        FILE(RELATIVE_PATH folder ${relativeSourcePath} ${currentSourceFile})
+        get_filename_component(filename ${folder} NAME)
+        string(REPLACE ${filename} "" folder ${folder})
+        if(NOT folder STREQUAL "")
+            string(REGEX REPLACE "/+$" "" folderlast ${folder})
+            string(REPLACE "/" "\\" folderlast ${folderlast})
+            SOURCE_GROUP("${sourceGroupName}\\${folderlast}" FILES ${currentSourceFile})
+        endif(NOT folder STREQUAL "")
+    ENDFOREACH(currentSourceFile ${ARGN})
+endfunction(create_source_group)
+
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
+add_subdirectory(c)

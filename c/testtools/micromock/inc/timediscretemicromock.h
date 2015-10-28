@@ -398,7 +398,7 @@ class stims_base
 	template<typename resultType, typename arg1Type, typename arg2Type, typename arg3Type, typename arg4Type, typename arg5Type, typename arg6Type, typename arg7Type, typename arg8Type, typename arg9Type, class C> friend class call9Arg;
 	template<typename resultType, typename arg1Type, typename arg2Type, typename arg3Type, typename arg4Type, typename arg5Type, typename arg6Type, typename arg7Type, typename arg8Type, typename arg9Type, typename arg10Type, class C> friend class call10Arg;
 	
-private:
+public:
 	static std::vector<canPlay *> allPlayers;
 
 	static void registerCallXArg(canPlay* someStim)								
