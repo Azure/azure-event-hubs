@@ -1,6 +1,6 @@
-#Microsoft Azure Event Hubs Client SDK
+#Microsoft Azure Event Hubs Clients
 
-This project provides device-side libraries to enable easy interaction with Microsoft Azure Event Hubs.
+This project provides client-side libraries to enable easy interaction with Microsoft Azure Event Hubs.
 
 
 C Version 
@@ -8,7 +8,7 @@ C Version
 
 The C Version of this Azure Event Hub Client SDK is located under the folder [root]/c/.
 
-The EventHubClient ìCî library provides developers a means of connecting to an already created Event Hub and the ability to send data to it. 
+The EventHubClient ‚ÄúC‚Äù library provides developers a means of connecting to an already created Event Hub and the ability to send data to it. 
 
 The library includes the following features:
 * The library communicates to an existing Event Hub over AMQP protocol.

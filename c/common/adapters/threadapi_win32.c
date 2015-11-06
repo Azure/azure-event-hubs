@@ -38,7 +38,7 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
     }
     else
     {
-		*threadHandle = CreateThread(NULL, 0, func, arg, 0, NULL);
+		*threadHandle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)func, arg, 0, NULL);
 		if(threadHandle == NULL)
 		{
 			result = THREADAPI_ERROR;
