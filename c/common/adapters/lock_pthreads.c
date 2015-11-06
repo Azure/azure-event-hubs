@@ -22,6 +22,7 @@ IN THE SOFTWARE.
 #include <stdlib.h>
 #include <iot_logging.h>
 #include <errno.h>
+#include <time.h>
 
 DEFINE_ENUM_STRINGS(LOCK_RESULT, LOCK_RESULT_VALUES);
 DEFINE_ENUM_STRINGS(COND_RESULT, COND_RESULT_VALUES);
@@ -141,10 +142,10 @@ COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_mi
 {
     if ( timeout_milliseconds > 0)
     {
-        struct timespec tm;
-        tm.tv_sec = timeout_milliseconds / 1000;
-        tm.tv_nsec = (timeout_milliseconds % 1000) * 1000000L;
-        int wait_result = pthread_cond_timedwait((pthread_cond_t *)handle, (pthread_mutex_t *)lock, &tm);
+        struct timespec tm1;
+        tm1.tv_sec = timeout_milliseconds / 1000;
+        tm1.tv_nsec = (timeout_milliseconds % 1000) * 1000000L;
+        int wait_result = pthread_cond_timedwait((pthread_cond_t *)handle, (pthread_mutex_t *)lock, &tm1);
         if ( wait_result == ETIMEDOUT)
         {
             return COND_TIMEOUT;

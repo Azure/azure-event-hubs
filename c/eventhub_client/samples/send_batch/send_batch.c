@@ -55,7 +55,7 @@ int SendBatch_Sample(void)
     for (index = 0; index < NUM_OF_MSG_TO_SEND; index++)
     {
         char msgContent[BUFFER_SIZE];
-        size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%I64d, \"timeValue\":%I64d, \"name\":\"SendBatch_Sample\"}", index, t);
+        size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%ul, \"timeValue\":%I64d, \"name\":\"SendBatch_Sample\"}", index, t);
 
         if ( (eventDataList[index] = EventData_CreateWithNewMemory((const unsigned char*)msgContent, msgLength) ) == NULL)
         {

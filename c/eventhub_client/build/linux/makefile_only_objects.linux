@@ -39,7 +39,7 @@ CFLAGS = -I../../inc -I../../../common/inc -I../../../testtools/eventhub_test/in
 	-Wlogical-op -Wfloat-equal -Wstrict-aliasing=2 \
 	-Wold-style-definition -Werror -Wno-unused-function -Wno-unused-value -Wno-unused-variable \
 	-DGB_DEBUG_ALLOC -DGB_MEASURE_MEMORY_FOR_THIS \
-	-g -std=c99 -DUSING_PTHREAD -pthread \
+	-g -std=c11 -DUSING_PTHREAD -pthread \
 	$(EXTRA_CL_OPTIONS)
 
 #this is a substitution reference http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
