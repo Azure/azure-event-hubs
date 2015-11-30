@@ -181,5 +181,5 @@ Buildx86retail.dat
 
 #version file
 **/build/**/version.txt
-/node/node_modules/**/
-/node/.vscode/launch.json
+**/node_modules/
+**/.vscode/
