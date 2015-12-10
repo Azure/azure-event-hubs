@@ -11,7 +11,6 @@ var amqp10 = require('amqp10');
 var ConnectionConfig = require('../lib/config');
 
 var EventHubClient = require('../lib/client');
-var MessagingEntityNotFoundError = require('../lib/errors').MessagingEntityNotFoundError;
 var ArgumentOutOfRangeError = require('../lib/errors').ArgumentOutOfRangeError;
 
 function receiveAnEvent(partitionId, msgId, done, cbErr) {

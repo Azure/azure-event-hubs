@@ -122,7 +122,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
       var endpoint = '/' + self._eventHubPath +
         '/ConsumerGroups/' + consumerGroup +
         '/Partitions/' + partitionId;
-      var options = null;
+      var filter = null;
       if (options) {
         var filterClause = null;
         if (options.startAfterTime) {
@@ -135,7 +135,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
         }
 
         if (filterClause) {
-          options = {
+          filter = {
             attach: { source: { filter: {
               'apache.org:selector-filter:string': amqp10.translator(
                 ['described', ['symbol', 'apache.org:selector-filter:string'], ['string', filterClause]])
@@ -144,7 +144,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
         }
       }
 
-      return self._amqp.createReceiver(endpoint, options);
+      return self._amqp.createReceiver(endpoint, filter);
     })
     .then(function (amqpReceiver) {
       return new Receiver(amqpReceiver);
