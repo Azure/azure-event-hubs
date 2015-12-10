@@ -39,6 +39,22 @@ extern LOCK_RESULT Lock(LOCK_HANDLE  handle);
 extern LOCK_RESULT Unlock(LOCK_HANDLE  handle);
 extern LOCK_RESULT Lock_Deinit(LOCK_HANDLE  handle);
 
+    
+typedef void* COND_HANDLE;
+    
+#define COND_RESULT_VALUES \
+    COND_OK, \
+    COND_ERROR, \
+    COND_TIMEOUT \
+
+DEFINE_ENUM(COND_RESULT, COND_RESULT_VALUES);
+    
+extern COND_HANDLE Condition_Init(void);
+extern COND_RESULT Condition_Post(COND_HANDLE  handle);
+extern COND_RESULT Condition_Wait(COND_HANDLE  handle, LOCK_HANDLE lock, int timeout_milliseconds);
+extern COND_RESULT Condition_Deinit(COND_HANDLE  handle);
+    
+
 #ifdef __cplusplus
 }
 #endif

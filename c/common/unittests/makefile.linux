@@ -69,7 +69,7 @@ OBJECTS_C=$(SOURCES_C:.c=.o)
 OBJECTS_CPP=$(SOURCES_CPP:.cpp=.opp)
 
 #these are compilation flags passed to the compiler for every C file
-CFLAGS=-c -g -std=c99 -DUSING_PTHREAD -pthread \
+CFLAGS=-c -g -std=c11 -DUSING_PTHREAD -pthread \
     -Wall -Wfatal-errors -Wno-missing-braces -Wextra \
     -Wno-missing-field-initializers -Wformat=2 \
     -Wswitch-default -Wcast-align -Wpointer-arith \
