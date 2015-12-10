@@ -8,11 +8,11 @@ chai.should();
 
 var uuid = require('uuid');
 var amqp10 = require('amqp10');
-var ConnectionConfig = require('../lib/config.js');
+var ConnectionConfig = require('../lib/config');
 
-var EventHubClient = require('../lib/client.js');
-var MessagingEntityNotFoundError = require('../lib/errors.js').MessagingEntityNotFoundError;
-var ArgumentOutOfRangeError = require('../lib/errors.js').ArgumentOutOfRangeError;
+var EventHubClient = require('../lib/client');
+var MessagingEntityNotFoundError = require('../lib/errors').MessagingEntityNotFoundError;
+var ArgumentOutOfRangeError = require('../lib/errors').ArgumentOutOfRangeError;
 
 function sendAnEvent(partitionId, msgId, cbErr) {
   var config = new ConnectionConfig(process.env.EVENTHUB_CONNECTION_STRING, process.env.EVENTHUB_PATH);
@@ -65,7 +65,8 @@ describe('EventHubReceiver', function () {
 
   describe('.event:message', function () {
     it('fires when an event is received', function (done) {
-      client.createReceiver('$Default', '0')
+      var justBeforeNow = Date.now() - (1000 * 5); // 5 seconds ago
+      client.createReceiver('$Default', '0', { startAfterTime: justBeforeNow })
         .then(function (receiver) {
           var id = uuid.v4();
           receiver.on('errorReceived', done);

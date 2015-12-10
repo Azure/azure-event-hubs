@@ -6,10 +6,11 @@
 var uuid = require('uuid');
 var amqp10 = require('amqp10');
 var Promise = require('bluebird');
-var Receiver = require('./receiver.js');
-var ConnectionConfig = require('./config.js');
+var Receiver = require('./receiver');
+var Sender = require('./sender');
+var ConnectionConfig = require('./config');
 var ArgumentError = require('azure-iot-common').errors.ArgumentError;
-var MessagingEntityNotFoundError = require('../lib/errors.js').MessagingEntityNotFoundError;
+var MessagingEntityNotFoundError = require('./errors').MessagingEntityNotFoundError;
 
 function EventHubClient(config) {
   var makeError = function (prop) {
@@ -99,16 +100,78 @@ EventHubClient.prototype.getPartitionIds = function () {
   }.bind(this));
 };
 
-EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup, partitionId) {
+/**
+ * Creates a receiver for the given event hub, consumer group, and partition.
+ * Receivers are event emitters, watch for 'message' and 'errorReceived' events.
+ *
+ * @method createReceiver
+ * @param {string} consumerGroup                      Consumer group from which to receive.
+ * @param {(string|Number)} partitionId               Partition ID from which to receive.
+ * @param {*} [options]                               Options for how you'd like to connect. Only one can be specified.
+ * @param {(Date|Number)} options.startAfterTime      Only receive messages enqueued after the given time.
+ * @param {string} options.startAfterOffset           Only receive messages after the given offset.
+ * @param {string} options.customFilter               If you want more fine-grained control of the filtering.
+ *      See https://github.com/Azure/amqpnetlite/wiki/Azure%20Service%20Bus%20Event%20Hubs for details.
+ *
+ * @return {Promise}
+ */
+EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup, partitionId, options) {
+  var self = this;
   return this.open()
     .then(function () {
-      var endpoint = '/' + this._eventHubPath +
+      var endpoint = '/' + self._eventHubPath +
         '/ConsumerGroups/' + consumerGroup +
         '/Partitions/' + partitionId;
-      return this._amqp.createReceiver(endpoint);
-    }.bind(this))
+      var options = null;
+      if (options) {
+        var filterClause = null;
+        if (options.startAfterTime) {
+          var time = (options.startAfterTime instanceof Date) ? options.startAfterTime.getTime() : options.startAfterTime;
+          filterClause = "amqp.annotation.x-opt-enqueuedtimeutc > '" + time + "'";
+        } else if (options.startAfterOffset) {
+          filterClause = "amqp.annotation.x-opt-offset > '" + options.startAfterOffset + "'";
+        } else if (options.customFilter) {
+          filterClause = options.customFilter;
+        }
+
+        if (filterClause) {
+          options = {
+            attach: { source: { filter: {
+              'apache.org:selector-filter:string': amqp10.translator(
+                ['described', ['symbol', 'apache.org:selector-filter:string'], ['string', filterClause]])
+            } } }
+          };
+        }
+      }
+
+      return self._amqp.createReceiver(endpoint, options);
+    })
     .then(function (amqpReceiver) {
       return new Receiver(amqpReceiver);
+    });
+};
+
+/**
+ * Creates a sender to the given event hub, and optionally to a given partition.
+ * Senders are event emitters, watch for 'errorReceived' events.
+ *
+ * @method createSender
+ * @param {(string|Number)} [partitionId]                 Partition ID from which to receive.
+ *
+ * @return {Promise}
+ */
+EventHubClient.prototype.createSender = function createSender(partitionId) {
+  var self = this;
+  return this.open()
+    .then(function () {
+      var endpoint = '/' + self._eventHubPath;
+      if (partitionId) {
+        endpoint += '/Partitions/' + partitionId;
+      }
+      return self._amqp.createSender(endpoint);
+    })
+    .then(function (amqpSender) {
+      return new Sender(amqpSender);
     });
 };
 

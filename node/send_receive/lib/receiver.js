@@ -6,7 +6,7 @@
 var EventEmitter = require('events');
 var util = require('util');
 
-var errors = require('./errors.js');
+var errors = require('./errors');
 
 function EventHubReceiver(amqpReceiverLink) {
   var self = this;

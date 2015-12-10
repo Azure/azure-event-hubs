@@ -9,10 +9,10 @@ var chaiAsPromised = require('chai-as-promised');
 var should = chai.should();
 chai.use(chaiAsPromised);
 
-var Receiver = require('../lib/receiver.js');
-var EventHubClient = require('../lib/client.js');
+var Receiver = require('../lib/receiver');
+var EventHubClient = require('../lib/client');
 var ArgumentError = require('azure-iot-common').errors.ArgumentError;
-var MessagingEntityNotFoundError = require('../lib/errors.js').MessagingEntityNotFoundError;
+var MessagingEntityNotFoundError = require('../lib/errors').MessagingEntityNotFoundError;
 
 function testFalsyValues(testFn) {
   [null, undefined, '', 0].forEach(function (value) {
