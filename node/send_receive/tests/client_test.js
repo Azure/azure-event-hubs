@@ -66,7 +66,7 @@ describe('EventHubClient', function () {
 });
 
 function arrayOfIncreasingNumbersFromZero(length) {
-  return Array.apply(null, Array(length)).map(function (x, i) { return String(i); });
+  return Array.apply(null, new Array(length)).map(function (x, i) { return String(i); });
 }
 
 function createClient(connectionString, eventHubPath) {

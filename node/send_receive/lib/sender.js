@@ -31,6 +31,8 @@ function EventHubSender(amqpSenderLink) {
   });
 }
 
+util.inherits(EventHubSender, EventEmitter);
+
 /**
  * Sends the given message, with the given options on this link
  *
@@ -48,6 +50,19 @@ EventHubSender.prototype.send = function (message, partitionKey) {
   return this._senderLink.send(message, options);
 };
 
-util.inherits(EventHubSender, EventEmitter);
+/**
+ * "Unlink" this sender, closing the link and resolving when that operation is complete. Leaves the underlying connection/session open.
+ *
+ * @method close
+ *
+ * @return {Promise}
+ */
+EventHubSender.prototype.close = function() {
+  var self = this;
+  return self._senderLink.detach().then(function () {
+    self.removeAllListeners();
+    self._senderLink = null;
+  });
+};
 
 module.exports = EventHubSender;
