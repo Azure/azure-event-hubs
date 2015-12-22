@@ -191,7 +191,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
  * Senders are event emitters, watch for 'errorReceived' events.
  *
  * @method createSender
- * @param {(string|Number)} [partitionId]                 Partition ID from which to receive.
+ * @param {(string|Number)} [partitionId]                 Partition ID to which it will send (optional).
  *
  * @return {Promise}
  */
