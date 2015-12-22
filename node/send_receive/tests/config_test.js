@@ -6,7 +6,7 @@
 var chai = require('chai');
 chai.should();
 
-var ConnectionConfig = require('../lib/config');
+var ConnectionConfig = require('../lib/config.js');
 
 describe('ConnectionConfig', function () {
   it('populates host from the connection string\'s Endpoint', function () {

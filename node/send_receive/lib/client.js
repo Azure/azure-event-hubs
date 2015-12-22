@@ -6,11 +6,11 @@
 var uuid = require('uuid');
 var amqp10 = require('amqp10');
 var Promise = require('bluebird');
-var Receiver = require('./receiver');
-var Sender = require('./sender');
-var ConnectionConfig = require('./config');
+var Receiver = require('./receiver.js');
+var Sender = require('./sender.js');
+var ConnectionConfig = require('./config.js');
 var ArgumentError = require('azure-iot-common').errors.ArgumentError;
-var MessagingEntityNotFoundError = require('./errors').MessagingEntityNotFoundError;
+var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoundError;
 
 function EventHubClient(config) {
   var makeError = function (prop) {

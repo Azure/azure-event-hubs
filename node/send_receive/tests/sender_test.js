@@ -8,10 +8,10 @@ chai.should();
 
 var uuid = require('uuid');
 var amqp10 = require('amqp10');
-var ConnectionConfig = require('../lib/config');
+var ConnectionConfig = require('../lib/config.js');
 
-var EventHubClient = require('../lib/client');
-var ArgumentOutOfRangeError = require('../lib/errors').ArgumentOutOfRangeError;
+var EventHubClient = require('../lib/client.js');
+var ArgumentOutOfRangeError = require('../lib/errors.js').ArgumentOutOfRangeError;
 
 function receiveAnEvent(partitionId, msgId, done, cbErr) {
   var config = new ConnectionConfig(process.env.EVENTHUB_CONNECTION_STRING, process.env.EVENTHUB_PATH);
