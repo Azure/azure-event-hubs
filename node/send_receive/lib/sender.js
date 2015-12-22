@@ -8,6 +8,15 @@ var util = require('util');
 
 var errors = require('./errors.js');
 
+/**
+ * Instantiates a new sender from the AMQP `SenderLink`. Used by `EventHubClient`.
+ *
+ * Senders emit one event of note:
+ * - `errorReceived`: Emits an error from the AMQP library when it receives one from the server.
+ *
+ * @param amqpSenderLink
+ * @constructor
+ */
 function EventHubSender(amqpSenderLink) {
   var self = this;
   self._senderLink = amqpSenderLink;

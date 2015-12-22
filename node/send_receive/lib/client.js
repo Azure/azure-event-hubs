@@ -12,6 +12,12 @@ var ConnectionConfig = require('./config.js');
 var ArgumentError = require('azure-iot-common').errors.ArgumentError;
 var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoundError;
 
+/**
+ * Instantiate a client pointing to the Event Hub given by this configuration.
+ *
+ * @param {ConnectionConfig} config
+ * @constructor
+ */
 function EventHubClient(config) {
   var makeError = function (prop) {
     return new ArgumentError('config is missing property ' + prop);
@@ -27,6 +33,14 @@ function EventHubClient(config) {
   this._connectPromise = null;
 }
 
+/**
+ * Static factory method for convenience.
+ *
+ * @method fromConnectionString
+ * @param {string} connectionString - Connection string of the form 'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key'
+ * @param {string} path - Event Hub path of the form 'my-event-hub-name'
+ * @returns {EventHubClient}
+ */
 EventHubClient.fromConnectionString = function (connectionString, path) {
   if (!connectionString) {
     throw new ArgumentError('Missing argument connectionString');
@@ -40,6 +54,13 @@ EventHubClient.fromConnectionString = function (connectionString, path) {
   return new EventHubClient(config);
 };
 
+/**
+ * Opens the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when the connection is completed.
+ *
+ * @method open
+ *
+ * @returns {Promise}
+ */
 EventHubClient.prototype.open = function () {
   if (!this._connectPromise) {
     this._connectPromise = this._amqp.connect(this._uri);
@@ -48,11 +69,25 @@ EventHubClient.prototype.open = function () {
   return this._connectPromise;
 };
 
+/**
+ * Closes the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when disconnection is completed.
+ *
+ * @method close
+ *
+ * @returns {Promise}
+ */
 EventHubClient.prototype.close = function () {
   this._connectPromise = null;
   return this._amqp.disconnect();
 };
 
+/**
+ * Gets the partition IDs for the Event Hub for this client.
+ *
+ * @method getPartitionIds
+ *
+ * @returns {Promise} with array of partition IDs.
+ */
 EventHubClient.prototype.getPartitionIds = function () {
   return new Promise(function (resolve, reject) {
     var endpoint = '$management';

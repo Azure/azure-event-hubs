@@ -8,6 +8,18 @@ var util = require('util');
 
 var errors = require('./errors.js');
 
+/**
+ * Instantiate a new receiver from the AMQP `ReceiverLink`. Used by `EventHubClient`.
+ *
+ * Receivers emit two events of note:
+ * - `message`: Emits an AMQP message when one is received from the hub
+ *    - `message.body` should contain contents (it will automatically parse JSON payloads)
+ *    - `message.annotations.value` contains the message x-headers (see https://github.com/Azure/amqpnetlite/wiki/Azure-Service-Bus-Event-Hubs for details on message annotation properties from EH).
+ * - `errorReceived`: Emits an error from the AMQP library when it receives one from the server.
+ *
+ * @param amqpReceiverLink
+ * @constructor
+ */
 function EventHubReceiver(amqpReceiverLink) {
   var self = this;
 
