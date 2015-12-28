@@ -144,7 +144,7 @@ public:
         }
         else
         {
-            handle = malloc(1);
+            handle = (BUFFER_HANDLE)malloc(1);
         }
     MOCK_METHOD_END(BUFFER_HANDLE, handle)
 
@@ -173,7 +173,7 @@ public:
             }
             else
             {
-                handleClone = malloc(1);
+                handleClone = (BUFFER_HANDLE)malloc(1);
             }
         }
     MOCK_METHOD_END(BUFFER_HANDLE, handleClone)
