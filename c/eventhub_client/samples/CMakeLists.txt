@@ -12,3 +12,5 @@ function(add_sample_directory whatIsBuilding)
 endfunction()
 
 add_sample_directory(send)
+add_sample_directory(send_batch)
+add_sample_directory(sendasync)
