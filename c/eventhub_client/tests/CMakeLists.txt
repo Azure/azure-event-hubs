@@ -6,3 +6,6 @@ cmake_minimum_required(VERSION 3.0)
 #this is CMakeLists for the eventhub_client tests folder
 
 add_subdirectory(eventdata_unittests)
+add_subdirectory(eventhubclient_unittests)
+add_subdirectory(eventhubclient_ll_unittests)
+add_subdirectory(eventhubclient_e2etests)
