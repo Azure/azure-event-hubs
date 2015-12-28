@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\assertfailurestests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\assertsuccesstests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\ctestunittests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\simpletestsuiteonetest.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\simpletestsuitetwotests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\testfunctioncleanuptests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\testfunctioninitializetests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\testsuiteinitializecleanuptests.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\simpletestsuiteonetestcpp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\Repos\azure-event-hubs\c\azure-c-shared-utility\c\testtools\ctest\unittests\ctestunittests\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{E0219E58-08BA-43B6-A697-717EF0361C40}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
