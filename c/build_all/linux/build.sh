@@ -7,7 +7,7 @@ set -e
 script_dir=$(cd "$(dirname "$0")" && pwd)
 build_root=$(cd "${script_dir}/../.." && pwd)
 log_dir=$build_root
-run_e2e_tests=ON
+run_e2e_tests=OFF
 run_longhaul_tests=OFF
 skip_unittests=OFF
 
@@ -17,9 +17,8 @@ usage ()
     echo "options"
     echo " -cl, --compileoption <value>  specify a compile option to be passed to gcc"
     echo "   Example: -cl -O1 -cl ..."
-    echo " --skip-e2e-tests              skip the running of end-to-end tests (e2e tests are run by default)"
+    echo " --run-e2e-tests               runs the end-to-end tests (e2e tests are not run by default)"
     echo " --skip-unittests              skip the running of unit tests (unit tests are run by default)"
-	echo " --run-longhaul-tests          run long haul tests (long haul tests are not run by default)"
     exit 1
 }
 
@@ -38,9 +37,8 @@ process_args ()
       else
           case "$arg" in
               "-cl" | "--compileoption" ) save_next_arg=1;;
-              "--skip-e2e-tests" ) run_e2e_tests=OFF;;
-			  "--skip-unittests" ) skip_unittests=ON;;
-              "--run-longhaul-tests" ) run_longhaul_tests=ON;;
+              "--run-e2e-tests" ) run_e2e_tests=ON;;
+              "--skip-unittests" ) skip_unittests=ON;;
               * ) usage;;
           esac
       fi
