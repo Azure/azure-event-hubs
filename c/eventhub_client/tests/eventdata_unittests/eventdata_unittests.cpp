@@ -1048,8 +1048,8 @@ TEST_FUNCTION(EventData_Map_Filter_Succeed)
     ASSERT_IS_NOT_NULL(g_mapFilterFunc);
 
     ///act
-    char* validNameChar = "validNameChar";
-    char* validValueChar = "validValueChar";
+    const char validNameChar[] = "validNameChar";
+    const char validValueChar[] = "validValueChar";
 
     char invalidNameChar[NUMBER_OF_CHAR];
     char invalidValueChar[NUMBER_OF_CHAR];
