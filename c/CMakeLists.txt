@@ -15,6 +15,9 @@ SET(PROTON_LIB "qpid-proton" CACHE STRING "name of the qpid c library. This can 
 #Use solution folders. 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+add_definitions(-DREFCOUNT_ATOMIC_DONTCARE)
+add_definitions(-D__STDC_NO_ATOMICS__=1)
+
 if(IN_OPENWRT)
     ADD_DEFINITIONS("$ENV{TARGET_LDFLAGS}" "$ENV{TARGET_CPPFLAGS}" "$ENV{TARGET_CFLAGS}")
     INCLUDE_DIRECTORIES("$ENV{TOOLCHAIN_DIR}/usr/include" "$ENV{TARGET_LDFLAGS}" "$ENV{TARGET_CPPFLAGS}" "$ENV{TARGET_CFLAGS}")
