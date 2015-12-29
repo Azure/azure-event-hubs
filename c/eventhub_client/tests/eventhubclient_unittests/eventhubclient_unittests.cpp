@@ -32,6 +32,7 @@ IN THE SOFTWARE.
 #include "lock.h"
 #include "eventhubclient_ll.h"
 #include "threadapi.h"
+#include "condition.h"
 
 #define GBALLOC_H
 
@@ -350,9 +351,9 @@ public:
 		}
 	MOCK_METHOD_END(COND_RESULT, COND_OK);
 
-	MOCK_STATIC_METHOD_1(, COND_RESULT, Condition_Deinit, COND_HANDLE, handle)
+	MOCK_STATIC_METHOD_1(, void, Condition_Deinit, COND_HANDLE, handle)
 		free(handle);
-	MOCK_METHOD_END(COND_RESULT, COND_OK);
+	MOCK_VOID_METHOD_END()
 };
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , EVENTHUBCLIENT_LL_HANDLE, EventHubClient_LL_CreateFromConnectionString, const char*, connectionString, const char*, eventHubPath);
@@ -376,7 +377,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , LOCK_RESULT, Lock_Deinit, L
 DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientMocks, , COND_HANDLE, Condition_Init);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , COND_RESULT, Condition_Post, COND_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , COND_RESULT, Condition_Wait, COND_HANDLE, handle, LOCK_HANDLE, lock, int, timeout);
-DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , COND_RESULT, Condition_Deinit, COND_HANDLE, handle)
+DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void, Condition_Deinit, COND_HANDLE, handle)
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , EVENTDATA_HANDLE, EventData_CreateWithNewMemory, const unsigned char*, data, size_t, length);
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , EVENTDATA_RESULT, EventData_GetData, EVENTDATA_HANDLE, eventDataHandle, const unsigned char**, data, size_t*, dataLength);

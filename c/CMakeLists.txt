@@ -223,6 +223,8 @@ function(build_test_artifacts whatIsBuilding use_gballoc)
     
 endfunction(build_test_artifacts)
 
+add_subdirectory(testtools)
+
 set(SHARED_UTIL_ADAPTER_FOLDER "${CMAKE_CURRENT_LIST_DIR}/azure-c-shared-utility/c/adapters")
 if(WIN32)
     set(LOCK_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/lock_c11.c)

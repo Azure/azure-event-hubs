@@ -17,7 +17,7 @@ set(${theseTestsName}_c_files
 set(${theseTestsName}_h_files
 )
 
-include_directories(${IOTHUB_TEST_INC_FOLDER})
+include_directories(${EVENTHUB_TEST_INC_FOLDER})
 
 build_test_artifacts(${theseTestsName} ON)
 
