@@ -27,6 +27,7 @@ IN THE SOFTWARE.
 #include <iot_logging.h>
 #include <version.h>
 #include <threadapi.h>
+#include <condition.h>
 #include <crt_abstractions.h>
 #include <lock.h>
 #include <signal.h>
