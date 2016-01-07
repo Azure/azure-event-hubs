@@ -87,7 +87,7 @@ PartitionContext.prototype.updateCheckpointDataFromLease = function() {
 PartitionContext.prototype.updateCheckpointDataFromMessage = function(message) {
   if (message && message.annotations && message.annotations.value) {
     var anno = message.annotations.value;
-    if (anno['x-opt-enqueued-time']) this._checkpointDetails.Epoch = anno['x-opt-enqueued-time'];
+    if (anno['x-opt-enqueued-time']) this._checkpointDetails.Epoch = new Date(anno['x-opt-enqueued-time']).getTime();
     if (anno['x-opt-offset']) this._checkpointDetails.Offset = anno['x-opt-offset'];
     if (anno['x-opt-sequence-number']) this._checkpointDetails.SequenceNumber = anno['x-opt-sequence-number'];
   }

@@ -74,8 +74,11 @@ EventProcessorHost.prototype.start = function(partitionFilter) {
     self._eventHubClient.getPartitionIds()
       .then(function (ids) {
         ids.forEach(function (id) {
+          if (partitionFilter && !partitionFilter(id)) {
+            debug('Skipping partition ' + id);
+            return;
+          }
           debug('Managing lease for partition ' + id);
-          if (partitionFilter && !partitionFilter(id)) return; // Skip this partition
 
           var blobPath = self._consumerGroup + '/' + id;
           var lease = new Cerulean.Lease(self._storageConnectionString, self._hostName, blobPath);
