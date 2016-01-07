@@ -9,7 +9,6 @@ public final class EventProcessorOptions
     private int maxBatchSize = 10;
     private int prefetchCount = 300;
     private int receiveTimeOutMilliseconds = 60000; // default to one minute
-    private ExecutorService executorService;
 
     public static EventProcessorOptions getDefaultOptions()
     {
@@ -18,12 +17,7 @@ public final class EventProcessorOptions
 
     public EventProcessorOptions()
     {
-        this.executorService = Executors.newCachedThreadPool();
     }
-
-    public ExecutorService getExecutorService() { return this.executorService; }
-
-    public void setExecutorService(ExecutorService executorService) { this.executorService = executorService; }
 
     public Boolean getInvokeProcessorAfterReceiveTimeout()
     {

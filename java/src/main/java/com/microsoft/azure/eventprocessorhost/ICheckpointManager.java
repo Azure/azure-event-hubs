@@ -3,11 +3,10 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-// TODO class which implements this interface using Azure Storage.
+// WILL NORMALLY BE IMPLEMENTED ON THE SAME CLASS AS ILeaseManager
+// Requires IManagerBase also
 public interface ICheckpointManager
 {
-    public void initializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService);
-
     public Future<Boolean> checkpointStoreExists();
 
     public Future<Boolean> createCheckpointStoreIfNotExists();

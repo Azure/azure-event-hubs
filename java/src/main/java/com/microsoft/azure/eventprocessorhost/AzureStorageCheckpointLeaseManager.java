@@ -6,20 +6,17 @@ import java.util.ArrayList;
 import java.util.concurrent.*;
 
 
-public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
+public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckpointManager, ILeaseManager
 {
     private ExecutorService executorService = null;
     private ArrayList<String> partitionIds = null;
+    private String eventHubPath;
+    private String consumerGroup;
     private String storageConnectionString;
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
         this.storageConnectionString = storageConnectionString;
-    }
-
-    public void initializeCombinedManager(String eventHub, String consumerGroup, ExecutorService executorService)
-    {
-        this.executorService = executorService;
         this.partitionIds = new ArrayList<String>();
         this.partitionIds.add("0"); // DUMMY
         this.partitionIds.add("1"); // DUMMY
@@ -27,11 +24,27 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.partitionIds.add("3"); // DUMMY
     }
 
-    public void initializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService)
+
+    public void setEventHubPath(String eventHubPath)
     {
-        // Use initializeCombinedManager instead
-        throw new NotImplementedException();
+        this.eventHubPath = eventHubPath;
     }
+
+    public void setConsumerGroupName(String consumerGroup)
+    {
+        this.consumerGroup = consumerGroup;
+    }
+
+    public void setExecutorService(ExecutorService executorService)
+    {
+        this.executorService = executorService;
+    }
+
+    public Boolean isCombinedManager()
+    {
+        return true;
+    }
+
 
     public Future<Boolean> checkpointStoreExists()
     {
@@ -66,12 +79,6 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     public Future<Void> deleteCheckpoint(String partitionId)
     {
         return this.executorService.submit(new DeleteCheckpointCallable(partitionId));
-    }
-
-    public void initializeLeaseManager(String eventHub, String consumerGroup, ExecutorService executorService)
-    {
-        // Use initializeCombinedManager instead
-        throw new NotImplementedException();
     }
 
 

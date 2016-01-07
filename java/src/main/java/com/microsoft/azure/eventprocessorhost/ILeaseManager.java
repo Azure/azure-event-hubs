@@ -4,10 +4,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 // WILL NORMALLY BE IMPLEMENTED ON THE SAME OBJECT AS ICheckpointManager
+// REQUIRES IManagerBase also
 public interface ILeaseManager
 {
-    public void initializeLeaseManager(String eventHub, String consumerGroup, ExecutorService executorService);
-
     public Future<Boolean> leaseStoreExists();
 
     public Future<Boolean> createLeaseStoreIfNotExists();
