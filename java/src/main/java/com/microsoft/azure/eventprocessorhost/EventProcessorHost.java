@@ -6,37 +6,32 @@ import java.util.UUID;
 public final class EventProcessorHost
 {
     private final String hostName;
-    private final String eventHubPath;
-    private final String consumerGroupName;
     private final String eventHubConnectionString;
+    private final String consumerGroupName;
 
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
     private IEventProcessorFactory processorFactory;
     private EventProcessorOptions processorOptions;
-    private EventPump pump;
 
     public EventProcessorHost(
-            final String eventHubPath,
-            final String consumerGroupName,
             final String eventHubConnectionString,
+            final String consumerGroupName,
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
-        this(String.format("javahost-%1$", UUID.randomUUID()), eventHubPath, consumerGroupName,
+        this(String.format("javahost-%1$", UUID.randomUUID()), consumerGroupName,
                 eventHubConnectionString, checkpointManager, leaseManager);
     }
 
     public EventProcessorHost(
             final String hostName,
-            final String eventHubPath,
-            final String consumerGroupName,
             final String eventHubConnectionString,
+            final String consumerGroupName,
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
         this.hostName = hostName;
-        this.eventHubPath = eventHubPath;
         this.consumerGroupName = consumerGroupName;
         this.eventHubConnectionString = eventHubConnectionString;
         this.checkpointManager = checkpointManager;
@@ -75,21 +70,12 @@ public final class EventProcessorHost
     {
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        this.pump = new EventPump();
-        // TODO START PROCESSING -- Create an Executor to run the pump or whatever
+        // TODO START PROCESSING
     }
 
     public void unregisterEventProcessor()
     {
         // TODO SIGNAL this.pump TO STOP PROCESSING AND WAIT
-    }
-
-
-    private class EventPump implements Runnable
-    {
-        public void run()
-        {
-
-        }
+        // TODO MAKE THIS ASYNC AGAIN
     }
 }
