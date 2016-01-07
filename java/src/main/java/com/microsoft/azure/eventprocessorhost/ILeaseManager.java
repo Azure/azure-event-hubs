@@ -1,11 +1,12 @@
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 // WILL NORMALLY BE IMPLEMENTED ON THE SAME OBJECT AS ICheckpointManager
 public interface ILeaseManager
 {
-    public void InitializeLeaseManager(String eventHub, String consumerGroup);
+    public void InitializeLeaseManager(String eventHub, String consumerGroup, ExecutorService executorService);
 
     public Future<Boolean> leaseStoreExists();
 
