@@ -9,7 +9,7 @@ public class EventProcessorSample {
     {
         ConnectionStringBuilder connStr = new ConnectionStringBuilder("jbirdtest", "learnhub", "allpolicy", "SvgdDB9qala2yLA4YGc/cjxTr52W5zBPpAGYahGEIto=");
         AzureStorageCheckpointLeaseManager combinedManager = new AzureStorageCheckpointLeaseManager("TODO");
-        //combinedManager.InitializeCheckpointManager("jbirdTest", "$Default",);
+        //combinedManager.initializeCheckpointManager("jbirdTest", "$Default",);
         EventProcessorHost host = new EventProcessorHost(connStr.toString(), "$Default", combinedManager, combinedManager);
     }
 }

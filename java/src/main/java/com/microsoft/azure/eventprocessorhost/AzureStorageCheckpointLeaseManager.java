@@ -17,7 +17,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.storageConnectionString = storageConnectionString;
     }
 
-    public void InitializeCombinedManager(String eventHub, String consumerGroup, ExecutorService executorService)
+    public void initializeCombinedManager(String eventHub, String consumerGroup, ExecutorService executorService)
     {
         this.executorService = executorService;
         this.partitionIds = new ArrayList<String>();
@@ -27,9 +27,9 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.partitionIds.add("3"); // DUMMY
     }
 
-    public void InitializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService)
+    public void initializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService)
     {
-        // Use InitializeCombinedManager instead
+        // Use initializeCombinedManager instead
         throw new NotImplementedException();
     }
 
@@ -68,9 +68,9 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return this.executorService.submit(new DeleteCheckpointCallable(partitionId));
     }
 
-    public void InitializeLeaseManager(String eventHub, String consumerGroup, ExecutorService executorService)
+    public void initializeLeaseManager(String eventHub, String consumerGroup, ExecutorService executorService)
     {
-        // Use InitializeCombinedManager instead
+        // Use initializeCombinedManager instead
         throw new NotImplementedException();
     }
 

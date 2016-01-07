@@ -6,7 +6,7 @@ import java.util.concurrent.Future;
 // TODO class which implements this interface using Azure Storage.
 public interface ICheckpointManager
 {
-    public void InitializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService);
+    public void initializeCheckpointManager(String eventHub, String consumerGroup, ExecutorService executorService);
 
     public Future<Boolean> checkpointStoreExists();
 

@@ -9,7 +9,7 @@ public class DefaultEventProcessorFactory implements IEventProcessorFactory
     {
     }
 
-    public IEventProcessor CreateEventProcessor(Callable<IEventProcessor> maker, PartitionContext context) throws Exception
+    public IEventProcessor createEventProcessor(Callable<IEventProcessor> maker, PartitionContext context) throws Exception
     {
         IEventProcessor processor = maker.call();
         // TODO get lease etc?

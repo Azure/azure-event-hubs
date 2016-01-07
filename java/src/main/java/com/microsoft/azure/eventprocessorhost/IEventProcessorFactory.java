@@ -7,5 +7,5 @@ import java.util.concurrent.Callable;
  */
 public interface IEventProcessorFactory
 {
-    public IEventProcessor CreateEventProcessor(Callable<IEventProcessor> maker, PartitionContext context) throws Exception;
+    public IEventProcessor createEventProcessor(Callable<IEventProcessor> maker, PartitionContext context) throws Exception;
 }
