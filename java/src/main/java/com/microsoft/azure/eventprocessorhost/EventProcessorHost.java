@@ -119,16 +119,6 @@ public final class EventProcessorHost
     }
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
 
-    public void registerEventProcessor(Callable<IEventProcessor> createProcessor)
-    {
-        registerEventProcessor(createProcessor, EventProcessorOptions.getDefaultOptions());
-    }
-
-    public void registerEventProcessor(Callable<IEventProcessor> createProcessor, EventProcessorOptions processorOptions)
-    {
-        registerEventProcessorFactory(new DefaultEventProcessorFactory(createProcessor), processorOptions);
-    }
-
     public void registerEventProcessorFactory(IEventProcessorFactory factory)
     {
         registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());

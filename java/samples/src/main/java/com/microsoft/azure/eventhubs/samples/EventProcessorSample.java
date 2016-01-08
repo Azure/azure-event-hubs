@@ -11,13 +11,13 @@ public class EventProcessorSample {
     {
         EventProcessorHost host = new EventProcessorHost("namespace", "eventhub", "keyname",
                 "key", "$Default", "storage connection string");
-        host.registerEventProcessor(new EventProcessorCallable());
+        host.registerEventProcessorFactory(new EventProcessorFactory());
     }
 
 
-    private static class EventProcessorCallable implements Callable<IEventProcessor>
+    private static class EventProcessorFactory implements IEventProcessorFactory
     {
-        public EventProcessor call()
+        public IEventProcessor createEventProcessor(PartitionContext context) throws Exception
         {
             return new EventProcessor();
         }
