@@ -5,13 +5,16 @@ import java.util.concurrent.Callable;
 
 public class DefaultEventProcessorFactory implements IEventProcessorFactory
 {
-    public DefaultEventProcessorFactory()
+    Callable<IEventProcessor> createProcessor;
+
+    public DefaultEventProcessorFactory(Callable<IEventProcessor> createProcessor)
     {
+        this.createProcessor = createProcessor;
     }
 
-    public IEventProcessor createEventProcessor(Callable<IEventProcessor> maker, PartitionContext context) throws Exception
+    public IEventProcessor createEventProcessor(PartitionContext context) throws Exception
     {
-        IEventProcessor processor = maker.call();
+        IEventProcessor processor = this.createProcessor.call();
         // TODO get lease etc?
         return processor;
     }

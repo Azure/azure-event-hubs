@@ -3,6 +3,7 @@ package com.microsoft.azure.eventprocessorhost;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -118,14 +119,14 @@ public final class EventProcessorHost
     }
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
 
-    public void registerEventProcessor()
+    public void registerEventProcessor(Callable<IEventProcessor> createProcessor)
     {
-        registerEventProcessor(EventProcessorOptions.getDefaultOptions());
+        registerEventProcessor(createProcessor, EventProcessorOptions.getDefaultOptions());
     }
 
-    public void registerEventProcessor(EventProcessorOptions processorOptions)
+    public void registerEventProcessor(Callable<IEventProcessor> createProcessor, EventProcessorOptions processorOptions)
     {
-        registerEventProcessorFactory(new DefaultEventProcessorFactory(), processorOptions);
+        registerEventProcessorFactory(new DefaultEventProcessorFactory(createProcessor), processorOptions);
     }
 
     public void registerEventProcessorFactory(IEventProcessorFactory factory)
