@@ -1,11 +1,13 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 
 public final class EventProcessorHost
@@ -119,6 +121,16 @@ public final class EventProcessorHost
     }
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
 
+    public <T extends IEventProcessor> void registerEventProcessor(Class<T> eventProcessorType)
+    {
+        registerEventProcessorFactory(new DefaultEventProcessorFactory<T>(), EventProcessorOptions.getDefaultOptions());
+    }
+
+    public <T extends IEventProcessor> void registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions)
+    {
+        registerEventProcessorFactory(new DefaultEventProcessorFactory<T>(), processorOptions);
+    }
+
     public void registerEventProcessorFactory(IEventProcessorFactory factory)
     {
         registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());
@@ -131,9 +143,18 @@ public final class EventProcessorHost
         // TODO START PROCESSING
     }
 
-    public void unregisterEventProcessor()
+    public Future<Boolean> unregisterEventProcessor()
     {
         // TODO SIGNAL this.pump TO STOP PROCESSING AND WAIT
-        // TODO MAKE THIS ASYNC AGAIN
+        return this.executorService.submit(new ShutdownCallable());
+    }
+
+
+    private class ShutdownCallable implements Callable<Boolean>
+    {
+        public Boolean call()
+        {
+            return true;
+        }
     }
 }

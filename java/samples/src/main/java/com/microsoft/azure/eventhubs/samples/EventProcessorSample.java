@@ -4,6 +4,7 @@ package com.microsoft.azure.eventhubs.samples;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
 
+import java.io.IOException;
 import java.util.concurrent.Callable;
 
 public class EventProcessorSample {
@@ -11,17 +12,20 @@ public class EventProcessorSample {
     {
         EventProcessorHost host = new EventProcessorHost("namespace", "eventhub", "keyname",
                 "key", "$Default", "storage connection string");
-        host.registerEventProcessorFactory(new EventProcessorFactory());
-    }
+        host.registerEventProcessor(EventProcessor.class);
 
-
-    private static class EventProcessorFactory implements IEventProcessorFactory
-    {
-        public IEventProcessor createEventProcessor(PartitionContext context) throws Exception
+        System.out.println("Press enter to stop");
+        try
         {
-            return new EventProcessor();
+            System.in.read();
+            host.unregisterEventProcessor().get();
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.toString());
         }
     }
+
 
     private static class EventProcessor implements IEventProcessor
     {
