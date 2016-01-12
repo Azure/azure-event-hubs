@@ -3,27 +3,38 @@ package com.microsoft.azure.eventprocessorhost;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.*;
 
 
 public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckpointManager, ILeaseManager
 {
-    private ExecutorService executorService = null;
-    private ArrayList<String> partitionIds = null;
+    private String host;
+    private String namespaceName;
     private String eventHubPath;
     private String consumerGroup;
+    private ExecutorService executorService = null;
     private String storageConnectionString;
+
+    // DUMMY STARTS
+    private HashMap<String, Lease> dummyLeases = null;
+    // DUMMY ENDS
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
         this.storageConnectionString = storageConnectionString;
-        this.partitionIds = new ArrayList<String>();
-        this.partitionIds.add("0"); // DUMMY
-        this.partitionIds.add("1"); // DUMMY
-        this.partitionIds.add("2"); // DUMMY
-        this.partitionIds.add("3"); // DUMMY
     }
 
+
+    public void setHost(String host)
+    {
+        this.host = host;
+    }
+
+    public void setNamespaceName(String namespaceName)
+    {
+        this.namespaceName = namespaceName;
+    }
 
     public void setEventHubPath(String eventHubPath)
     {
@@ -64,10 +75,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     public Iterable<Future<String>> getAllCheckpoints()
     {
         ArrayList<Future<String>> checkpoints = new ArrayList<Future<String>>();
-        for (String id : this.partitionIds)
-        {
-            checkpoints.add(getCheckpoint(id));
-        }
+        // TODO for each partition call getCheckpoint()
         return checkpoints;
     }
 
@@ -100,10 +108,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     public Iterable<Future<Lease>> getAllLeases()
     {
         ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
-        for (String id : this.partitionIds)
-        {
-            leases.add(getLease(id));
-        }
+        // TODO for each partition call getLease()
         return leases;
     }
 
@@ -206,7 +211,11 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     {
         public Boolean call()
         {
-            return false;
+            // DUMMY STARTS
+            Boolean retval = (AzureStorageCheckpointLeaseManager.this.dummyLeases == null);
+            System.out.println("leaseStoreExists() will return " + retval);
+            return retval;
+            // DUMMY ENDS
         }
     }
 
@@ -214,7 +223,15 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     {
         public Boolean call()
         {
-            return false;
+            // DUMMY STARTS
+            if (AzureStorageCheckpointLeaseManager.this.dummyLeases == null)
+            {
+                System.out.println("createLeaseStoreIfNotExists() creating dummyLeases hashmap");
+                AzureStorageCheckpointLeaseManager.this.dummyLeases = new HashMap<String, Lease>();
+            }
+            System.out.println("createLeaseStoreIfNotExists() will return true");
+            return true;
+            // DUMMY ENDS
         }
     }
 
@@ -244,7 +261,20 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
 
         public Void call()
         {
+            // DUMMY STARTS
+            if (AzureStorageCheckpointLeaseManager.this.dummyLeases.containsKey(this.partitionId))
+            {
+                System.out.println("createLeaseIfNotExists() found existing lease for partition " + this.partitionId);
+            }
+            else
+            {
+                System.out.println("createLeaseIfNotExists() creating new lease for partition " + this.partitionId);
+                Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.eventHubPath,
+                        AzureStorageCheckpointLeaseManager.this.consumerGroup, this.partitionId);
+                AzureStorageCheckpointLeaseManager.this.dummyLeases.put(this.partitionId, lease);
+            }
             return null;
+            // DUMMY ENDS
         }
     }
 
@@ -274,7 +304,31 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
 
         public Lease call()
         {
-            return null;
+            // DUMMY STARTS
+            Lease leaseToReturn = null;
+            if (AzureStorageCheckpointLeaseManager.this.dummyLeases.containsKey(this.partitionId))
+            {
+                leaseToReturn = AzureStorageCheckpointLeaseManager.this.dummyLeases.get(this.partitionId);
+                if (leaseToReturn.isExpired())
+                {
+                    System.out.println("acquireLease() acquired lease for partition" + this.partitionId);
+                    leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host);
+                }
+                else if (leaseToReturn.getOwner().compareTo(AzureStorageCheckpointLeaseManager.this.host) == 0)
+                {
+                    System.out.println("acquireLease() found we already hold lease for partition " + this.partitionId);
+                }
+                {
+                    System.out.println("acquireLease() can't aquire because not expired for partition " + this.partitionId);
+                    leaseToReturn = null;
+                }
+            }
+            else
+            {
+                System.out.println("acquireLease() can't find lease for partition " + this.partitionId);
+            }
+            return leaseToReturn;
+            // DUMMY ENDS
         }
     }
 

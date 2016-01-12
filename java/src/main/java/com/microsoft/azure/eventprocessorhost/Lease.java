@@ -2,25 +2,32 @@ package com.microsoft.azure.eventprocessorhost;
 
 public class Lease
 {
+    private String eventHubPath;
+    private String consumerGroup;
+    private String partitionId;
+
     private long epoch;
     private String offset;
     private String owner;
-    private String eventHub;
-    private String consumerGroup;
-    private String partitionId;
     private long sequenceNumber;
     private String token;
 
-    private Lease(String eventHub, String consumerGroup, String partitionId)
+    public Lease(String eventHub, String consumerGroup, String partitionId)
     {
-        this.eventHub = eventHub;
+        this.eventHubPath = eventHub;
         this.consumerGroup = consumerGroup;
         this.partitionId = partitionId;
+
+        this.epoch = 0;
+        this.offset = "-1"; // magic number
+        this.owner = "";
+        this.sequenceNumber = 0;
+        this.token = "";
     }
 
     public Lease(Lease source)
     {
-        this.eventHub = source.eventHub;
+        this.eventHubPath = source.eventHubPath;
         this.consumerGroup = source.consumerGroup;
         this.partitionId = source.partitionId;
 
@@ -66,9 +73,9 @@ public class Lease
         return this.partitionId;
     }
 
-    public String getEventHub()
+    public String getEventHubPath()
     {
-        return this.eventHub;
+        return this.eventHubPath;
     }
 
     public String getConsumerGroup()
@@ -98,6 +105,7 @@ public class Lease
 
     public Boolean isExpired()
     {
-        return false; // TODO
+        // TODO -- is this correct? Or are there cases where a lease has an owner but is expired anyway?
+        return (this.owner.length() == 0);
     }
 }
