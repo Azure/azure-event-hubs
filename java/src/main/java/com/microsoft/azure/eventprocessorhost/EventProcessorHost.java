@@ -122,12 +122,16 @@ public final class EventProcessorHost
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {
-        return registerEventProcessorFactory(new DefaultEventProcessorFactory<T>(), EventProcessorOptions.getDefaultOptions());
+        DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
+        defaultFactory.setEventProcessorClass(eventProcessorType);
+        return registerEventProcessorFactory(defaultFactory, EventProcessorOptions.getDefaultOptions());
     }
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions)
     {
-        return registerEventProcessorFactory(new DefaultEventProcessorFactory<T>(), processorOptions);
+        DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
+        defaultFactory.setEventProcessorClass(eventProcessorType);
+        return registerEventProcessorFactory(defaultFactory, processorOptions);
     }
 
     public Future<Void> registerEventProcessorFactory(IEventProcessorFactory factory)

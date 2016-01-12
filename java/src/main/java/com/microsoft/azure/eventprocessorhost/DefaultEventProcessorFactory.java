@@ -3,8 +3,15 @@ package com.microsoft.azure.eventprocessorhost;
 
 class DefaultEventProcessorFactory<T extends IEventProcessor> implements IEventProcessorFactory<T>
 {
-    public T createEventProcessor(Class<T> eventProcessorClass, PartitionContext context) throws Exception
+    private Class<T> eventProcessorClass = null;
+
+    public void setEventProcessorClass(Class<T> eventProcessorClass)
     {
-        return eventProcessorClass.newInstance();
+        this.eventProcessorClass = eventProcessorClass;
+    }
+
+    public T createEventProcessor(PartitionContext context) throws Exception
+    {
+        return this.eventProcessorClass.newInstance();
     }
 }
