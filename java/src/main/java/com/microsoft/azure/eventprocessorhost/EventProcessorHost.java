@@ -2,7 +2,6 @@ package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -20,10 +19,11 @@ public final class EventProcessorHost
 
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
+    private PartitionManager partitionManager;
     private IEventProcessorFactory processorFactory;
     private EventProcessorOptions processorOptions;
 
-    private PumpManager pumpManager = null;
+    private Pump pump = null;
 
     public EventProcessorHost(
             final String namespaceName,
@@ -107,6 +107,9 @@ public final class EventProcessorHost
             ((IManagerBase)this.leaseManager).setEventHubPath(this.eventHubPath);
             ((IManagerBase)this.leaseManager).setExecutorService(this.executorService);
         }
+
+        this.partitionManager = new PartitionManager(this.eventHubConnectionString, this.leaseManager);
+
     }
 
     public String getHostName()
@@ -119,6 +122,8 @@ public final class EventProcessorHost
         return this.checkpointManager;
     }
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
+    public ExecutorService getExecutorService() { return this.executorService; }
+    public PartitionManager getPartitionManager() { return this.partitionManager; }
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {
@@ -143,16 +148,16 @@ public final class EventProcessorHost
     {
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        return this.executorService.submit(new PumpCallable());
+        return this.executorService.submit(new PumpStartupCallable());
     }
 
-    public Future<Void> unregisterEventProcessor()
+    public Future<?> unregisterEventProcessor()
     {
-        return this.pumpManager.stopPump();
+        return this.pump.requestPumpStop();
     }
 
 
-    private class PumpCallable implements Callable<Void>
+    private class PumpStartupCallable implements Callable<Void>
     {
         // This method is running in its own thread and can block during startup without causing trouble.
         // Before exiting, it starts the pump manager.
@@ -163,10 +168,10 @@ public final class EventProcessorHost
         {
             try
             {
-                PumpManager pumpManager = new PumpManager();
-                EventProcessorHost.this.pumpManager = pumpManager;
-                pumpManager.setupInitialLeases();
-                pumpManager.startManagingPump();
+                Pump pump = new Pump(EventProcessorHost.this);
+                EventProcessorHost.this.pump = pump;
+                pump.doStartupTasks();
+                pump.doPump();
             }
             catch (Exception e)
             {
@@ -174,81 +179,6 @@ public final class EventProcessorHost
                 System.out.println("Exception from pump " + e.toString());
                 // DUMMY ENDS
             }
-            return null;
-        }
-    }
-
-    private class PumpManager implements Callable<Void>
-    {
-        private HashMap<String, Lease> leases;
-        private Future<Void> pumpManagerThreadFuture;
-
-        public PumpManager()
-        {
-            this.leases = new HashMap<String, Lease>();
-        }
-
-        public void setupInitialLeases() throws Exception
-        {
-            if (!EventProcessorHost.this.leaseManager.leaseStoreExists().get())
-            {
-                if (!EventProcessorHost.this.leaseManager.createLeaseStoreIfNotExists().get())
-                {
-                    // DUMMY STARTS
-                    throw new Exception("couldn't create lease store");
-                    // DUMMY ENDS
-                }
-
-                // Determine how many partitions there are, create leases for them, and acquire those leases
-                // DUMMY STARTS
-                ArrayList<String> partitionIds = new ArrayList<String>();
-                partitionIds.add("0");
-                partitionIds.add("1");
-                partitionIds.add("2");
-                partitionIds.add("3");
-                for (String id : partitionIds)
-                {
-                    EventProcessorHost.this.leaseManager.createLeaseIfNotExists(id).get();
-                    Lease gotLease = EventProcessorHost.this.leaseManager.acquireLease(id).get();
-                    if (gotLease != null)
-                    {
-                        this.leases.put(id, gotLease);
-                    }
-                }
-                // DUMMY ENDS
-            }
-            else
-            {
-                // Get all the leases
-
-                // If any are expired, take those
-
-                // TODO grab more if needed for load balancing
-            }
-        }
-
-        public void startManagingPump()
-        {
-            this.pumpManagerThreadFuture = EventProcessorHost.this.executorService.submit(this);
-        }
-
-        public Future<Void> stopPump()
-        {
-            // TODO set a flag or something
-            return this.pumpManagerThreadFuture;
-        }
-
-        public Void call()
-        {
-            // Start a pump for each successfully acquired lease
-            // DUMMY STARTS
-            for (String partitionId : this.leases.keySet())
-            {
-                Lease lease = this.leases.get(partitionId);
-                //IEventProcessor processorForLease = EventProcessorHost.this.processorFactory.createEventProcessor()
-            }
-            // DUMMY ENDS
-
             return null;
         }
     }
