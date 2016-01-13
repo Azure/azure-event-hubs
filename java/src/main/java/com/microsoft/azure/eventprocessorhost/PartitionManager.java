@@ -64,7 +64,7 @@ public class PartitionManager
             // Inspect all leases.
             // Take any leases that currently belong to us.
             // If any are expired, take those.
-            // Grab more if needed for load balancing
+            // TODO Grab more if needed for load balancing
 
             Iterable<Future<Lease>> allLeases = leaseManager.getAllLeases();
             for (Future<Lease> future : allLeases)

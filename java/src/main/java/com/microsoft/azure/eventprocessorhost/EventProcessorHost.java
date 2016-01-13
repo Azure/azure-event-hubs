@@ -165,19 +165,9 @@ public final class EventProcessorHost
         // but the info is available if desired.
         public Void call()
         {
-            try
-            {
-                Pump pump = new Pump(EventProcessorHost.this);
-                EventProcessorHost.this.pump = pump;
-                pump.doStartupTasks();
-                pump.doPump();
-            }
-            catch (Exception e)
-            {
-                // DUMMY STARTS
-                System.out.println("Exception from pump " + e.toString());
-                // DUMMY ENDS
-            }
+            Pump pump = new Pump(EventProcessorHost.this);
+            EventProcessorHost.this.pump = pump;
+            pump.doPump();
             return null;
         }
     }

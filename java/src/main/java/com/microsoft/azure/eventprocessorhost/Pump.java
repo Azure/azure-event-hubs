@@ -23,11 +23,6 @@ public class Pump implements Runnable
         this.pumps = new HashMap<String, PartitionPump>();
     }
 
-    public void doStartupTasks() throws Exception
-    {
-        this.leases = host.getPartitionManager().getSomeLeases();
-    }
-
     public void doPump()
     {
         this.pumpFuture = host.getExecutorService().submit(this);
@@ -43,6 +38,18 @@ public class Pump implements Runnable
     {
         while (keepGoing)
         {
+            // Re-get leases
+            try
+            {
+                this.leases = host.getPartitionManager().getSomeLeases();
+            }
+            catch (Exception e)
+            {
+                // DUMMY STARTS
+                System.out.println("Exception getting leases " + e.toString());
+                // DUMMY ENDS
+            }
+
             // Remove any pumps for which we have lost the lease.
             for (String partitionId : this.pumps.keySet())
             {
@@ -77,8 +84,16 @@ public class Pump implements Runnable
             }
 
             // Sleep
-
-            // Re-get leases
+            try
+            {
+                Thread.sleep(10000); // ten seconds for now
+            }
+            catch (InterruptedException e)
+            {
+                // DUMMY STARTS
+                System.out.println("Sleep was interrupted " + e.toString());
+                // DUMMY ENDS
+            }
         }
     }
 
