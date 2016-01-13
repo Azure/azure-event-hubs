@@ -61,9 +61,24 @@ public class PartitionManager
         }
         else
         {
-            // Inspect all leases. If any are expired, take those.
+            // Inspect all leases.
+            // Take any leases that currently belong to us.
+            // If any are expired, take those.
             // Grab more if needed for load balancing
 
+            Iterable<Future<Lease>> allLeases = leaseManager.getAllLeases();
+            for (Future<Lease> future : allLeases)
+            {
+                Lease possibleLease = future.get();
+                if ((possibleLease.getOwner().compareTo(this.host.getHostName()) == 0) || possibleLease.isExpired())
+                {
+                    Lease gotLease = leaseManager.acquireLease(possibleLease.getPartitionId()).get();
+                    if (gotLease != null)
+                    {
+                        ourLeases.put(gotLease.getPartitionId(), gotLease);
+                    }
+                }
+            }
         }
 
         return ourLeases;
