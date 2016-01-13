@@ -9,7 +9,7 @@ import java.util.concurrent.*;
 
 public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckpointManager, ILeaseManager
 {
-    private String host;
+    private EventProcessorHost host;
     private String namespaceName;
     private String eventHubPath;
     private String consumerGroup;
@@ -26,7 +26,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     }
 
 
-    public void setHost(String host)
+    public void setHost(EventProcessorHost host)
     {
         this.host = host;
     }
@@ -312,9 +312,9 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
                 if (leaseToReturn.isExpired())
                 {
                     System.out.println("acquireLease() acquired lease for partition" + this.partitionId);
-                    leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host);
+                    leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
                 }
-                else if (leaseToReturn.getOwner().compareTo(AzureStorageCheckpointLeaseManager.this.host) == 0)
+                else if (leaseToReturn.getOwner().compareTo(AzureStorageCheckpointLeaseManager.this.host.getHostName()) == 0)
                 {
                     System.out.println("acquireLease() found we already hold lease for partition " + this.partitionId);
                 }

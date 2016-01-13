@@ -11,7 +11,7 @@ public interface IManagerBase
     // These methods are called by EventProcessorHost to set up the manager.
     // If your implementation would like to use different values, you can
     // implement these as no-ops.
-    public void setHost(String host);
+    public void setHost(EventProcessorHost host);
     public void setNamespaceName(String namespaceName);
     public void setEventHubPath(String eventHubPath);
     public void setConsumerGroupName(String consumerGroup);

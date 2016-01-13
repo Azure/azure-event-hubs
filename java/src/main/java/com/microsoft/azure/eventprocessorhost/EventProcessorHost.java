@@ -108,7 +108,7 @@ public final class EventProcessorHost
             ((IManagerBase)this.leaseManager).setExecutorService(this.executorService);
         }
 
-        this.partitionManager = new PartitionManager(this.eventHubConnectionString, this.leaseManager);
+        this.partitionManager = new PartitionManager(this);
 
     }
 
@@ -116,7 +116,6 @@ public final class EventProcessorHost
     {
         return this.hostName;
     }
-
     public ICheckpointManager getCheckpointManager()
     {
         return this.checkpointManager;

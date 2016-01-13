@@ -1,20 +1,19 @@
 package com.microsoft.azure.eventprocessorhost;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.Future;
+
 
 public class PartitionManager
 {
-    private String eventHubConnectionString;
-    private ILeaseManager leaseManager;
+    private EventProcessorHost host;
 
     private ArrayList<String> partitionIds = null;
 
-    public PartitionManager(String eventHubConnectionString, ILeaseManager leaseManager)
+    public PartitionManager(EventProcessorHost host)
     {
-        this.eventHubConnectionString = eventHubConnectionString;
-        this.leaseManager = leaseManager;
+        this.host = host;
     }
 
     public Iterable<String> getPartitionIds()
@@ -35,11 +34,12 @@ public class PartitionManager
 
     public HashMap<String, Lease> getSomeLeases() throws Exception
     {
-        HashMap<String, Lease> leases = new HashMap<String, Lease>();
+        ILeaseManager leaseManager = this.host.getLeaseManager();
+        HashMap<String, Lease> ourLeases = new HashMap<String, Lease>();
 
-        if (!this.leaseManager.leaseStoreExists().get())
+        if (!leaseManager.leaseStoreExists().get())
         {
-            if (!this.leaseManager.createLeaseStoreIfNotExists().get())
+            if (!leaseManager.createLeaseStoreIfNotExists().get())
             {
                 // DUMMY STARTS
                 throw new Exception("couldn't create lease store");
@@ -50,11 +50,11 @@ public class PartitionManager
             // DUMMY STARTS
             for (String id : getPartitionIds())
             {
-                this.leaseManager.createLeaseIfNotExists(id).get();
-                Lease gotLease = this.leaseManager.acquireLease(id).get();
+                leaseManager.createLeaseIfNotExists(id).get();
+                Lease gotLease = leaseManager.acquireLease(id).get();
                 if (gotLease != null)
                 {
-                    leases.put(id, gotLease);
+                    ourLeases.put(id, gotLease);
                 }
             }
             // DUMMY ENDS
@@ -63,8 +63,9 @@ public class PartitionManager
         {
             // Inspect all leases. If any are expired, take those.
             // Grab more if needed for load balancing
+
         }
 
-        return leases;
+        return ourLeases;
     }
 }
