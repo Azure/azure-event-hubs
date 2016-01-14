@@ -34,7 +34,7 @@ public final class EventProcessorHost
             final String storageConnectionString)
     {
         this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
-                new AzureStorageCheckpointLeaseManager(storageConnectionString));
+                new AzureStorageCheckpointLeaseManager(storageConnectionString, namespaceName, eventHubPath, consumerGroupName));
     }
 
     private EventProcessorHost(
@@ -98,18 +98,12 @@ public final class EventProcessorHost
         this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
                 sharedAccessKeyName, sharedAccessKey).toString();
 
-        ((IManagerBase)this.checkpointManager).setConsumerGroupName(this.consumerGroupName);
-        ((IManagerBase)this.checkpointManager).setEventHubPath(this.eventHubPath);
-        ((IManagerBase)this.checkpointManager).setExecutorService(this.executorService);
-        if (((IManagerBase)this.checkpointManager).isCombinedManager() == false)
-        {
-            ((IManagerBase)this.leaseManager).setConsumerGroupName(this.consumerGroupName);
-            ((IManagerBase)this.leaseManager).setEventHubPath(this.eventHubPath);
-            ((IManagerBase)this.leaseManager).setExecutorService(this.executorService);
-        }
-
         this.partitionManager = new PartitionManager(this);
 
+        if (leaseManager instanceof AzureStorageCheckpointLeaseManager)
+        {
+            ((AzureStorageCheckpointLeaseManager)leaseManager).setLateSettings(this, executorService);
+        }
     }
 
     public String getHostName()

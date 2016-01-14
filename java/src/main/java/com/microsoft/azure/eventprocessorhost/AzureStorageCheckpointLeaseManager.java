@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.concurrent.*;
 
 
-public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckpointManager, ILeaseManager
+public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
     private String namespaceName;
@@ -17,42 +17,22 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     private String storageConnectionString;
 
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString)
+    public AzureStorageCheckpointLeaseManager(String storageConnectionString, String namespaceName,
+                                              String eventHubPath, String consumerGroup)
     {
         this.storageConnectionString = storageConnectionString;
-    }
-
-
-    public void setHost(EventProcessorHost host)
-    {
-        this.host = host;
-    }
-
-    public void setNamespaceName(String namespaceName)
-    {
         this.namespaceName = namespaceName;
-    }
-
-    public void setEventHubPath(String eventHubPath)
-    {
         this.eventHubPath = eventHubPath;
-    }
-
-    public void setConsumerGroupName(String consumerGroup)
-    {
         this.consumerGroup = consumerGroup;
     }
 
-    public void setExecutorService(ExecutorService executorService)
+    // These values can't be set in the constructor because the object is constructed before the
+    // caller has set them up.
+    public void setLateSettings(EventProcessorHost host, ExecutorService executorService)
     {
+        this.host = host;
         this.executorService = executorService;
     }
-
-    public Boolean isCombinedManager()
-    {
-        return true;
-    }
-
 
     public Future<Boolean> checkpointStoreExists()
     {
@@ -316,8 +296,9 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
                 {
                     System.out.println("acquireLease() found we already hold lease for partition " + this.partitionId);
                 }
+                else
                 {
-                    System.out.println("acquireLease() can't aquire because not expired for partition " + this.partitionId);
+                    System.out.println("acquireLease() can't aquire because not expired for partition " + leaseToReturn.getPartitionId());
                     leaseToReturn = null;
                 }
             }
