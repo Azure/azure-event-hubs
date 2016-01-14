@@ -16,9 +16,6 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     private ExecutorService executorService = null;
     private String storageConnectionString;
 
-    // DUMMY STARTS
-    private HashMap<String, Lease> dummyLeases = null;
-    // DUMMY ENDS
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
@@ -109,6 +106,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
     {
         ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
         // TODO for each partition call getLease()
+        System.out.println("getAllLeases() NOT IMPLEMENTED");
         return leases;
     }
 
@@ -212,7 +210,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
         public Boolean call()
         {
             // DUMMY STARTS
-            Boolean retval = (AzureStorageCheckpointLeaseManager.this.dummyLeases == null);
+            Boolean retval = (InMemoryLeaseStore.getSingleton().inMemoryLeases != null);
             System.out.println("leaseStoreExists() will return " + retval);
             return retval;
             // DUMMY ENDS
@@ -224,10 +222,10 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
         public Boolean call()
         {
             // DUMMY STARTS
-            if (AzureStorageCheckpointLeaseManager.this.dummyLeases == null)
+            if (InMemoryLeaseStore.getSingleton().inMemoryLeases == null)
             {
-                System.out.println("createLeaseStoreIfNotExists() creating dummyLeases hashmap");
-                AzureStorageCheckpointLeaseManager.this.dummyLeases = new HashMap<String, Lease>();
+                System.out.println("createLeaseStoreIfNotExists() creating in memory hashmap");
+                InMemoryLeaseStore.getSingleton().inMemoryLeases = new HashMap<String, Lease>();
             }
             System.out.println("createLeaseStoreIfNotExists() will return true");
             return true;
@@ -262,7 +260,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
         public Void call()
         {
             // DUMMY STARTS
-            if (AzureStorageCheckpointLeaseManager.this.dummyLeases.containsKey(this.partitionId))
+            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
             {
                 System.out.println("createLeaseIfNotExists() found existing lease for partition " + this.partitionId);
             }
@@ -271,7 +269,7 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
                 System.out.println("createLeaseIfNotExists() creating new lease for partition " + this.partitionId);
                 Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.eventHubPath,
                         AzureStorageCheckpointLeaseManager.this.consumerGroup, this.partitionId);
-                AzureStorageCheckpointLeaseManager.this.dummyLeases.put(this.partitionId, lease);
+                InMemoryLeaseStore.getSingleton().inMemoryLeases.put(this.partitionId, lease);
             }
             return null;
             // DUMMY ENDS
@@ -306,9 +304,9 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
         {
             // DUMMY STARTS
             Lease leaseToReturn = null;
-            if (AzureStorageCheckpointLeaseManager.this.dummyLeases.containsKey(this.partitionId))
+            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
             {
-                leaseToReturn = AzureStorageCheckpointLeaseManager.this.dummyLeases.get(this.partitionId);
+                leaseToReturn = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
                 if (leaseToReturn.isExpired())
                 {
                     System.out.println("acquireLease() acquired lease for partition" + this.partitionId);
@@ -376,4 +374,24 @@ public class AzureStorageCheckpointLeaseManager implements IManagerBase, ICheckp
             return false;
         }
     }
+
+
+
+    // DUMMY STARTS
+    private static class InMemoryLeaseStore
+    {
+        private static InMemoryLeaseStore singleton = null;
+
+        public static InMemoryLeaseStore getSingleton()
+        {
+            if (InMemoryLeaseStore.singleton == null)
+            {
+                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
+            }
+            return InMemoryLeaseStore.singleton;
+        }
+
+        public HashMap<String, Lease> inMemoryLeases = null;
+    }
+    // DUMMY ENDS
 }
