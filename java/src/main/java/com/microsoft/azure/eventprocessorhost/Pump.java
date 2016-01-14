@@ -1,6 +1,9 @@
 package com.microsoft.azure.eventprocessorhost;
 
+import com.microsoft.azure.eventhubs.EventData;
+
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -67,19 +70,28 @@ public class Pump implements Runnable
             // Check status of pumps for leases, start/restart where needed.
             for (String partitionId : this.leases.keySet())
             {
-                if (this.pumps.containsKey(partitionId))
+                try
                 {
-                    if (this.pumps.get(partitionId).getStatus().isDone())
+                    if (this.pumps.containsKey(partitionId))
                     {
-                        this.pumps.remove(partitionId);
+                        if (this.pumps.get(partitionId).getStatus().isDone())
+                        {
+                            this.pumps.remove(partitionId);
+                            startSinglePump(partitionId);
+                        }
+                        // else
+                        // we have the lease and we have a working pump, nothing to do
+                    }
+                    else
+                    {
                         startSinglePump(partitionId);
                     }
-                    // else
-                    // we have the lease and we have a working pump, nothing to do
                 }
-                else
+                catch (Exception e)
                 {
-                    startSinglePump(partitionId);
+                    // DUMMY STARTS
+                    System.out.println("Failure starting pump on partition " + partitionId + ": " + e.toString());
+                    // DUMMY ENDS
                 }
             }
 
@@ -95,21 +107,42 @@ public class Pump implements Runnable
                 // DUMMY ENDS
             }
         }
+
+        for (String partitionId : this.pumps.keySet())
+        {
+            this.pumps.get(partitionId).shutdown();
+        }
+        for (String partitionId : this.pumps.keySet())
+        {
+            try
+            {
+                this.pumps.get(partitionId).getStatus().get();
+            }
+            catch (Exception e)
+            {
+                // DUMMY STARTS
+                System.out.println("Failure waiting for shutdown on " + partitionId);
+                // DUMMY ENDS
+            }
+        }
     }
 
-    private void startSinglePump(String partitionId)
+    private void startSinglePump(String partitionId) throws Exception
     {
         PartitionPump partitionPump = new PartitionPump(this.host, partitionId);
-        this.pumps.put(partitionId, partitionPump);
         partitionPump.startPump();
+        this.pumps.put(partitionId, partitionPump); // do the put after start, if the start fails then put doesn't happen
     }
 
     private class PartitionPump implements Runnable
     {
         private EventProcessorHost host;
+        private IEventProcessor processor;
+        private PartitionContext partitionContext;
 
         private Future<?> future;
         private String partitionId;
+        private Boolean keepGoing = true;
 
         public PartitionPump(EventProcessorHost host, String partitionId)
         {
@@ -118,8 +151,12 @@ public class Pump implements Runnable
             this.partitionId = partitionId;
         }
 
-        public void startPump()
+        public void startPump() throws Exception
         {
+            this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.partitionId);
+            // TODO fill in context?
+            this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
+
             this.future = this.host.getExecutorService().submit(this);
         }
 
@@ -130,12 +167,74 @@ public class Pump implements Runnable
 
         public void forceClose(CloseReason reason)
         {
+            try
+            {
+                this.processor.onClose(this.partitionContext, reason);
+            }
+            catch (Exception e)
+            {
+                // DUMMY STARTS
+                System.out.println("Failed closing processor " + e.toString());
+                // DUMMY ENDS
+            }
+        }
 
+        public void shutdown()
+        {
+            this.keepGoing = false;
         }
 
         public void run()
         {
+            try
+            {
+                this.processor.onOpen(this.partitionContext);
+            }
+            catch (Exception e)
+            {
+                // DUMMY STARTS
+                System.out.println("Failed opening processor " + e.toString());
+                // DUMMY ENDS
+            }
 
+            int i = 0; // DUMMY
+            while (keepGoing)
+            {
+                // Receive loop goes here
+                // DUMMY STARTS
+                EventData dummyEvent = new EventData(("event " + i + "on partition " + this.partitionId).getBytes());
+                ArrayList<EventData> dummyList = new ArrayList<EventData>();
+                dummyList.add(dummyEvent);
+                try
+                {
+                    this.processor.onEvents(this.partitionContext, dummyList);
+                }
+                catch (Exception e)
+                {
+                    // What do we even do here?
+                    System.out.println("Got exception from onEvents " + e.toString());
+                }
+                try
+                {
+                    Thread.sleep(2000);
+                }
+                catch (InterruptedException e)
+                {
+                    // If sleep is interrupted, don't care
+                }
+                // DUMMY ENDS
+            }
+
+            try
+            {
+                this.processor.onClose(this.partitionContext, CloseReason.Shutdown);
+            }
+            catch (Exception e)
+            {
+                // DUMMY STARTS
+                System.out.println("Failed closing processor " + e.toString());
+                // DUMMY ENDS
+            }
         }
     }
 }

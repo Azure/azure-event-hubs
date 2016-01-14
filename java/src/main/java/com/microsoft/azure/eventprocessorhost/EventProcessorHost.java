@@ -58,7 +58,7 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
-        this(String.format("javahost-%1$", UUID.randomUUID()), namespaceName, eventHubPath, sharedAccessKeyName,
+        this("javahost-" + UUID.randomUUID().toString(), namespaceName, eventHubPath, sharedAccessKeyName,
                 sharedAccessKey, consumerGroupName, checkpointManager, leaseManager);
     }
 
@@ -123,6 +123,7 @@ public final class EventProcessorHost
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
     public ExecutorService getExecutorService() { return this.executorService; }
     public PartitionManager getPartitionManager() { return this.partitionManager; }
+    public IEventProcessorFactory getProcessorFactory() { return this.processorFactory; }
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {

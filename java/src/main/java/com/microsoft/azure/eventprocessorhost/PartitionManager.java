@@ -21,7 +21,7 @@ public class PartitionManager
         // DUMMY BEGINS
         if (this.partitionIds == null)
         {
-            ArrayList<String> partitionIds = new ArrayList<String>();
+            this.partitionIds = new ArrayList<String>();
             partitionIds.add("0");
             partitionIds.add("1");
             partitionIds.add("2");
