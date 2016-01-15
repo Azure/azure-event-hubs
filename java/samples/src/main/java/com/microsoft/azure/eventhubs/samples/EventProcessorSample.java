@@ -23,11 +23,12 @@ public class EventProcessorSample {
         catch(Exception e)
         {
             System.out.println(e.toString());
+            e.printStackTrace();
         }
     }
 
 
-    private static class EventProcessor implements IEventProcessor
+    public static class EventProcessor implements IEventProcessor
     {
         public void onOpen(PartitionContext context) throws Exception
         {
@@ -44,7 +45,7 @@ public class EventProcessorSample {
             System.out.println("Partition " + context.getLease().getPartitionId() + " got messages");
             for (EventData data : messages)
             {
-                System.out.println(data.toString());
+                System.out.println(new String(data.getBody(), "UTF8"));
             }
         }
 
