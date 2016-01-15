@@ -16,6 +16,7 @@ public final class EventProcessorHost
     private String eventHubConnectionString;
 
     private ExecutorService executorService;
+    private Boolean weOwnExecutor = false;
 
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
@@ -74,6 +75,7 @@ public final class EventProcessorHost
     {
         this(hostName, namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
                 checkpointManager, leaseManager, Executors.newCachedThreadPool());
+        this.weOwnExecutor = true;
     }
 
     public EventProcessorHost(
@@ -149,7 +151,12 @@ public final class EventProcessorHost
 
     public Future<?> unregisterEventProcessor()
     {
-        return this.pump.requestPumpStop();
+        Future<?> retval = this.pump.requestPumpStop();
+        if (this.weOwnExecutor)
+        {
+            this.executorService.shutdown();
+        }
+        return retval;
     }
 
 
