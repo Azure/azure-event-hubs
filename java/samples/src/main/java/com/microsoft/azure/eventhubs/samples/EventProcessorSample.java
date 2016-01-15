@@ -6,6 +6,7 @@ import com.microsoft.azure.eventprocessorhost.*;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 public class EventProcessorSample {
     public static void main(String args[])
@@ -18,13 +19,19 @@ public class EventProcessorSample {
         try
         {
             System.in.read();
-            host.unregisterEventProcessor().get();
+            System.out.println("Calling unregister");
+            Future<?> blah = host.unregisterEventProcessor();
+            System.out.println("Waiting for Future to complete");
+            blah.get();
+            System.out.println("Completed");
         }
         catch(Exception e)
         {
             System.out.println(e.toString());
             e.printStackTrace();
         }
+
+        System.out.println("Exiting");
     }
 
 
