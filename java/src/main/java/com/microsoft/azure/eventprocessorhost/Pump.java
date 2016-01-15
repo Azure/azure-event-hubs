@@ -50,6 +50,7 @@ public class Pump implements Runnable
             {
                 // DUMMY STARTS
                 System.out.println("Exception getting leases " + e.toString());
+                e.printStackTrace();
                 // DUMMY ENDS
             }
 
@@ -77,20 +78,21 @@ public class Pump implements Runnable
                         if (this.pumps.get(partitionId).getStatus().isDone())
                         {
                             this.pumps.remove(partitionId);
-                            startSinglePump(partitionId);
+                            startSinglePump(this.leases.get(partitionId));
                         }
                         // else
                         // we have the lease and we have a working pump, nothing to do
                     }
                     else
                     {
-                        startSinglePump(partitionId);
+                        startSinglePump(this.leases.get(partitionId));
                     }
                 }
                 catch (Exception e)
                 {
                     // DUMMY STARTS
                     System.out.println("Failure starting pump on partition " + partitionId + ": " + e.toString());
+                    e.printStackTrace();
                     // DUMMY ENDS
                 }
             }
@@ -104,6 +106,7 @@ public class Pump implements Runnable
             {
                 // DUMMY STARTS
                 System.out.println("Sleep was interrupted " + e.toString());
+                e.printStackTrace();
                 // DUMMY ENDS
             }
         }
@@ -116,22 +119,27 @@ public class Pump implements Runnable
         {
             try
             {
+                System.out.println("Waiting for pump shutdown on " + partitionId); // DUMMY
                 this.pumps.get(partitionId).getStatus().get();
+                System.out.println("Got for pump shutdown on " + partitionId); // DUMMY
             }
             catch (Exception e)
             {
                 // DUMMY STARTS
                 System.out.println("Failure waiting for shutdown on " + partitionId);
+                e.printStackTrace();
                 // DUMMY ENDS
             }
         }
+
+        System.out.println("Master pump loop exiting"); // DUMMY
     }
 
-    private void startSinglePump(String partitionId) throws Exception
+    private void startSinglePump(Lease lease) throws Exception
     {
-        PartitionPump partitionPump = new PartitionPump(this.host, partitionId);
+        PartitionPump partitionPump = new PartitionPump(this.host, lease);
         partitionPump.startPump();
-        this.pumps.put(partitionId, partitionPump); // do the put after start, if the start fails then put doesn't happen
+        this.pumps.put(lease.getPartitionId(), partitionPump); // do the put after start, if the start fails then put doesn't happen
     }
 
     private class PartitionPump implements Runnable
@@ -141,20 +149,22 @@ public class Pump implements Runnable
         private PartitionContext partitionContext;
 
         private Future<?> future;
-        private String partitionId;
+        private Lease lease;
         private Boolean keepGoing = true;
 
-        public PartitionPump(EventProcessorHost host, String partitionId)
+        public PartitionPump(EventProcessorHost host, Lease lease)
         {
             this.host = host;
 
-            this.partitionId = partitionId;
+            this.lease = lease;
         }
 
         public void startPump() throws Exception
         {
-            this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.partitionId);
-            // TODO fill in context?
+            this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.lease.getPartitionId());
+            this.partitionContext.setEventHubPath(this.host.getEventHubPath());
+            this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
+            this.partitionContext.setLease(this.lease);
             this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
 
             this.future = this.host.getExecutorService().submit(this);
@@ -175,6 +185,7 @@ public class Pump implements Runnable
             {
                 // DUMMY STARTS
                 System.out.println("Failed closing processor " + e.toString());
+                e.printStackTrace();
                 // DUMMY ENDS
             }
         }
@@ -194,6 +205,7 @@ public class Pump implements Runnable
             {
                 // DUMMY STARTS
                 System.out.println("Failed opening processor " + e.toString());
+                e.printStackTrace();
                 // DUMMY ENDS
             }
 
@@ -202,7 +214,7 @@ public class Pump implements Runnable
             {
                 // Receive loop goes here
                 // DUMMY STARTS
-                EventData dummyEvent = new EventData(("event " + i + "on partition " + this.partitionId).getBytes());
+                EventData dummyEvent = new EventData(("event " + i++ + " on partition " + this.lease.getPartitionId()).getBytes());
                 ArrayList<EventData> dummyList = new ArrayList<EventData>();
                 dummyList.add(dummyEvent);
                 try
@@ -213,6 +225,7 @@ public class Pump implements Runnable
                 {
                     // What do we even do here?
                     System.out.println("Got exception from onEvents " + e.toString());
+                    e.printStackTrace();
                 }
                 try
                 {
@@ -233,8 +246,13 @@ public class Pump implements Runnable
             {
                 // DUMMY STARTS
                 System.out.println("Failed closing processor " + e.toString());
+                e.printStackTrace();
                 // DUMMY ENDS
             }
+
+            // DUMMY STARTS
+            System.out.println("Pump exiting for " + this.lease.getPartitionId());
+            // DUMMY ENDS
         }
     }
 }

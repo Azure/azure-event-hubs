@@ -1,7 +1,5 @@
 package com.microsoft.azure.eventprocessorhost;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;
