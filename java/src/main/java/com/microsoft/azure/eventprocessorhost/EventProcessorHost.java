@@ -118,6 +118,8 @@ public final class EventProcessorHost
     public ExecutorService getExecutorService() { return this.executorService; }
     public PartitionManager getPartitionManager() { return this.partitionManager; }
     public IEventProcessorFactory getProcessorFactory() { return this.processorFactory; }
+    public String getEventHubPath() { return this.eventHubPath; }
+    public String getConsumerGroupName() { return this.consumerGroupName; }
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {
