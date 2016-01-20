@@ -1,6 +1,5 @@
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 // WILL NORMALLY BE IMPLEMENTED ON THE SAME CLASS AS ILeaseManager

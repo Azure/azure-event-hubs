@@ -2,7 +2,6 @@ package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -21,7 +20,7 @@ public final class EventProcessorHost
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
     private PartitionManager partitionManager;
-    private IEventProcessorFactory processorFactory;
+    private IEventProcessorFactory<?> processorFactory;
     private EventProcessorOptions processorOptions;
 
     private Pump pump = null;
@@ -119,7 +118,7 @@ public final class EventProcessorHost
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
     public ExecutorService getExecutorService() { return this.executorService; }
     public PartitionManager getPartitionManager() { return this.partitionManager; }
-    public IEventProcessorFactory getProcessorFactory() { return this.processorFactory; }
+    public IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     public String getEventHubPath() { return this.eventHubPath; }
     public String getConsumerGroupName() { return this.consumerGroupName; }
 
@@ -137,12 +136,12 @@ public final class EventProcessorHost
         return registerEventProcessorFactory(defaultFactory, processorOptions);
     }
 
-    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory factory)
+    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory)
     {
         return registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());
     }
 
-    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory factory, EventProcessorOptions processorOptions)
+    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
