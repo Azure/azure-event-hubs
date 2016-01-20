@@ -1,9 +1,11 @@
-package com.microsoft.azure.servicebus;
+package com.microsoft.azure.servicebus.amqp;
 
 import java.util.logging.*;
 
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.*;
+
+import com.microsoft.azure.servicebus.MessageSender;
 
 public class SendLinkHandler extends BaseHandler
 {
@@ -14,21 +16,12 @@ public class SendLinkHandler extends BaseHandler
 	private final Object firstFlow;
 	private boolean isFirstFlow;
 	
-	SendLinkHandler(final String name, final MessageSender sender)
+	public SendLinkHandler(final String name, final MessageSender sender)
 	{
 		this.name = name;
 		this.msgSender = sender;
 		this.firstFlow = new Object();
 		this.isFirstFlow = true;
-	}
-
-	@Override
-    public void onUnhandled(Event event)
-	{
-		if(TRACE_LOGGER.isLoggable(Level.FINE))
-        {
-            TRACE_LOGGER.log(Level.FINE, "sendLink.onUnhandled: name[" + event.getLink().getName() + "] : event[" + event + "]");
-        }		
 	}
 
 	@Override
@@ -78,9 +71,9 @@ public class SendLinkHandler extends BaseHandler
         	ErrorCondition condition = link.getRemoteCondition();
     		if (condition != null)
     		{
-    			if(TRACE_LOGGER.isLoggable(Level.SEVERE))
+    			if(TRACE_LOGGER.isLoggable(Level.WARNING))
     	        {
-    				TRACE_LOGGER.log(Level.SEVERE, "sendLink.onLinkRemoteClose: name[" + link.getName() + "] : ErrorCondition[" + condition.getDescription() + "]");
+    				TRACE_LOGGER.log(Level.WARNING, "sendLink.onLinkRemoteClose: name[" + link.getName() + "] : ErrorCondition[" + condition.getDescription() + "]");
     	        }
             } 
     		

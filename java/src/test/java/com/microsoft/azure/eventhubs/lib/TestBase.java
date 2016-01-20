@@ -1,7 +1,13 @@
 package com.microsoft.azure.eventhubs.lib;
 
 import static org.junit.Assert.*;
+
+import java.nio.charset.Charset;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
+
+import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.servicebus.*;
 
 /**
@@ -13,9 +19,10 @@ public abstract class TestBase
 {
 	public final static String SasRuleName = "RootManageSharedAccessKey";
 		
-	public static TestEventHubInfo checkoutTestEventHub() {
-		HashMap sasRule = new HashMap<String, String>();
-		sasRule.put(TestBase.SasRuleName, "-----SasKey------");
+	public static TestEventHubInfo checkoutTestEventHub()
+	{
+		HashMap<String, String> sasRule = new HashMap<String, String>();
+		sasRule.put(TestBase.SasRuleName, "----SasKey-----");
 		return new TestEventHubInfo("gojavago", "firstehub-ns", null, sasRule);
 	}
 	
@@ -24,7 +31,37 @@ public abstract class TestBase
 		return new ConnectionStringBuilder(eventHubInfo.getNamespaceName(), eventHubInfo.getName(), sasRule.getKey(), sasRule.getValue());
 	}
 
-	public static void checkinTestEventHub(String name) {
+	public static void checkinTestEventHub(String name)
+	{
 		// TODO: Implement Checkin-Checkout functionality	
+	}
+	
+	public static CompletableFuture<Void> pushEventsToPartition(final EventHubClient ehClient, final String partitionId, final int noOfEvents) 
+			throws ServiceBusException
+	{
+		return ehClient.createPartitionSender(partitionId)
+				.thenAcceptAsync(new Consumer<PartitionSender>()
+				{
+					@Override
+					public void accept(PartitionSender pSender)
+					{
+						for (int count = 0; count< noOfEvents; count++)
+						{
+							EventData sendEvent = new EventData("test string".getBytes());
+
+							try
+							{
+								// don't send-batch here - tests depend on an increasing timestamp on events
+								pSender.send(sendEvent);
+							} catch (ServiceBusException e)
+							{
+								e.printStackTrace();
+							} finally
+							{
+								// close sender
+							}
+						}
+					}
+				});
 	}
 }

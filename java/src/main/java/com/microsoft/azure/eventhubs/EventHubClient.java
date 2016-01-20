@@ -1,13 +1,10 @@
 package com.microsoft.azure.eventhubs;
 
 import java.io.*;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
-
-import org.apache.qpid.proton.amqp.Symbol;
-import org.apache.qpid.proton.amqp.messaging.*;
-import org.apache.qpid.proton.message.*;
 import com.microsoft.azure.servicebus.*;
 
 /**
@@ -22,7 +19,7 @@ public class EventHubClient extends ClientEntity
 	
 	private MessageSender sender;
 	
-	private EventHubClient(ConnectionStringBuilder connectionString) throws IOException, EntityNotFoundException
+	private EventHubClient(ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException
 	{
 		super(UUID.randomUUID().toString());
 		this.underlyingFactory = MessagingFactory.createFromConnectionString(connectionString.toString());
@@ -30,7 +27,7 @@ public class EventHubClient extends ClientEntity
 	}
 	
 	public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString)
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException, IOException
+			throws ServiceBusException, IOException
 	{
 		ConnectionStringBuilder connStr = new ConnectionStringBuilder(connectionString);
 		final EventHubClient eventHubClient = new EventHubClient(connStr);
@@ -38,13 +35,14 @@ public class EventHubClient extends ClientEntity
 		return eventHubClient.createInternalSender()
 				.thenApplyAsync(new Function<Void, EventHubClient>()
 				{
-					public EventHubClient apply(Void a) {
+					public EventHubClient apply(Void a)
+					{
 						return eventHubClient;
 					}
 				});
 	}
 	
-	CompletableFuture<Void> createInternalSender() throws EntityNotFoundException
+	CompletableFuture<Void> createInternalSender() throws IllegalEntityException
 	{
 		return MessageSender.Create(this.underlyingFactory, UUID.randomUUID().toString(), this.eventHubName)
 				.thenAcceptAsync(new Consumer<MessageSender>()
@@ -54,40 +52,44 @@ public class EventHubClient extends ClientEntity
 	}
 	
 	public final CompletableFuture<PartitionSender> createPartitionSender(final String partitionId)
-		throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException
+		throws ServiceBusException
 	{
 		return PartitionSender.Create(this.underlyingFactory, this.eventHubName, partitionId);
 	}
 	
 	// TODO: return partitionInfo
 	public final String getPartitionInfo()
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException
+			throws ServiceBusException
 	{
 		throw new UnsupportedOperationException("TODO: Implement over http");
 	}
 	
 	public final CompletableFuture<Void> send(EventData data) 
-			throws MessagingCommunicationException, ServerBusyException, AuthorizationFailedException, PayloadSizeExceededException
+			throws ServiceBusException
 	{
 		if (data == null)
 		{
-			// TODO: TRACE
 			throw new IllegalArgumentException("EventData cannot be empty.");
 		}
 		
 		return this.sender.send(data.toAmqpMessage());
 	}
 	
-	public final CompletableFuture<Void> send(Iterable<EventData> data) 
-			throws MessagingCommunicationException, ServerBusyException, AuthorizationFailedException, PayloadSizeExceededException
+	public final CompletableFuture<Void> send(Iterable<EventData> eventDatas) 
+			throws ServiceBusException
 	{
-		throw new UnsupportedOperationException("TODO Implement Send Batch");
+		if (eventDatas == null)
+		{
+			throw new IllegalArgumentException("EventData cannot be null.");
+		}
+		
+		return this.sender.send(EventDataUtil.toAmqpMessages(eventDatas), null);
 	}
 	
-	public final CompletableFuture<Void> send(EventData data, String partitionKey) 
-			throws MessagingCommunicationException, ServerBusyException, AuthorizationFailedException, PayloadSizeExceededException
+	public final CompletableFuture<Void> send(EventData eventData, String partitionKey) 
+			throws ServiceBusException
 	{
-		if (data == null)
+		if (eventData == null)
 		{
 			throw new IllegalArgumentException("EventData cannot be null.");
 		}
@@ -96,65 +98,73 @@ public class EventHubClient extends ClientEntity
 		{
 			throw new IllegalArgumentException("partitionKey cannot be null");
 		}
-		
-		Message amqpMessage = data.toAmqpMessage();
-		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
-						? new MessageAnnotations(new HashMap<Symbol, Object>()) 
-						: amqpMessage.getMessageAnnotations();
-		messageAnnotations.getValue().put(AmqpConstants.PartitionKey, partitionKey);
-		return this.sender.send(data.toAmqpMessage());
+				
+		return this.sender.send(eventData.toAmqpMessage(partitionKey));
 	}
 	
-	public final CompletableFuture<Void> send(Iterable<EventData> data, String partitionKey) 
-		throws MessagingCommunicationException, ServerBusyException, AuthorizationFailedException, PayloadSizeExceededException
+	public final CompletableFuture<Void> send(final Iterable<EventData> eventDatas, final String partitionKey) 
+		throws ServiceBusException
 	{
-		throw new UnsupportedOperationException("TODO: Implement Send Batch");
+		if (eventDatas == null)
+		{
+			throw new IllegalArgumentException("EventData batch cannot be empty.");
+		}
+		
+		// TODO: PartitionKey SizeLimit - boundaries check
+		if (partitionKey == null)
+		{
+			throw new IllegalArgumentException("partitionKey cannot be null");
+		}
+		
+		return this.sender.send(EventDataUtil.toAmqpMessages(eventDatas, partitionKey), partitionKey);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId) 
-			throws ReceiverDisconnectedException, EntityNotFoundException, ServerBusyException, AuthorizationFailedException, InterruptedException, ExecutionException
+			throws ServiceBusException
 	{
 		return this.createReceiver(consumerGroupName, partitionId, PartitionReceiver.StartOfStream, false);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId, final String startingOffset) 
-			throws ReceiverDisconnectedException, EntityNotFoundException, ServerBusyException, AuthorizationFailedException, InterruptedException, ExecutionException
+			throws ServiceBusException
 	{
 		return this.createReceiver(consumerGroupName, partitionId, startingOffset, false);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive) 
-			throws ReceiverDisconnectedException, EntityNotFoundException, ServerBusyException, AuthorizationFailedException
+			throws ServiceBusException
 	{
-		return PartitionReceiver.Create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, PartitionReceiver.NullEpoch, false, null);
+		return PartitionReceiver.create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, null, PartitionReceiver.NullEpoch, false, null);
 	}
 	
-	public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId, final Date dateTimeUtc) {
-		throw new UnsupportedOperationException("TODO: Implement datetime receiver");
+	public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId, final Instant dateTime)
+			throws ServiceBusException
+	{
+		return PartitionReceiver.create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, null, false, dateTime, PartitionReceiver.NullEpoch, false, null);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final long epoch) 
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException, ReceiverDisconnectedException
+			throws ServiceBusException
 	{
 		return this.createEpochReceiver(consumerGroupName, partitionId, PartitionReceiver.StartOfStream, epoch);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch)
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException, ReceiverDisconnectedException
+			throws ServiceBusException
 	{
 		return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, false, epoch);
 	}
 	
 	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch)
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException, ReceiverDisconnectedException
+			throws ServiceBusException
 	{
-		return PartitionReceiver.Create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch, true, null);
+		return PartitionReceiver.create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch, true, null);
 	}
 	
-	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final Date dateTimeUtc, final long epoch)
+	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch)
+		throws ServiceBusException
 	{
-		// return PartitionReceiver.Create(this.underlyingFactory,  this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch, isEpochReceiver, receiveHandler)
-		throw new UnsupportedOperationException("TODO: Implement datetime receiver");
+		return PartitionReceiver.create(this.underlyingFactory,  this.eventHubName, consumerGroupName, partitionId, null, false, dateTime, epoch, true, null);
 	}
 	
 	/**
@@ -168,18 +178,19 @@ public class EventHubClient extends ClientEntity
 	 * @param epoch to make sure that there is only one Receiver
 	 * @param receiveHandler the implementation of {@link ReceiveHandler} which can process the received events 
 	 * @return
-	 * @throws EntityNotFoundException
+	 * @throws IllegalEntityException
 	 * @throws ServerBusyException
 	 * @throws AuthorizationFailedException
 	 * @throws ReceiverDisconnectedException
 	 */
 	public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch, ReceiveHandler receiveHandler) 
-			throws EntityNotFoundException, ServerBusyException, AuthorizationFailedException, ReceiverDisconnectedException
+			throws ServiceBusException
 	{
-		return PartitionReceiver.Create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch, true, receiveHandler);
+		return PartitionReceiver.create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch, true, receiveHandler);
 	}
 	
 	public final void close()
 	{
+		this.underlyingFactory.close();
 	}
 }

@@ -1,9 +1,9 @@
 package com.microsoft.azure.servicebus;
 
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.logging.*;
 
 import org.apache.qpid.proton.amqp.*;
 import org.apache.qpid.proton.amqp.messaging.Source;
@@ -11,19 +11,25 @@ import org.apache.qpid.proton.amqp.messaging.Target;
 import org.apache.qpid.proton.amqp.transport.*;
 import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.message.*;
-import org.apache.qpid.proton.reactor.Reactor;
+
+import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
 
 /**
- * Abstracts all amqp related details
+ * Common Receiver that abstracts all amqp related details
  * translates event-driven reactor model into async receive Api
- * Manage reconnect? - store currentConsumedOffset
+ * TODO: NEED AmqpObject state-machine for open/close
  */
 public class MessageReceiver extends ClientEntity
 {
-	private final int prefetchCount; 
-	private final ConcurrentLinkedQueue<CompletableFuture<Collection<Message>>> pendingReceives;
-	private final MessagingFactory underlyingFactory;
+	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.ServiceBusClientTrace);
 	
+	private final int prefetchCount; 
+	private final ConcurrentLinkedQueue<WorkItem<Collection<Message>>> pendingReceives;
+	private final MessagingFactory underlyingFactory;
+	private final String name;
+	private final String receivePath;
+		
 	private ConcurrentLinkedQueue<Message> prefetchedMessages;
 	private Receiver receiveLink;
 	private CompletableFuture<MessageReceiver> linkOpen;
@@ -31,23 +37,29 @@ public class MessageReceiver extends ClientEntity
 	
 	private long epoch;
 	private boolean isEpochReceiver;
+	private Instant dateTime;
+	private boolean offsetInclusive;
+	
+	private TimeoutTracker currentOperationTracker;
+	private String lastReceivedOffset;
 	
 	/**
 	 * @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
 	 * Connection has to be associated with Reactor before Creating a receiver on it.
 	 */
-	public static CompletableFuture<MessageReceiver> Create(
+	public static CompletableFuture<MessageReceiver> create(
 			final MessagingFactory factory, 
 			final String name, 
 			final String recvPath, 
 			final String offset,
 			final boolean offsetInclusive,
+			final Instant dateTime,
 			final int prefetchCount,
 			final long epoch,
 			final boolean isEpochReceiver,
 			final MessageReceiveHandler receiveHandler)
 	{
-		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, offset, offsetInclusive, prefetchCount, epoch, isEpochReceiver, receiveHandler);
+		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, offset, offsetInclusive, dateTime, prefetchCount, epoch, isEpochReceiver, receiveHandler);
 		
 		ReceiveLinkHandler handler = new ReceiveLinkHandler(name, msgReceiver);
 		BaseHandler.setHandler(msgReceiver.receiveLink, handler);
@@ -60,6 +72,7 @@ public class MessageReceiver extends ClientEntity
 			final String recvPath, 
 			final String offset,
 			final boolean offsetInclusive,
+			final Instant dateTime,
 			final int prefetchCount,
 			final Long epoch,
 			final boolean isEpochReceiver,
@@ -67,29 +80,27 @@ public class MessageReceiver extends ClientEntity
 	{
 		super(name);
 		this.underlyingFactory = factory;
+		this.name = name;
+		this.receivePath = recvPath;
 		this.prefetchCount = prefetchCount;
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
-		this.receiveLink = this.createReceiveLink(factory.getConnection(), name, recvPath, offset, offsetInclusive);
-		this.linkOpen = new CompletableFuture<MessageReceiver>();
-		
-		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-		Timer.schedule(new Runnable()
+		if (offset != null)
 		{
-			public void run()
-			{
-				synchronized(MessageReceiver.this.linkOpen)
-				{
-					if (!MessageReceiver.this.linkOpen.isDone())
-					{
-						MessageReceiver.this.linkOpen.completeExceptionally(new OperationTimedOutException());
-					}
-				}
-			}}
-		, this.underlyingFactory.getOperationTimeout(), TimerType.OneTimeRun);
+			this.lastReceivedOffset = offset;
+			this.offsetInclusive = offsetInclusive;
+		}
+		else
+		{
+			this.dateTime = dateTime;
+		}
 		
-		this.pendingReceives = new ConcurrentLinkedQueue<CompletableFuture<Collection<Message>>>();
+		this.receiveLink = this.createReceiveLink();
+		this.currentOperationTracker = TimeoutTracker.create(factory.getOperationTimeout());
+		this.initializeLinkOpen(this.currentOperationTracker);
+		
+		this.pendingReceives = new ConcurrentLinkedQueue<WorkItem<Collection<Message>>>();
 		this.receiveHandler = receiveHandler;
 	}
 	
@@ -98,8 +109,17 @@ public class MessageReceiver extends ClientEntity
 		return this.prefetchCount;
 	}
 	
+	/**
+	 * Optimization: This needs to be invoked by the Receiver which Implements MessageReceiver.
+	 * TODO: Make this contract more explicit
+	 */
+	public void setLastReceivedOffset(final String value)
+	{
+		this.lastReceivedOffset = value;
+	}
+	
 	/*
-	 * if ReceiveHandler is passed to the Constructor - this receive shouldn't be invoked
+	 * *****Important*****: if ReceiveHandler is passed to the Constructor - this receive shouldn't be invoked
 	 */
 	public CompletableFuture<Collection<Message>> receive()
 	{
@@ -109,19 +129,33 @@ public class MessageReceiver extends ClientEntity
 			{
 				if (!this.prefetchedMessages.isEmpty())
 				{
+					// return all available msgs to application-layer and send 'link-flow' frame for prefetch
 					Collection<Message> returnMessages = this.prefetchedMessages;
 					this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
+					this.sendFlow(returnMessages.size());					
 					return CompletableFuture.completedFuture(returnMessages);
 				}
 			}
 		}
 		
 		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<Collection<Message>>();
-		this.pendingReceives.offer(onReceive);
+		this.pendingReceives.offer(new WorkItem<Collection<Message>>(onReceive, this.underlyingFactory.getOperationTimeout()));
+		
+		if (this.currentOperationTracker == null && this.pendingReceives.peek() != null)
+		{
+			synchronized (this.pendingReceives)
+			{
+				if (this.pendingReceives.peek() != null)
+				{
+					this.currentOperationTracker = this.pendingReceives.peek().getTimeoutTracker();
+				}
+			}
+		}
+		
 		return onReceive;
 	}
 	
-	void onOpenComplete(Exception exception)
+	public void onOpenComplete(Exception exception)
 	{
 		synchronized (this.linkOpen)
 		{
@@ -135,35 +169,61 @@ public class MessageReceiver extends ClientEntity
 				{
 					this.linkOpen.completeExceptionally(exception);
 				}
+				
+				this.offsetInclusive = false; // re-open link always starts from the last received offset
+				this.currentOperationTracker = null;
+				this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
 			}
 		}
 	}
 	
 	// intended to be called by proton reactor handler 
-	void onDelivery(Collection<Message> messages)
+	public void onDelivery(Collection<Message> messages)
 	{
 		if (this.receiveHandler != null)
 		{
 			this.receiveHandler.onReceiveMessages(messages);
-			return;
+			this.currentOperationTracker = TimeoutTracker.create(this.underlyingFactory.getOperationTimeout());
+			this.sendFlow(messages.size());
+		}		
+		else
+		{
+			synchronized (this.pendingReceives)
+			{
+				if (this.pendingReceives.isEmpty())
+				{
+					this.prefetchedMessages.addAll(messages);
+					this.currentOperationTracker = null;
+				}
+				else
+				{
+					this.pendingReceives.poll().getWork().complete(messages);
+					this.currentOperationTracker = this.pendingReceives.peek() != null ? this.pendingReceives.peek().getTimeoutTracker() : null;
+					this.sendFlow(messages.size());
+				}
+			}
 		}
 		
-		synchronized (this.pendingReceives)
-		{
-			if (this.pendingReceives.isEmpty())
-			{
-				this.prefetchedMessages.addAll(messages);
-			}
-			else
-			{
-				this.pendingReceives.poll().complete(messages);
-			}
-		}
+		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
 	}
 	
-	void onError(ErrorCondition error)
+	public void onError(ErrorCondition error)
 	{		
 		Exception completionException = ExceptionUtil.toException(error);
+		
+		// if CurrentOpTracker is null - no operation is in progress
+		Duration remainingTime = this.currentOperationTracker == null 
+						? Duration.ofSeconds(0)
+						: (this.currentOperationTracker.elapsed().compareTo(this.underlyingFactory.getOperationTimeout()) > 0) 
+								? Duration.ofSeconds(0) 
+								: this.underlyingFactory.getOperationTimeout().minus(this.currentOperationTracker.elapsed());
+		Duration retryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), completionException, remainingTime);
+		
+		if (retryInterval != null)
+		{
+			this.scheduleRecreate(retryInterval);			
+			return;
+		}
 		
 		synchronized (this.linkOpen)
 		{
@@ -178,10 +238,19 @@ public class MessageReceiver extends ClientEntity
 		{
 			synchronized (this.pendingReceives)
 			{
-				for(CompletableFuture<Collection<Message>> future: this.pendingReceives)
-				{
-					future.completeExceptionally(completionException);
-				}
+				if (this.pendingReceives != null && !this.pendingReceives.isEmpty())
+					while (this.pendingReceives.peek() != null)
+					{
+						WorkItem<Collection<Message>> workItem = this.pendingReceives.poll();
+						if (completionException instanceof ServiceBusException && ((ServiceBusException) completionException).getIsTransient())
+						{
+							workItem.getWork().complete(null);
+						}
+						else
+						{
+							workItem.getWork().completeExceptionally(completionException);
+						}
+					}
 			}
 		}
 	}
@@ -193,23 +262,39 @@ public class MessageReceiver extends ClientEntity
 		{
 			this.receiveLink.close();
 		}
-	}	
+	}
 	
-	private Receiver createReceiveLink(
-								final Connection connection, 
-								final String name, 
-								final String receivePath, 
-								final String offset,
-								final boolean offsetInclusive)
+	private Receiver createReceiveLink()
 	{	
 		Source source = new Source();
         source.setAddress(receivePath);
-        source.setFilter(Collections.singletonMap(
-        		AmqpConstants.StringFilter,
-        		new UnknownDescribedType(AmqpConstants.StringFilter, 
-        				String.format("amqp.annotation.%s >%s '%s'", AmqpConstants.OffsetName, offsetInclusive ? "=" : StringUtil.EMPTY, offset))));
         
-		Session ssn = connection.session();
+        UnknownDescribedType filter = null;
+        if (this.lastReceivedOffset == null)
+        {
+        	long totalMilliSeconds;
+        	try {
+        		// TODO: how to handle the case when : this.dateTime - epoch doesn't fit in a long !
+	        	totalMilliSeconds = this.dateTime.toEpochMilli();
+	        } catch(ArithmeticException ex)
+        	{
+        		totalMilliSeconds = Long.MAX_VALUE;
+        	}
+        	
+            filter = new UnknownDescribedType(AmqpConstants.StringFilter,
+        			String.format(AmqpConstants.AmqpAnnotationFormat, AmqpConstants.ReceivedAtAnnotationName, StringUtil.EMPTY, totalMilliSeconds));
+        }
+        else 
+        {
+        	filter =  new UnknownDescribedType(AmqpConstants.StringFilter,
+            		String.format(AmqpConstants.AmqpAnnotationFormat, AmqpConstants.OffsetAnnotationName, this.offsetInclusive ? "=" : StringUtil.EMPTY, this.lastReceivedOffset));
+        }
+        
+        Map<Symbol, UnknownDescribedType> filterMap = Collections.singletonMap(AmqpConstants.StringFilter, filter);
+        source.setFilter(filterMap);
+        
+		Session ssn = this.underlyingFactory.getConnection().session();
+		
 		Receiver receiver = ssn.receiver(name);
 		receiver.setSource(source);
 		receiver.setTarget(new Target());
@@ -227,5 +312,76 @@ public class MessageReceiver extends ClientEntity
         receiver.open();
                 
         return receiver;
+	}
+	
+	/**
+	 * set the link credit; not thread-safe
+	 */
+	private void sendFlow(int credits)
+	{
+		if (this.receiveLink.getLocalState() == EndpointState.ACTIVE)
+		{
+			this.receiveLink.flow(credits);
+
+			if(TRACE_LOGGER.isLoggable(Level.FINE))
+	        {
+	        	TRACE_LOGGER.log(Level.FINE,
+	        			String.format("MessageReceiver.sendFlow (linkname: %s), updated-link-credit: %s", this.receiveLink.getName(), this.receiveLink.getCredit()));
+	        }
+		}
+		else
+		{
+			this.scheduleRecreate(Duration.ofSeconds(0));
+		}		
+	}
+	
+	private void scheduleRecreate(Duration runAfter)
+	{
+		Timer.schedule(
+				new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						MessageReceiver.this.receiveLink = MessageReceiver.this.createReceiveLink();
+						ReceiveLinkHandler handler = new ReceiveLinkHandler(name, MessageReceiver.this);
+						BaseHandler.setHandler(MessageReceiver.this.receiveLink, handler);
+						MessageReceiver.this.underlyingFactory.getRetryPolicy().incrementRetryCount(MessageReceiver.this.getClientId());
+					}
+				},
+				runAfter,
+				TimerType.OneTimeRun);
+	}
+	
+	private void initializeLinkOpen(TimeoutTracker timeout)
+	{
+		this.linkOpen = new CompletableFuture<MessageReceiver>();
+		
+		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
+		Timer.schedule(
+			new Runnable()
+				{
+					public void run()
+					{
+						synchronized(MessageReceiver.this.linkOpen)
+						{
+							if (!MessageReceiver.this.linkOpen.isDone())
+							{
+								Exception operationTimedout = new TimeoutException(
+										String.format(Locale.US, "Receive Link(%s) open() timed out", name));
+								if (TRACE_LOGGER.isLoggable(Level.WARNING))
+								{
+									TRACE_LOGGER.log(Level.WARNING, 
+											String.format(Locale.US, "message recever(linkName: %s, path: %s) open call timedout", name, MessageReceiver.this.receivePath), 
+											operationTimedout);
+								}
+								
+								MessageReceiver.this.linkOpen.completeExceptionally(operationTimedout);
+							}
+						}
+					}
+				}
+			, timeout.remaining()
+			, TimerType.OneTimeRun);
 	}
 }
