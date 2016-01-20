@@ -83,8 +83,13 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     public Iterable<Future<Lease>> getAllLeases()
     {
         ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
-        // TODO for each partition call getLease()
-        System.out.println("getAllLeases() NOT IMPLEMENTED");
+        // DUMMY START
+        Iterable<String> partitionIds = this.host.getPartitionManager().getPartitionIds();
+        for (String id : partitionIds)
+        {
+            leases.add(getLease(id));
+        }
+        // DUMMY END
         return leases;
     }
 
@@ -222,7 +227,18 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
         public Lease call()
         {
-            return null;
+            // DUMMY STARTS
+            Lease returnLease = null;
+            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
+            {
+                returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
+            }
+            else
+            {
+                System.out.println("getLease() did not find existing lease for partition " + this.partitionId);
+            }
+            return returnLease;
+            // DUMMY ENDS
         }
     }
 

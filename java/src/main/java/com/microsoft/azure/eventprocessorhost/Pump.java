@@ -142,7 +142,7 @@ public class Pump implements Runnable
         this.pumps.put(lease.getPartitionId(), partitionPump); // do the put after start, if the start fails then put doesn't happen
     }
 
-    private class PartitionPump implements Runnable
+    private static class PartitionPump implements Runnable
     {
         private EventProcessorHost host;
         private IEventProcessor processor;
@@ -151,6 +151,7 @@ public class Pump implements Runnable
         private Future<?> future;
         private Lease lease;
         private Boolean keepGoing = true;
+        private Boolean alreadyForceClosed = false;
 
         public PartitionPump(EventProcessorHost host, Lease lease)
         {
@@ -179,6 +180,9 @@ public class Pump implements Runnable
         {
             try
             {
+                System.out.println("Forcing close on partition " + this.partitionContext.getLease().getPartitionId()); // DUMMY
+                this.keepGoing = false;
+                this.alreadyForceClosed = true;
                 this.processor.onClose(this.partitionContext, reason);
             }
             catch (Exception e)
@@ -195,6 +199,8 @@ public class Pump implements Runnable
             this.keepGoing = false;
         }
 
+        private static int eventNumber = 0; // DUMMY
+
         public void run()
         {
             try
@@ -209,12 +215,11 @@ public class Pump implements Runnable
                 // DUMMY ENDS
             }
 
-            int i = 0; // DUMMY
-            while (keepGoing)
+            while (this.keepGoing)
             {
                 // Receive loop goes here
                 // DUMMY STARTS
-                EventData dummyEvent = new EventData(("event " + i++ + " on partition " + this.lease.getPartitionId()).getBytes());
+                EventData dummyEvent = new EventData(("event " + PartitionPump.eventNumber++ + " on partition " + this.lease.getPartitionId()).getBytes());
                 ArrayList<EventData> dummyList = new ArrayList<EventData>();
                 dummyList.add(dummyEvent);
                 try
@@ -238,16 +243,19 @@ public class Pump implements Runnable
                 // DUMMY ENDS
             }
 
-            try
+            if (!this.alreadyForceClosed)
             {
-                this.processor.onClose(this.partitionContext, CloseReason.Shutdown);
-            }
-            catch (Exception e)
-            {
-                // DUMMY STARTS
-                System.out.println("Failed closing processor " + e.toString());
-                e.printStackTrace();
-                // DUMMY ENDS
+                try
+                {
+                    this.processor.onClose(this.partitionContext, CloseReason.Shutdown);
+                }
+                catch (Exception e)
+                {
+                    // DUMMY STARTS
+                    System.out.println("Failed closing processor " + e.toString());
+                    e.printStackTrace();
+                    // DUMMY ENDS
+                }
             }
 
             // DUMMY STARTS
