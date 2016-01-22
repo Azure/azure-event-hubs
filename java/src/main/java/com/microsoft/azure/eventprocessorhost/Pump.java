@@ -4,6 +4,8 @@ import com.microsoft.azure.eventhubs.EventData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
 
@@ -39,7 +41,7 @@ public class Pump implements Runnable
     {
         while (keepGoing)
         {
-            // Re-get leases
+        	// Re-get leases
             try
             {
                 this.leases = host.getPartitionManager().getSomeLeases();
@@ -53,17 +55,39 @@ public class Pump implements Runnable
             }
 
             // Remove any pumps for which we have lost the lease.
-            for (String partitionId : this.pumps.keySet())
+            ArrayList<String> pumpsToRemove = new ArrayList<String>();
+            Set<String> savedPumpsKeySet = this.pumps.keySet();
+        	// DUMMY STARTS
+        	for (String partitionId : savedPumpsKeySet)
+        	{
+        		System.out.println("Host " + this.host.getHostName() + " has pump for partition " + partitionId);
+        	}
+        	// DUMMY ENDS
+            for (String partitionId : savedPumpsKeySet)
             {
+            	System.out.println("Host " + this.host.getHostName() + " checking pump " + partitionId); // DUMMY
                 if (!this.leases.containsKey(partitionId))
                 {
                     PartitionPump partitionPump = this.pumps.get(partitionId);
                     if (!partitionPump.getStatus().isDone())
                     {
+                    	System.out.println("######## Host " + this.host.getHostName() + " would close " + partitionId);
                         partitionPump.forceClose(CloseReason.LeaseLost);
-                        this.pumps.remove(partitionId);
+                        System.out.println("ForceClose returned"); // DUMMY
+                        pumpsToRemove.add(partitionId);
                     }
                 }
+                else
+                {
+                	System.out.println("this.leases contains " + partitionId + " and pump exists for host " + this.host.getHostName()); // DUMMY
+                }
+            }
+            System.out.println("End of pumps check for host " + this.host.getHostName()); // DUMMY
+            // Avoid concurrent modification exception by doing the removes as a separate step
+            for (String removee : pumpsToRemove)
+            {
+            	System.out.println("######## Host " + this.host.getHostName() + " removing " + removee); // DUMMY
+            	this.pumps.remove(removee);
             }
 
             // Check status of pumps for leases, start/restart where needed.
@@ -181,7 +205,7 @@ public class Pump implements Runnable
                 System.out.println("Forcing close on partition " + this.partitionContext.getLease().getPartitionId()); // DUMMY
                 this.keepGoing = false;
                 this.alreadyForceClosed = true;
-                this.processor.onClose(this.partitionContext, reason);
+                this.host.getExecutorService().submit(new ForceCloseCallable(this.processor, this.partitionContext, reason));
             }
             catch (Exception e)
             {
@@ -217,7 +241,7 @@ public class Pump implements Runnable
             {
                 // Receive loop goes here
                 // DUMMY STARTS
-                EventData dummyEvent = new EventData(("event " + PartitionPump.eventNumber++ + " on partition " + this.lease.getPartitionId()).getBytes());
+                EventData dummyEvent = new EventData(("event " + PartitionPump.eventNumber++ + " on partition " + this.lease.getPartitionId() + " by host " + this.host.getHostName()).getBytes());
                 ArrayList<EventData> dummyList = new ArrayList<EventData>();
                 dummyList.add(dummyEvent);
                 try
@@ -259,6 +283,34 @@ public class Pump implements Runnable
             // DUMMY STARTS
             System.out.println("Pump exiting for " + this.lease.getPartitionId());
             // DUMMY ENDS
+        }
+        
+        private class ForceCloseCallable implements Callable<Void>
+        {
+        	private PartitionContext context;
+        	private CloseReason reason;
+        	private IEventProcessor processor;
+        	
+        	public ForceCloseCallable(IEventProcessor processor, PartitionContext context, CloseReason reason)
+        	{
+        		this.processor = processor;
+        		this.context = context;
+        		this.reason = reason;
+        	}
+        	
+        	public Void call()
+        	{
+                try
+                {
+					this.processor.onClose(this.context, this.reason);
+				}
+                catch (Exception e)
+                {
+					// DUMMY what to do here?
+					e.printStackTrace();
+				}
+        		return null;
+        	}
         }
     }
 }

@@ -14,7 +14,6 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private ExecutorService executorService = null;
     private String storageConnectionString;
 
-
     public AzureStorageCheckpointLeaseManager(String storageConnectionString, String namespaceName,
                                               String eventHubPath, String consumerGroup)
     {
@@ -312,8 +311,8 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
                 }
                 else
                 {
-                    System.out.println("acquireLease() can't aquire because not expired for partition " + leaseToReturn.getPartitionId());
-                    leaseToReturn = null;
+                	leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
+                    System.out.println("acquireLease() stole lease for partition " + leaseToReturn.getPartitionId());
                 }
             }
             else

@@ -11,19 +11,39 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-        EventProcessorHost host = new EventProcessorHost("namespace", "eventhub", "keyname",
-                "key", "$Default", "storage connection string");
-        host.registerEventProcessor(EventProcessor.class);
+    	PartitionManager.dummyHostCount = 3;
+    	PartitionManager.dummyPartitionCount = 8;
+    	
+    	EventProcessorHost[] hosts = new EventProcessorHost[PartitionManager.dummyHostCount];
+    	
+    	for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+    	{
+    		hosts[i] = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", "storage connection string");
+    		System.out.println("Registering host " + i + " named " + hosts[i].getHostName());
+    		hosts[i].registerEventProcessor(EventProcessor.class);
+    		try
+    		{
+    			Thread.sleep(3000);
+    		}
+    		catch (InterruptedException e1)
+    		{
+    			// TODO Auto-generated catch block
+    			e1.printStackTrace();
+    		}
+    	}
 
         System.out.println("Press enter to stop");
         try
         {
             System.in.read();
-            System.out.println("Calling unregister");
-            Future<?> blah = host.unregisterEventProcessor();
-            System.out.println("Waiting for Future to complete");
-            blah.get();
-            System.out.println("Completed");
+            for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+            {
+	            System.out.println("Calling unregister " + i);
+	            Future<?> blah = hosts[i].unregisterEventProcessor();
+	            System.out.println("Waiting for Future to complete");
+	            blah.get();
+	            System.out.println("Completed");
+            }
         }
         catch(Exception e)
         {
