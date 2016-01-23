@@ -49,7 +49,7 @@ public class Pump implements Runnable
             catch (Exception e)
             {
                 // DUMMY STARTS
-                System.out.println("Exception getting leases " + e.toString());
+                this.host.logWithHost("Exception getting leases " + e.toString());
                 e.printStackTrace();
                 // DUMMY ENDS
             }
@@ -60,33 +60,31 @@ public class Pump implements Runnable
         	// DUMMY STARTS
         	for (String partitionId : savedPumpsKeySet)
         	{
-        		System.out.println("Host " + this.host.getHostName() + " has pump for partition " + partitionId);
+        		this.host.logWithHostAndPartition(partitionId, "has pump");
         	}
         	// DUMMY ENDS
             for (String partitionId : savedPumpsKeySet)
             {
-            	System.out.println("Host " + this.host.getHostName() + " checking pump " + partitionId); // DUMMY
+            	this.host.logWithHostAndPartition(partitionId, "checking pump"); // DUMMY
                 if (!this.leases.containsKey(partitionId))
                 {
                     PartitionPump partitionPump = this.pumps.get(partitionId);
                     if (!partitionPump.getStatus().isDone())
                     {
-                    	System.out.println("######## Host " + this.host.getHostName() + " would close " + partitionId);
+                    	this.host.logWithHostAndPartition(partitionId, "closing pump");
                         partitionPump.forceClose(CloseReason.LeaseLost);
-                        System.out.println("ForceClose returned"); // DUMMY
                         pumpsToRemove.add(partitionId);
                     }
                 }
                 else
                 {
-                	System.out.println("this.leases contains " + partitionId + " and pump exists for host " + this.host.getHostName()); // DUMMY
+                	this.host.logWithHostAndPartition(partitionId, "pump valid"); // DUMMY
                 }
             }
-            System.out.println("End of pumps check for host " + this.host.getHostName()); // DUMMY
             // Avoid concurrent modification exception by doing the removes as a separate step
             for (String removee : pumpsToRemove)
             {
-            	System.out.println("######## Host " + this.host.getHostName() + " removing " + removee); // DUMMY
+            	this.host.logWithHostAndPartition(removee, "removing pump"); // DUMMY
             	this.pumps.remove(removee);
             }
 
@@ -113,7 +111,7 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // DUMMY STARTS
-                    System.out.println("Failure starting pump on partition " + partitionId + ": " + e.toString());
+                    this.host.logWithHostAndPartition(partitionId, "Failure starting pump: " + e.toString());
                     e.printStackTrace();
                     // DUMMY ENDS
                 }
@@ -127,7 +125,7 @@ public class Pump implements Runnable
             catch (InterruptedException e)
             {
                 // DUMMY STARTS
-                System.out.println("Sleep was interrupted " + e.toString());
+                this.host.logWithHost("Sleep was interrupted " + e.toString());
                 e.printStackTrace();
                 // DUMMY ENDS
             }
@@ -141,20 +139,20 @@ public class Pump implements Runnable
         {
             try
             {
-                System.out.println("Waiting for pump shutdown on " + partitionId); // DUMMY
+                this.host.logWithHostAndPartition(partitionId, "Waiting for pump shutdown"); // DUMMY
                 this.pumps.get(partitionId).getStatus().get();
-                System.out.println("Got for pump shutdown on " + partitionId); // DUMMY
+                this.host.logWithHostAndPartition(partitionId, "Pump shutdown complete"); // DUMMY
             }
             catch (Exception e)
             {
                 // DUMMY STARTS
-                System.out.println("Failure waiting for shutdown on " + partitionId);
+                this.host.logWithHostAndPartition(partitionId, "Failure in pump shutdown: " + e.toString()); // DUMMY
                 e.printStackTrace();
                 // DUMMY ENDS
             }
         }
 
-        System.out.println("Master pump loop exiting"); // DUMMY
+        this.host.logWithHost("Master pump loop exiting"); // DUMMY
     }
 
     private void startSinglePump(Lease lease) throws Exception
@@ -202,7 +200,7 @@ public class Pump implements Runnable
         {
             try
             {
-                System.out.println("Forcing close on partition " + this.partitionContext.getLease().getPartitionId()); // DUMMY
+                this.host.logWithHostAndPartition(this.partitionContext, "Forcing close"); // DUMMY
                 this.keepGoing = false;
                 this.alreadyForceClosed = true;
                 this.host.getExecutorService().submit(new ForceCloseCallable(this.processor, this.partitionContext, reason));
@@ -210,7 +208,7 @@ public class Pump implements Runnable
             catch (Exception e)
             {
                 // DUMMY STARTS
-                System.out.println("Failed closing processor " + e.toString());
+                this.host.logWithHostAndPartition(this.partitionContext, "Failed forcing close: "+ e.toString());
                 e.printStackTrace();
                 // DUMMY ENDS
             }
@@ -232,7 +230,7 @@ public class Pump implements Runnable
             catch (Exception e)
             {
                 // DUMMY STARTS
-                System.out.println("Failed opening processor " + e.toString());
+            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor " + e.toString());
                 e.printStackTrace();
                 // DUMMY ENDS
             }
@@ -251,7 +249,7 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // What do we even do here?
-                    System.out.println("Got exception from onEvents " + e.toString());
+                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from onEvents: " + e.toString());
                     e.printStackTrace();
                 }
                 try
@@ -274,14 +272,14 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // DUMMY STARTS
-                    System.out.println("Failed closing processor " + e.toString());
+                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing processor: " + e.toString());
                     e.printStackTrace();
                     // DUMMY ENDS
                 }
             }
 
             // DUMMY STARTS
-            System.out.println("Pump exiting for " + this.lease.getPartitionId());
+            this.host.logWithHostAndPartition(this.partitionContext, "Pump exiting");
             // DUMMY ENDS
         }
         

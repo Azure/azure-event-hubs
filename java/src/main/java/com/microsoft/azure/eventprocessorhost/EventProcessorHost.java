@@ -157,6 +157,23 @@ public final class EventProcessorHost
         }
         return retval;
     }
+    
+    void logWithHost(String logMessage)
+    {
+    	// DUMMY STARTS
+    	System.out.println("host " + this.hostName + ": " + logMessage);
+    	// DUMMY ENDS
+    }
+    
+    void logWithHostAndPartition(String partitionId, String logMessage)
+    {
+    	logWithHost("partition: " + partitionId + ": " + logMessage);
+    }
+    
+    void logWithHostAndPartition(PartitionContext context, String logMessage)
+    {
+    	logWithHostAndPartition(context.getLease().getPartitionId(), logMessage);
+    }
 
 
     private class PumpStartupCallable implements Callable<Void>

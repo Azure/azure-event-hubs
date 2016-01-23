@@ -100,13 +100,13 @@ public class PartitionManager
             	Lease takenLease = leaseManager.acquireLease(tryTake.getPartitionId()).get();
             	if (takenLease != null)
             	{
-            		System.out.println("Took lease for partition " + takenLease.getPartitionId());
+            		this.host.logWithHostAndPartition(takenLease.getPartitionId(), "Stole lease");
             		ourLeases.put(takenLease.getPartitionId(), takenLease);
             		ourLeasesCount++;
             	}
             	else
             	{
-            		System.out.println("Failed to take lease for partition " + tryTake.getPartitionId());
+            		this.host.logWithHost("Failed to steal lease for partition " + tryTake.getPartitionId());
             	}
             }
             
@@ -114,7 +114,7 @@ public class PartitionManager
             for (Future<Lease> future : allLeases)
             {
             	Lease dumpLease = future.get();
-            	System.out.println("Lease on partition " + dumpLease.getPartitionId() + " owned by " + dumpLease.getOwner());
+            	this.host.logWithHost("Lease on partition " + dumpLease.getPartitionId() + " owned by " + dumpLease.getOwner());
             }
             // DUMMY ENDS
         }
