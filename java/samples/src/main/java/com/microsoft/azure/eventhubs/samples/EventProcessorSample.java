@@ -4,19 +4,17 @@ package com.microsoft.azure.eventhubs.samples;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
 
-import java.io.IOException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	PartitionManager.dummyHostCount = 3;
+    	int hostCount = 3;
     	PartitionManager.dummyPartitionCount = 8;
     	
-    	EventProcessorHost[] hosts = new EventProcessorHost[PartitionManager.dummyHostCount];
+    	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	
-    	for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+    	for (int i = 0; i < hostCount; i++)
     	{
     		hosts[i] = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", "storage connection string");
     		System.out.println("Registering host " + i + " named " + hosts[i].getHostName());
@@ -36,7 +34,7 @@ public class EventProcessorSample {
         try
         {
             System.in.read();
-            for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+            for (int i = 0; i < hostCount; i++)
             {
 	            System.out.println("Calling unregister " + i);
 	            Future<?> blah = hosts[i].unregisterEventProcessor();
