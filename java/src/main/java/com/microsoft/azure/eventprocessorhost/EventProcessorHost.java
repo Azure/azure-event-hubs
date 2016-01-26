@@ -158,11 +158,16 @@ public final class EventProcessorHost
         return retval;
     }
     
-    void logWithHost(String logMessage)
+    void log(String logMessage)
     {
     	// DUMMY STARTS
-    	System.out.println("host " + this.hostName + ": " + logMessage);
+    	System.out.println(logMessage);
     	// DUMMY ENDS
+    }
+    
+    void logWithHost(String logMessage)
+    {
+    	log("host " + this.hostName + ": " + logMessage);
     }
     
     void logWithHostAndPartition(String partitionId, String logMessage)
