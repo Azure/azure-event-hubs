@@ -22,7 +22,7 @@ public abstract class TestBase
 	public static TestEventHubInfo checkoutTestEventHub()
 	{
 		HashMap<String, String> sasRule = new HashMap<String, String>();
-		sasRule.put(TestBase.SasRuleName, "----SasKey-----");
+		sasRule.put(TestBase.SasRuleName, "---------SasKey-----------");
 		return new TestEventHubInfo("gojavago", "firstehub-ns", null, sasRule);
 	}
 	
@@ -40,10 +40,10 @@ public abstract class TestBase
 			throws ServiceBusException
 	{
 		return ehClient.createPartitionSender(partitionId)
-				.thenAcceptAsync(new Consumer<PartitionSender>()
+				.thenAcceptAsync(new Consumer<EventHubSender>()
 				{
 					@Override
-					public void accept(PartitionSender pSender)
+					public void accept(EventHubSender pSender)
 					{
 						for (int count = 0; count< noOfEvents; count++)
 						{

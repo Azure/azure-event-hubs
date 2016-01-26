@@ -1,6 +1,7 @@
 package com.microsoft.azure.eventhubs.samples;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.time.*;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
@@ -26,26 +27,30 @@ public class ReceiveByDateTime
 		PartitionReceiver receiver = ehClient.createEpochReceiver(
 				EventHubClient.DefaultConsumerGroupName, 
 				partitionId, 
-				Instant.now().minus(Duration.ofDays(5)),
+				Instant.now(),
 				2345).get();
 		
 		System.out.println("date-time receiver created...");
 		
 		while (true)
 		{
-			receiver.receive().thenAccept(new Consumer<Collection<EventData>>()
+			receiver.receive().thenAccept(new Consumer<Iterable<EventData>>()
 			{
-				public void accept(Collection<EventData> receivedEvents)
+				public void accept(Iterable<EventData> receivedEvents)
 				{
-					System.out.println(String.format("ReceivedBatch Size: %s", receivedEvents != null ? receivedEvents.size() : 0));
-					
+					int batchSize = 0;
 					for(EventData receivedEvent: receivedEvents)
 					{
-						System.out.println(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
+						System.out.print(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
 								receivedEvent.getSystemProperties().getOffset(), 
 								receivedEvent.getSystemProperties().getSequenceNumber(), 
 								receivedEvent.getSystemProperties().getEnqueuedTime()));
+						System.out.println(String.format("| Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
+						batchSize++;
 					}
+					
+					System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
+					
 				}
 			}).get();
 		}

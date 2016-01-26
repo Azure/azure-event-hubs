@@ -64,6 +64,10 @@ ipch/
 *.vsp
 *.vspx
 
+# eclipse java
+.classpath
+.project
+
 # Guidance Automation Toolkit
 *.gpState
 

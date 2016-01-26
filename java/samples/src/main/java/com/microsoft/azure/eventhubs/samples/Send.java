@@ -2,6 +2,7 @@ package com.microsoft.azure.eventhubs.samples;
 
 import java.io.IOException;
 import java.nio.charset.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -33,10 +34,10 @@ public class Send
 		ehClient.send(sendEvent, partitionKey).get();
 		
 		// Type-3 - Send to a Specific Partition
-		PartitionSender sender = ehClient.createPartitionSender("0").get();
+		EventHubSender sender = ehClient.createPartitionSender("0").get();
 		sender.send(sendEvent).get();
 		
-		System.out.println("Send Complete...");
+		System.out.println(Instant.now() + ": Send Complete...");
 		System.in.read();
 	}
 

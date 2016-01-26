@@ -1,8 +1,10 @@
 package com.microsoft.azure.servicebus;
 
 import java.time.*;
+import java.time.temporal.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.apache.qpid.proton.amqp.*;
@@ -23,13 +25,15 @@ import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
 public class MessageReceiver extends ClientEntity
 {
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.ServiceBusClientTrace);
+	private static final int PingFlowThreshold = 50;
 	
 	private final int prefetchCount; 
 	private final ConcurrentLinkedQueue<WorkItem<Collection<Message>>> pendingReceives;
 	private final MessagingFactory underlyingFactory;
 	private final String name;
 	private final String receivePath;
-		
+	private final Runnable onOperationTimedout;
+	
 	private ConcurrentLinkedQueue<Message> prefetchedMessages;
 	private Receiver receiveLink;
 	private CompletableFuture<MessageReceiver> linkOpen;
@@ -42,6 +46,11 @@ public class MessageReceiver extends ClientEntity
 	
 	private TimeoutTracker currentOperationTracker;
 	private String lastReceivedOffset;
+	private AtomicInteger pingFlowCount;
+	private Instant lastCommunicatedAt;
+	
+	private boolean linkCreateScheduled;
+	private Object linkCreateLock;
 	
 	/**
 	 * @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
@@ -86,6 +95,9 @@ public class MessageReceiver extends ClientEntity
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
+		this.pingFlowCount = new AtomicInteger();
+		this.linkCreateLock = new Object();
+		
 		if (offset != null)
 		{
 			this.lastReceivedOffset = offset;
@@ -99,9 +111,32 @@ public class MessageReceiver extends ClientEntity
 		this.receiveLink = this.createReceiveLink();
 		this.currentOperationTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		this.initializeLinkOpen(this.currentOperationTracker);
+		this.linkCreateScheduled = true;
 		
 		this.pendingReceives = new ConcurrentLinkedQueue<WorkItem<Collection<Message>>>();
 		this.receiveHandler = receiveHandler;
+		
+		// onOperationTimeout delegate - per receive call
+		this.onOperationTimedout = new Runnable()
+		{
+			public void run()
+			{
+				while(MessageReceiver.this.pendingReceives.peek() != null)
+				{
+					if (MessageReceiver.this.pendingReceives.peek().getTimeoutTracker().remaining().getSeconds() < ClientConstants.TimerTolerance.getSeconds())
+					{
+						MessageReceiver.this.pendingReceives.poll().getWork().complete(null);
+						MessageReceiver.this.currentOperationTracker = null;
+					}
+					else 
+					{
+						MessageReceiver.this.currentOperationTracker = MessageReceiver.this.pendingReceives.peek().getTimeoutTracker();
+						MessageReceiver.this.scheduleOperationTimer();
+						break;
+					}
+				}
+			}
+		};
 	}
 	
 	public int getPrefetchCount()
@@ -123,6 +158,11 @@ public class MessageReceiver extends ClientEntity
 	 */
 	public CompletableFuture<Collection<Message>> receive()
 	{
+		if (this.receiveLink.getLocalState() != EndpointState.ACTIVE)
+		{
+			this.scheduleRecreate(Duration.ofSeconds(0));
+		}
+		
 		if (!this.prefetchedMessages.isEmpty())
 		{
 			synchronized (this.prefetchedMessages)
@@ -132,7 +172,7 @@ public class MessageReceiver extends ClientEntity
 					// return all available msgs to application-layer and send 'link-flow' frame for prefetch
 					Collection<Message> returnMessages = this.prefetchedMessages;
 					this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
-					this.sendFlow(returnMessages.size());					
+					this.sendFlow(returnMessages.size());
 					return CompletableFuture.completedFuture(returnMessages);
 				}
 			}
@@ -147,7 +187,10 @@ public class MessageReceiver extends ClientEntity
 			{
 				if (this.pendingReceives.peek() != null)
 				{
+					this.sendPingFlow();
+					
 					this.currentOperationTracker = this.pendingReceives.peek().getTimeoutTracker();
+					this.scheduleOperationTimer();
 				}
 			}
 		}
@@ -159,27 +202,32 @@ public class MessageReceiver extends ClientEntity
 	{
 		synchronized (this.linkOpen)
 		{
-			if (!this.linkOpen.isDone())
+			if (exception == null)
 			{
-				if (exception == null)
-				{
-					this.linkOpen.complete(this);
-				}
-				else
-				{
-					this.linkOpen.completeExceptionally(exception);
-				}
-				
-				this.offsetInclusive = false; // re-open link always starts from the last received offset
-				this.currentOperationTracker = null;
-				this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
+				this.lastCommunicatedAt = Instant.now();
+				this.linkOpen.complete(this);
 			}
+			else
+			{
+				this.linkOpen.completeExceptionally(exception);
+			}
+			
+			this.offsetInclusive = false; // re-open link always starts from the last received offset
+			this.currentOperationTracker = null;
+			this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
+		}
+		
+		synchronized (this.linkCreateLock)
+		{
+			this.linkCreateScheduled = false;
 		}
 	}
 	
 	// intended to be called by proton reactor handler 
 	public void onDelivery(Collection<Message> messages)
 	{
+		this.lastCommunicatedAt = Instant.now();
+		
 		if (this.receiveHandler != null)
 		{
 			this.receiveHandler.onReceiveMessages(messages);
@@ -197,8 +245,9 @@ public class MessageReceiver extends ClientEntity
 				}
 				else
 				{
-					this.pendingReceives.poll().getWork().complete(messages);
+					WorkItem<Collection<Message>> currentReceive = this.pendingReceives.poll();
 					this.currentOperationTracker = this.pendingReceives.peek() != null ? this.pendingReceives.peek().getTimeoutTracker() : null;
+					currentReceive.getWork().complete(messages);
 					this.sendFlow(messages.size());
 				}
 			}
@@ -264,6 +313,11 @@ public class MessageReceiver extends ClientEntity
 		}
 	}
 	
+	private void scheduleOperationTimer()
+	{
+		Timer.schedule(this.onOperationTimedout, this.currentOperationTracker.remaining(), TimerType.OneTimeRun);
+	}
+	
 	private Receiver createReceiveLink()
 	{	
 		Source source = new Source();
@@ -273,10 +327,12 @@ public class MessageReceiver extends ClientEntity
         if (this.lastReceivedOffset == null)
         {
         	long totalMilliSeconds;
-        	try {
+        	try
+        	{
         		// TODO: how to handle the case when : this.dateTime - epoch doesn't fit in a long !
 	        	totalMilliSeconds = this.dateTime.toEpochMilli();
-	        } catch(ArithmeticException ex)
+	        }
+        	catch(ArithmeticException ex)
         	{
         		totalMilliSeconds = Long.MAX_VALUE;
         	}
@@ -321,8 +377,19 @@ public class MessageReceiver extends ClientEntity
 	{
 		if (this.receiveLink.getLocalState() == EndpointState.ACTIVE)
 		{
-			this.receiveLink.flow(credits);
-
+			synchronized(this.pingFlowCount)
+			{
+				if (this.pingFlowCount.get() < credits)
+				{
+					this.receiveLink.flow(credits - this.pingFlowCount.get());
+					this.pingFlowCount.set(0);
+				}
+				else 
+				{
+					this.pingFlowCount.set(this.pingFlowCount.get() - credits);
+				}
+			}
+			
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 	        {
 	        	TRACE_LOGGER.log(Level.FINE,
@@ -335,9 +402,41 @@ public class MessageReceiver extends ClientEntity
 		}		
 	}
 	
+	private void sendPingFlow()
+	{
+		if (this.receiveLink.getLocalState() == EndpointState.ACTIVE)
+		{
+			if (Instant.now().isAfter(this.lastCommunicatedAt.plus(ClientConstants.AmqpLinkDetachTimeoutInMin, ChronoUnit.DAYS))
+					&& this.pingFlowCount.get() < MessageReceiver.PingFlowThreshold)
+			{
+				this.receiveLink.flow(1);
+				this.lastCommunicatedAt = Instant.now();
+				if(TRACE_LOGGER.isLoggable(Level.FINE))
+		        {
+		        	TRACE_LOGGER.log(Level.FINE,
+		        			String.format("MessageReceiver.sendPingFlow (linkname: %s), updated-link-credit: %s", this.receiveLink.getName(), this.receiveLink.getCredit()));
+		        }
+				
+				this.pingFlowCount.incrementAndGet();
+			}
+		}
+		else
+		{
+			this.scheduleRecreate(Duration.ofSeconds(0));
+		}
+	}
+	
 	private void scheduleRecreate(Duration runAfter)
 	{
-		Timer.schedule(
+		synchronized (this.linkCreateLock) 
+		{
+			if (this.linkCreateScheduled)
+			{
+				return;
+			}
+			
+			this.linkCreateScheduled = true;
+			Timer.schedule(
 				new Runnable()
 				{
 					@Override
@@ -351,6 +450,7 @@ public class MessageReceiver extends ClientEntity
 				},
 				runAfter,
 				TimerType.OneTimeRun);
+		}
 	}
 	
 	private void initializeLinkOpen(TimeoutTracker timeout)
