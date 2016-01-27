@@ -1,0 +1,25 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <artifactId>azure-eventhubs-processorhost</artifactId>
+  <name>azure-eventhubs-processorhost</name>
+  <groupId>com.microsoft.azure</groupId>
+  <version>0.0.1-SNAPSHOT</version>
+    
+  <dependencies>
+    <dependency>
+  		<groupId>com.microsoft.azure</groupId>
+  		<artifactId>azure-eventhubs</artifactId>
+  		<version>0.0.1-SNAPSHOT</version>
+  		<scope>system</scope>
+  		<systemPath>\\thinker\public\javaClient\azure-eventhubs-0.0.1-SNAPSHOT.jar</systemPath>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.qpid</groupId>
+  		<artifactId>proton-j</artifactId>
+  		<scope>system</scope>
+        <version>0.12.0-SNAPSHOT</version>
+  		<systemPath>\\thinker\public\protonj\proton-j-0.12.0-SNAPSHOT.jar</systemPath>
+  	</dependency>
+  </dependencies>
+
+</project>
