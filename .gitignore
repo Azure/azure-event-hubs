@@ -67,6 +67,7 @@ ipch/
 # eclipse java
 .classpath
 .project
+*.prefs
 
 # Guidance Automation Toolkit
 *.gpState
