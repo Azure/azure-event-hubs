@@ -23,7 +23,10 @@ if(IN_OPENWRT)
     INCLUDE_DIRECTORIES("$ENV{TOOLCHAIN_DIR}/usr/include" "$ENV{TARGET_LDFLAGS}" "$ENV{TARGET_CPPFLAGS}" "$ENV{TARGET_CFLAGS}")
 endif()
 
-add_subdirectory(azure-c-shared-utility/c)
+add_subdirectory(azure-uamqp-c)
+if(NOT TARGET aziotsharedutil)
+    add_subdirectory(azure-c-shared-utility/c)
+endif()
 
 enable_testing()
 
