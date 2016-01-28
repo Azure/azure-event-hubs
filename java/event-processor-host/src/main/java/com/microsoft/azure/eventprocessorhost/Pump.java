@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -102,6 +104,7 @@ public class Pump implements Runnable
                     {
                         if (this.pumps.get(partitionId).getStatus().isDone())
                         {
+                        	this.host.logWithHostAndPartition(partitionId, "Restarting pump");
                             this.pumps.remove(partitionId);
                             startSinglePump(this.leases.get(partitionId));
                         }
@@ -174,9 +177,10 @@ public class Pump implements Runnable
         private PartitionContext partitionContext;
         
         private Future<?> future;
+        private CompletableFuture<?> receiveFuture = null;
         private Lease lease;
         private Boolean keepGoing = true;
-        private Boolean alreadyForceClosed = false;
+        private CloseReason reason = CloseReason.Shutdown; // default to shutdown
 
         public PartitionPump(EventProcessorHost host, Lease lease)
         {
@@ -203,28 +207,50 @@ public class Pump implements Runnable
 
         public void forceClose(CloseReason reason)
         {
-            try
-            {
-                this.host.logWithHostAndPartition(this.partitionContext, "Forcing close"); // DUMMY
-                this.keepGoing = false;
-                this.alreadyForceClosed = true;
-                this.host.getExecutorService().submit(new ForceCloseCallable(this.processor, this.partitionContext, reason));
-            }
-            catch (Exception e)
-            {
-                // DUMMY STARTS
-                this.host.logWithHostAndPartition(this.partitionContext, "Failed forcing close: "+ e.toString());
-                e.printStackTrace();
-                // DUMMY ENDS
-            }
+            this.host.logWithHostAndPartition(this.partitionContext, "Forcing close"); // DUMMY
+            this.reason = reason;
+            shutdown();
         }
 
         public void shutdown()
         {
+        	CompletableFuture<?> captured = this.receiveFuture;
+        	if (captured != null)
+        	{
+        		captured.cancel(true);
+        	}
             this.keepGoing = false;
         }
 
-        private static int eventNumber = 0; // DUMMY
+        private static Integer eventNumber = 0; // DUMMY
+        
+        // DUMMY STARTS
+        // workaround for threading issues in underlying client
+        private static EventHubClient serializedClientOpen(PartitionPump thisPump) throws ServiceBusException, IOException, InterruptedException, ExecutionException
+        {
+        	EventHubClient ehClient = null;
+        	synchronized (PartitionPump.eventNumber)
+        	{
+				thisPump.receiveFuture = EventHubClient.createFromConnectionString(thisPump.host.getEventHubConnectionString(), true);
+				ehClient = (EventHubClient) thisPump.receiveFuture.get();
+				thisPump.receiveFuture = null;
+        	}
+			return ehClient;
+        }
+        /*
+        private static PartitionReceiver serializedReceiverOpen(PartitionPump thisPump, EventHubClient ehClient) throws ServiceBusException, InterruptedException, ExecutionException
+        {
+        	PartitionReceiver ehReceiver = null;
+        	synchronized (PartitionPump.eventNumber)
+        	{
+				thisPump.receiveFuture = ehClient.createReceiver(thisPump.host.getConsumerGroupName(), thisPump.partitionContext.getLease().getPartitionId());
+				ehReceiver = (PartitionReceiver) thisPump.receiveFuture.get();
+				thisPump.receiveFuture = null;
+        	}
+        	return ehReceiver;
+        }
+        */
+        // DUMMY ENDS
 
         public void run()
         {
@@ -235,10 +261,19 @@ public class Pump implements Runnable
         	
             try
             {
-            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client and receiver");
-				ehClient = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true).get();
+            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client");
+            	ehClient = serializedClientOpen(this);
+            	/*
+				this.receiveFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true);
+				ehClient = (EventHubClient) this.receiveFuture.get();
+				this.receiveFuture = null;
+				*/
 				// DUMMY -- should be epoch receiver, use offset, etc.
-				ehReceiver = ehClient.createReceiver(this.host.getConsumerGroupName(), this.partitionContext.getLease().getPartitionId()).get();
+            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver");
+				//ehReceiver = serializedReceiverOpen(this, ehClient);
+				this.receiveFuture = ehClient.createReceiver(this.host.getConsumerGroupName(), this.partitionContext.getLease().getPartitionId());
+				ehReceiver = (PartitionReceiver) this.receiveFuture.get();
+				this.receiveFuture = null;
 			}
             catch (InterruptedException | ExecutionException | ServiceBusException | IOException e)
             {
@@ -248,6 +283,7 @@ public class Pump implements Runnable
 				// DUMMY ENDS
 				this.keepGoing = false;
 			}
+            this.host.logWithHostAndPartition(this.partitionContext, "EH client and receiver created OK");
 
             if (this.keepGoing)
             {
@@ -281,13 +317,20 @@ public class Pump implements Runnable
             	
                 try
                 {
-					receivedEvents = ehReceiver.receive().get();
+                	this.receiveFuture = ehReceiver.receive();
+					receivedEvents = (Iterable<EventData>) this.receiveFuture.get();
+					this.receiveFuture = null;
                     this.processor.onEvents(this.partitionContext, receivedEvents);
+                }
+                catch (CancellationException e)
+                {
+                	this.host.logWithHostAndPartition(this.partitionContext, "Receive cancelled, shutting down pump");
+                	this.keepGoing = false;
                 }
                 catch (Exception e)
                 {
                     // What do we even do here? DUMMY STARTS
-                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from onEvents: " + e.toString());
+                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from receive or onEvents: " + e.toString());
                     e.printStackTrace();
                     // DUMMY ENDS
                     this.keepGoing = false;
@@ -305,11 +348,11 @@ public class Pump implements Runnable
                 */ // DUMMY ENDS
             }
 
-            if (openSucceeded && !this.alreadyForceClosed)
+            if (openSucceeded)
             {
                 try
                 {
-                    this.processor.onClose(this.partitionContext, CloseReason.Shutdown);
+                    this.processor.onClose(this.partitionContext, this.reason);
                 }
                 catch (Exception e)
                 {
@@ -326,6 +369,7 @@ public class Pump implements Runnable
             	ehReceiver.close();
             	ehReceiver = null;
             }
+            
             if (ehClient != null)
             {
             	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH client");
@@ -336,34 +380,6 @@ public class Pump implements Runnable
             // DUMMY STARTS
             this.host.logWithHostAndPartition(this.partitionContext, "Pump exiting");
             // DUMMY ENDS
-        }
-        
-        private class ForceCloseCallable implements Callable<Void>
-        {
-        	private PartitionContext context;
-        	private CloseReason reason;
-        	private IEventProcessor processor;
-        	
-        	public ForceCloseCallable(IEventProcessor processor, PartitionContext context, CloseReason reason)
-        	{
-        		this.processor = processor;
-        		this.context = context;
-        		this.reason = reason;
-        	}
-        	
-        	public Void call()
-        	{
-                try
-                {
-					this.processor.onClose(this.context, this.reason);
-				}
-                catch (Exception e)
-                {
-					// DUMMY what to do here?
-					e.printStackTrace();
-				}
-        		return null;
-        	}
         }
     }
 }
