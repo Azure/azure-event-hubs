@@ -32,27 +32,36 @@ public class ReceiveByDateTime
 		
 		System.out.println("date-time receiver created...");
 		
-		while (true)
+		try
 		{
-			receiver.receive().thenAccept(new Consumer<Iterable<EventData>>()
+			while (true)
 			{
-				public void accept(Iterable<EventData> receivedEvents)
+				receiver.receive().thenAccept(new Consumer<Iterable<EventData>>()
 				{
-					int batchSize = 0;
-					for(EventData receivedEvent: receivedEvents)
+					public void accept(Iterable<EventData> receivedEvents)
 					{
-						System.out.print(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
-								receivedEvent.getSystemProperties().getOffset(), 
-								receivedEvent.getSystemProperties().getSequenceNumber(), 
-								receivedEvent.getSystemProperties().getEnqueuedTime()));
-						System.out.println(String.format("| Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
-						batchSize++;
+						int batchSize = 0;
+						if (receivedEvents != null)
+						{
+							for(EventData receivedEvent: receivedEvents)
+							{
+								System.out.print(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
+										receivedEvent.getSystemProperties().getOffset(), 
+										receivedEvent.getSystemProperties().getSequenceNumber(), 
+										receivedEvent.getSystemProperties().getEnqueuedTime()));
+								System.out.println(String.format("| Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
+								batchSize++;
+							}
+						}
+						
+						System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
 					}
-					
-					System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
-					
-				}
-			}).get();
+				}).get();
+			}
+		}
+		finally
+		{
+			receiver.close();
 		}
 	}
 

@@ -26,23 +26,34 @@ public class ReceiveUsingOffset
 				PartitionReceiver.StartOfStream,
 				false).get();
 		
-		Iterable<EventData> receivedEvents = receiver.receive().get();
-		
-		while (true)
+		try
 		{
-			int batchSize = 0;
-			for(EventData receivedEvent: receivedEvents)
-			{
-				System.out.println(String.format("Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
-				System.out.println(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
-						receivedEvent.getSystemProperties().getOffset(), 
-						receivedEvent.getSystemProperties().getSequenceNumber(), 
-						receivedEvent.getSystemProperties().getEnqueuedTime()));
-				batchSize++;
-			}
+			Iterable<EventData> receivedEvents = receiver.receive().get();
 			
-			System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
-			receivedEvents = receiver.receive().get();
+			while (true)
+			{
+				int batchSize = 0;
+				if (receivedEvents != null)
+				{
+					for(EventData receivedEvent: receivedEvents)
+					{
+						System.out.println(String.format("Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
+						System.out.println(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
+								receivedEvent.getSystemProperties().getOffset(), 
+								receivedEvent.getSystemProperties().getSequenceNumber(), 
+								receivedEvent.getSystemProperties().getEnqueuedTime()));
+						batchSize++;
+					}
+				}
+				
+				System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
+				receivedEvents = receiver.receive().get();
+			}
+		}
+		finally
+		{
+			// this is paramount; max number of concurrent receiver per consumergroup per partition is 5
+			receiver.close();
 		}
 	}
 
