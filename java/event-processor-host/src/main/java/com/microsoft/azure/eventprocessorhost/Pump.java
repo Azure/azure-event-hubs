@@ -1,11 +1,16 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.servicebus.ServiceBusException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
@@ -167,7 +172,7 @@ public class Pump implements Runnable
         private EventProcessorHost host;
         private IEventProcessor processor;
         private PartitionContext partitionContext;
-
+        
         private Future<?> future;
         private Lease lease;
         private Boolean keepGoing = true;
@@ -223,35 +228,72 @@ public class Pump implements Runnable
 
         public void run()
         {
+        	Boolean openSucceeded = false;
+        	
+        	EventHubClient ehClient = null;
+        	PartitionReceiver ehReceiver = null;
+        	
             try
             {
-                this.processor.onOpen(this.partitionContext);
-            }
-            catch (Exception e)
+            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client and receiver");
+				ehClient = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true).get();
+				// DUMMY -- should be epoch receiver, use offset, etc.
+				ehReceiver = ehClient.createReceiver(this.host.getConsumerGroupName(), this.partitionContext.getLease().getPartitionId()).get();
+			}
+            catch (InterruptedException | ExecutionException | ServiceBusException | IOException e)
             {
-                // DUMMY STARTS
-            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor " + e.toString());
-                e.printStackTrace();
-                // DUMMY ENDS
+				// DUMMY STARTS
+            	this.host.logWithHostAndPartition(this.partitionContext, "Failed creating EH client or receiver " + e.toString());
+				e.printStackTrace();
+				// DUMMY ENDS
+				this.keepGoing = false;
+			}
+
+            if (this.keepGoing)
+            {
+	        	try
+	            {
+	                this.processor.onOpen(this.partitionContext);
+	                openSucceeded = true;
+	            }
+	            catch (Exception e)
+	            {
+	                // DUMMY STARTS
+	            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor " + e.toString());
+	                e.printStackTrace();
+	                // DUMMY ENDS
+	                this.keepGoing = false;
+	            }
             }
 
             while (this.keepGoing)
             {
                 // Receive loop goes here
-                // DUMMY STARTS
+
+            	Iterable<EventData> receivedEvents = null;
+            	
+                /* DUMMY STARTS
                 EventData dummyEvent = new EventData(("event " + PartitionPump.eventNumber++ + " on partition " + this.lease.getPartitionId() + " by host " + this.host.getHostName()).getBytes());
                 ArrayList<EventData> dummyList = new ArrayList<EventData>();
                 dummyList.add(dummyEvent);
+                receivedEvents = dummyList;
+                */ // DUMMY ENDS
+            	
                 try
                 {
-                    this.processor.onEvents(this.partitionContext, dummyList);
+					receivedEvents = ehReceiver.receive().get();
+                    this.processor.onEvents(this.partitionContext, receivedEvents);
                 }
                 catch (Exception e)
                 {
-                    // What do we even do here?
+                    // What do we even do here? DUMMY STARTS
                 	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from onEvents: " + e.toString());
                     e.printStackTrace();
+                    // DUMMY ENDS
+                    this.keepGoing = false;
                 }
+                
+                /* DUMMY STARTS
                 try
                 {
                     Thread.sleep(2000);
@@ -260,10 +302,10 @@ public class Pump implements Runnable
                 {
                     // If sleep is interrupted, don't care
                 }
-                // DUMMY ENDS
+                */ // DUMMY ENDS
             }
 
-            if (!this.alreadyForceClosed)
+            if (openSucceeded && !this.alreadyForceClosed)
             {
                 try
                 {
@@ -276,6 +318,19 @@ public class Pump implements Runnable
                     e.printStackTrace();
                     // DUMMY ENDS
                 }
+            }
+            
+            if (ehReceiver != null)
+            {
+            	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH receiver");
+            	ehReceiver.close();
+            	ehReceiver = null;
+            }
+            if (ehClient != null)
+            {
+            	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH client");
+            	ehClient.close();
+            	ehClient = null;
             }
 
             // DUMMY STARTS

@@ -9,8 +9,8 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	int hostCount = 3;
-    	PartitionManager.dummyPartitionCount = 8;
+    	int hostCount = 1;
+    	PartitionManager.dummyPartitionCount = 1;
     	
     	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	
@@ -67,11 +67,14 @@ public class EventProcessorSample {
 
         public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception
         {
-            System.out.println("Partition " + context.getLease().getPartitionId() + " got messages");
+            System.out.println("Partition " + context.getLease().getPartitionId() + " got batch");
+            int count = 0;
             for (EventData data : messages)
             {
                 System.out.println(new String(data.getBody(), "UTF8"));
+                count++;
             }
+            System.out.println("Partition " + context.getLease().getPartitionId() + " batch was " + count + " messages");
         }
 
     }

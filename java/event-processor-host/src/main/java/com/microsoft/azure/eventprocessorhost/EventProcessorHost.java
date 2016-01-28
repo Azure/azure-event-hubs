@@ -121,6 +121,7 @@ public final class EventProcessorHost
     public IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     public String getEventHubPath() { return this.eventHubPath; }
     public String getConsumerGroupName() { return this.consumerGroupName; }
+    public String getEventHubConnectionString() { return this.eventHubConnectionString; }
 
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {
