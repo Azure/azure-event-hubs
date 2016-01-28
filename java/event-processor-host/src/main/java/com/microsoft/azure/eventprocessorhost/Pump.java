@@ -222,14 +222,15 @@ public class Pump implements Runnable
             this.keepGoing = false;
         }
 
-        private static Integer eventNumber = 0; // DUMMY
+        //private static Integer eventNumber = 0; // DUMMY
+        private static Boolean serialize = true;
         
         // DUMMY STARTS
         // workaround for threading issues in underlying client
         private static EventHubClient serializedClientOpen(PartitionPump thisPump) throws ServiceBusException, IOException, InterruptedException, ExecutionException
         {
         	EventHubClient ehClient = null;
-        	synchronized (PartitionPump.eventNumber)
+        	synchronized (PartitionPump.serialize)
         	{
 				thisPump.receiveFuture = EventHubClient.createFromConnectionString(thisPump.host.getEventHubConnectionString(), true);
 				ehClient = (EventHubClient) thisPump.receiveFuture.get();
@@ -237,19 +238,6 @@ public class Pump implements Runnable
         	}
 			return ehClient;
         }
-        /*
-        private static PartitionReceiver serializedReceiverOpen(PartitionPump thisPump, EventHubClient ehClient) throws ServiceBusException, InterruptedException, ExecutionException
-        {
-        	PartitionReceiver ehReceiver = null;
-        	synchronized (PartitionPump.eventNumber)
-        	{
-				thisPump.receiveFuture = ehClient.createReceiver(thisPump.host.getConsumerGroupName(), thisPump.partitionContext.getLease().getPartitionId());
-				ehReceiver = (PartitionReceiver) thisPump.receiveFuture.get();
-				thisPump.receiveFuture = null;
-        	}
-        	return ehReceiver;
-        }
-        */
         // DUMMY ENDS
 
         public void run()
@@ -262,15 +250,18 @@ public class Pump implements Runnable
             try
             {
             	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client");
-            	ehClient = serializedClientOpen(this);
-            	/*
-				this.receiveFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true);
-				ehClient = (EventHubClient) this.receiveFuture.get();
-				this.receiveFuture = null;
-				*/
-				// DUMMY -- should be epoch receiver, use offset, etc.
+            	if (PartitionPump.serialize)
+            	{
+            		ehClient = serializedClientOpen(this);
+            	}
+            	else
+            	{
+					this.receiveFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true);
+					ehClient = (EventHubClient) this.receiveFuture.get();
+					this.receiveFuture = null;
+            	}
+            	// DUMMY -- should be epoch receiver, use offset, etc.
             	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver");
-				//ehReceiver = serializedReceiverOpen(this, ehClient);
 				this.receiveFuture = ehClient.createReceiver(this.host.getConsumerGroupName(), this.partitionContext.getLease().getPartitionId());
 				ehReceiver = (PartitionReceiver) this.receiveFuture.get();
 				this.receiveFuture = null;
@@ -283,7 +274,7 @@ public class Pump implements Runnable
 				// DUMMY ENDS
 				this.keepGoing = false;
 			}
-            this.host.logWithHostAndPartition(this.partitionContext, "EH client and receiver created OK");
+            this.host.logWithHostAndPartition(this.partitionContext, "EH client and receiver creation finished");
 
             if (this.keepGoing)
             {
