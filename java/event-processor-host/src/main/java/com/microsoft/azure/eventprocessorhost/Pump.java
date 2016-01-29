@@ -246,6 +246,12 @@ public class Pump implements Runnable
         	
         	EventHubClient ehClient = null;
         	PartitionReceiver ehReceiver = null;
+        	Lease lease = this.partitionContext.getLease();
+        	
+        	// DUMMY STARTS
+        	String startingOffset = "0"; // should get from checkpoint manager
+        	lease.setEpoch(0L);
+        	// DUMMY ENDS
         	
             try
             {
@@ -262,7 +268,8 @@ public class Pump implements Runnable
             	}
             	// DUMMY -- should be epoch receiver, use offset, etc.
             	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver");
-				this.receiveFuture = ehClient.createReceiver(this.host.getConsumerGroupName(), this.partitionContext.getLease().getPartitionId());
+				this.receiveFuture = ehClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), lease.getPartitionId(), startingOffset,
+						lease.getEpoch());
 				ehReceiver = (PartitionReceiver) this.receiveFuture.get();
 				this.receiveFuture = null;
 			}
