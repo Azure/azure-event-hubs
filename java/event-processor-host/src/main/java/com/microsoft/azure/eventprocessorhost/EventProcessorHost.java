@@ -171,14 +171,33 @@ public final class EventProcessorHost
     	log("host " + this.hostName + ": " + logMessage);
     }
     
+    void logWithHost(String logMessage, Exception e)
+    {
+    	log("host " + this.hostName + ": " + logMessage);
+    	logWithHost("Caught " + e.toString());
+    	e.printStackTrace();
+    }
+    
     void logWithHostAndPartition(String partitionId, String logMessage)
     {
-    	logWithHost("partition: " + partitionId + ": " + logMessage);
+    	logWithHost("partition " + partitionId + ": " + logMessage);
+    }
+    
+    void logWithHostAndPartition(String partitionId, String logMessage, Exception e)
+    {
+    	logWithHost("partition " + partitionId + ": " + logMessage);
+    	logWithHostAndPartition(partitionId, "Caught " + e.toString());
+    	e.printStackTrace();
     }
     
     void logWithHostAndPartition(PartitionContext context, String logMessage)
     {
     	logWithHostAndPartition(context.getLease().getPartitionId(), logMessage);
+    }
+    
+    void logWithHostAndPartition(PartitionContext context, String logMessage, Exception e)
+    {
+    	logWithHostAndPartition(context.getLease().getPartitionId(), logMessage, e);
     }
 
 

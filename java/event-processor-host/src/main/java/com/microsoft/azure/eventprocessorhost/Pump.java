@@ -56,8 +56,7 @@ public class Pump implements Runnable
             catch (Exception e)
             {
                 // DUMMY STARTS
-                this.host.logWithHost("Exception getting leases " + e.toString());
-                e.printStackTrace();
+                this.host.logWithHost("Exception getting leases", e);
                 // DUMMY ENDS
             }
 
@@ -119,8 +118,7 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // DUMMY STARTS
-                    this.host.logWithHostAndPartition(partitionId, "Failure starting pump: " + e.toString());
-                    e.printStackTrace();
+                    this.host.logWithHostAndPartition(partitionId, "Failure starting pump", e);
                     // DUMMY ENDS
                 }
             }
@@ -133,8 +131,7 @@ public class Pump implements Runnable
             catch (InterruptedException e)
             {
                 // DUMMY STARTS
-                this.host.logWithHost("Sleep was interrupted " + e.toString());
-                e.printStackTrace();
+                this.host.logWithHost("Sleep was interrupted", e);
                 // DUMMY ENDS
             }
         }
@@ -154,8 +151,7 @@ public class Pump implements Runnable
             catch (Exception e)
             {
                 // DUMMY STARTS
-                this.host.logWithHostAndPartition(partitionId, "Failure in pump shutdown: " + e.toString()); // DUMMY
-                e.printStackTrace();
+                this.host.logWithHostAndPartition(partitionId, "Failure in pump shutdown", e); // DUMMY
                 // DUMMY ENDS
             }
         }
@@ -276,8 +272,7 @@ public class Pump implements Runnable
             catch (InterruptedException | ExecutionException | ServiceBusException | IOException e)
             {
 				// DUMMY STARTS
-            	this.host.logWithHostAndPartition(this.partitionContext, "Failed creating EH client or receiver " + e.toString());
-				e.printStackTrace();
+            	this.host.logWithHostAndPartition(this.partitionContext, "Failed creating EH client or receiver", e);
 				// DUMMY ENDS
 				this.keepGoing = false;
 			}
@@ -293,8 +288,7 @@ public class Pump implements Runnable
 	            catch (Exception e)
 	            {
 	                // DUMMY STARTS
-	            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor " + e.toString());
-	                e.printStackTrace();
+	            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor", e);
 	                // DUMMY ENDS
 	                this.keepGoing = false;
 	            }
@@ -328,8 +322,7 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // What do we even do here? DUMMY STARTS
-                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from receive or onEvents: " + e.toString());
-                    e.printStackTrace();
+                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from receive or onEvents", e);
                     // DUMMY ENDS
                     this.keepGoing = false;
                 }
@@ -355,8 +348,7 @@ public class Pump implements Runnable
                 catch (Exception e)
                 {
                     // DUMMY STARTS
-                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing processor: " + e.toString());
-                    e.printStackTrace();
+                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing processor", e);
                     // DUMMY ENDS
                 }
             }
