@@ -3,14 +3,44 @@ package com.microsoft.azure.eventhubs.samples;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
+import com.microsoft.azure.servicebus.ClientConstants;
 
+import java.io.IOException;
 import java.util.concurrent.Future;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	int hostCount = 1;
-    	PartitionManager.dummyPartitionCount = 2;
+    	int hostCount = 2;
+    	PartitionManager.dummyPartitionCount = 4;
+    	
+        FileHandler fhc = null;
+        Boolean tracing = true;
+        if (tracing)
+        {
+			try
+			{
+				fhc = new FileHandler("f:\\amqpClientframes.log", false);
+			}
+			catch (SecurityException e2)
+			{
+				// TODO Auto-generated catch block
+				e2.printStackTrace();
+			}
+			catch (IOException e2)
+			{
+				// TODO Auto-generated catch block
+				e2.printStackTrace();
+			} 
+	        Logger lc = Logger.getLogger(ClientConstants.ServiceBusClientTrace);
+	        fhc.setFormatter(new SimpleFormatter());
+	        lc.addHandler(fhc);
+	        lc.setLevel(Level.ALL);
+        }
     	
     	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	
@@ -49,6 +79,10 @@ public class EventProcessorSample {
             e.printStackTrace();
         }
 
+        if (tracing)
+        {
+        	fhc.flush();
+        }
         System.out.println("Exiting");
     }
 
@@ -69,12 +103,17 @@ public class EventProcessorSample {
         {
             System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " got batch");
             int count = 0;
-            for (EventData data : messages)
+            String lastOffset = "OOPS";
+            if (messages != null)
             {
-                System.out.println(new String(data.getBody(), "UTF8"));
-                count++;
+	            for (EventData data : messages)
+	            {
+	                System.out.println(new String(data.getBody(), "UTF8"));
+	                count++;
+	                lastOffset = data.getSystemProperties().getOffset();
+	            }
             }
-            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " batch was " + count + " messages");
+            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " batch was " + count + " messages ending at offset " + lastOffset);
         }
 
     }
