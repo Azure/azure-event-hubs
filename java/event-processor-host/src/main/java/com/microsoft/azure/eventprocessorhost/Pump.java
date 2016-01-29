@@ -3,6 +3,7 @@ package com.microsoft.azure.eventprocessorhost;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 
 import java.io.IOException;
@@ -148,6 +149,19 @@ public class Pump implements Runnable
                 this.pumps.get(partitionId).getStatus().get();
                 this.host.logWithHostAndPartition(partitionId, "Pump shutdown complete"); // DUMMY
             }
+            catch (ExecutionException e)
+            {
+            	if (e.getCause() instanceof CancellationException)
+            	{
+            		this.host.logWithHostAndPartition(partitionId, "Pump shutdown complete after operation cancelled"); // DUMMY
+            	}
+            	else
+            	{
+                    // DUMMY STARTS
+                    this.host.logWithHostAndPartition(partitionId, "Failure in pump shutdown", e); // DUMMY
+                    // DUMMY ENDS
+            	}
+            }
             catch (Exception e)
             {
                 // DUMMY STARTS
@@ -218,7 +232,6 @@ public class Pump implements Runnable
             this.keepGoing = false;
         }
 
-        //private static Integer eventNumber = 0; // DUMMY
         private static Boolean serialize = true;
         
         // DUMMY STARTS
@@ -246,7 +259,6 @@ public class Pump implements Runnable
         	
         	// DUMMY STARTS
         	String startingOffset = "0"; // should get from checkpoint manager
-        	lease.setEpoch(0L);
         	// DUMMY ENDS
         	
             try
@@ -262,10 +274,10 @@ public class Pump implements Runnable
 					ehClient = (EventHubClient) this.receiveFuture.get();
 					this.receiveFuture = null;
             	}
-            	// DUMMY -- should be epoch receiver, use offset, etc.
-            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver");
-				this.receiveFuture = ehClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), lease.getPartitionId(), startingOffset,
-						lease.getEpoch());
+            	long epoch = lease.getEpoch() + 1;
+            	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
+				this.receiveFuture = ehClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), lease.getPartitionId(), startingOffset, epoch);
+				lease.setEpoch(epoch); // TODO need to update lease!
 				ehReceiver = (PartitionReceiver) this.receiveFuture.get();
 				this.receiveFuture = null;
 			}
@@ -296,23 +308,13 @@ public class Pump implements Runnable
 
             while (this.keepGoing)
             {
-                // Receive loop goes here
-
             	Iterable<EventData> receivedEvents = null;
-            	
-                /* DUMMY STARTS
-                EventData dummyEvent = new EventData(("event " + PartitionPump.eventNumber++ + " on partition " + this.lease.getPartitionId() + " by host " + this.host.getHostName()).getBytes());
-                ArrayList<EventData> dummyList = new ArrayList<EventData>();
-                dummyList.add(dummyEvent);
-                receivedEvents = dummyList;
-                */ // DUMMY ENDS
             	
                 try
                 {
                 	this.receiveFuture = ehReceiver.receive();
 					receivedEvents = (Iterable<EventData>) this.receiveFuture.get();
 					this.receiveFuture = null;
-                    this.processor.onEvents(this.partitionContext, receivedEvents);
                 }
                 catch (CancellationException e)
                 {
@@ -321,22 +323,36 @@ public class Pump implements Runnable
                 }
                 catch (Exception e)
                 {
-                    // What do we even do here? DUMMY STARTS
-                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from receive or onEvents", e);
-                    // DUMMY ENDS
+                	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
+                	{
+                    	this.host.logWithHostAndPartition(this.partitionContext, "Receiver has been disconnected, shutting down pump");
+                    	this.reason = CloseReason.LeaseLost;
+                	}
+                	else
+                	{
+	                    // DUMMY STARTS
+	                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from receive", e);
+	                    // DUMMY ENDS
+                	}
                     this.keepGoing = false;
                 }
                 
-                /* DUMMY STARTS
+                if (!keepGoing)
+                {
+                	break;
+                }
+                
                 try
                 {
-                    Thread.sleep(2000);
+                    this.processor.onEvents(this.partitionContext, receivedEvents);
                 }
-                catch (InterruptedException e)
+                catch (Exception e)
                 {
-                    // If sleep is interrupted, don't care
+                    // What do we even do here? DUMMY STARTS
+                	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from onEvents", e);
+                    // DUMMY ENDS
+                    this.keepGoing = false;
                 }
-                */ // DUMMY ENDS
             }
 
             if (openSucceeded)

@@ -260,6 +260,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
             	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "createLeaseIfNotExists() creating new lease");
                 Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.eventHubPath,
                         AzureStorageCheckpointLeaseManager.this.consumerGroup, this.partitionId);
+                lease.setEpoch(0L);
                 InMemoryLeaseStore.getSingleton().inMemoryLeases.put(this.partitionId, lease);
             }
             return null;
