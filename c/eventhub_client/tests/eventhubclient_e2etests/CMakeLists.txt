@@ -28,7 +28,6 @@ if(WIN32)
                         eventhub_test
 			aziotsharedutil
 		)
-		linkProton(${theseTestsName}_dll)
 	endif()
 	
 	if(TARGET ${theseTestsName}_exe)
@@ -37,7 +36,6 @@ if(WIN32)
                         eventhub_test
 			aziotsharedutil
 		)
-		linkProton(${theseTestsName}_exe)	
 	endif()
 else()
 	if(TARGET ${theseTestsName}_exe)
@@ -47,7 +45,6 @@ else()
 			aziotsharedutil
 		)
 		target_link_libraries(${theseTestsName}_exe pthread)
-		linkProton(${theseTestsName}_exe)
 	endif()
 endif()
 
