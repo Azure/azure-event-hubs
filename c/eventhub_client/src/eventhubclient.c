@@ -321,7 +321,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_SendAsync(EVENTHUBCLIENT_HANDLE eventHubHan
     return result;
 }
 
-EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_LL_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataList, size_t count)
+EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataList, size_t count)
 {
     EVENTHUBCLIENT_RESULT result;
 
