@@ -20,8 +20,6 @@
 
 The following procedure describes the process of building and running the Event Hubs SDK samples (**send** and **send_batch**) on a Windows desktop machine.
 
-The native client library depends on Apache Qpid Proton.
-
 ## Create an Event Hub
 
 To run the sample applications you will need an Event Hub to which they can send messages.
@@ -35,22 +33,6 @@ Download the SDK to the board by issuing the following Git command in a terminal
 	git clone https://github.com/Azure/azure-event-hubs.git
 	```
 You will be prompted for your GitHub username and password -- if you have two-factor authentication enabled for your account, you'll need to generate/use a personal access token in place of your password.
-
-## To install and build Proton on Windows
-
-1. Create a folder on your development machine in which to download the proton libraries. This example uses the location **C:\Proton**.
-
-2. Create an environment variable **PROTON_PATH=C:\Proton**. This path is used by Visual Studio projects to include and link Proton-C components.
-
-3. Install [cmake](http://www.cmake.org/) (make sure it is installed in your path).
-
-4. Install [Python ver. 2.7.9](https://www.python.org/downloads/) (install it in your path).
-
-5. Open a Visual Studio 2013 x86 Native Tools command prompt.
-
-6. To build the proton libraries, run the script **build__proton.cmd** in the **\build_all\windows** directory.
-
-When the build is completed, you can use the proton libraries in your Windows applications.
 
 ## To build the Windows samples
 

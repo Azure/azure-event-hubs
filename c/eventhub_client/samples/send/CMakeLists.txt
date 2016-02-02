@@ -30,8 +30,7 @@ include_directories(.)
 add_executable(send ${send_c_files} ${send_h_files})
 
 target_link_libraries(send
-        eventhub_client)
+        eventhub_client uamqp)
 
 linkSharedUtil(send)
-linkProton(send)
 

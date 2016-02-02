@@ -1,4 +1,0 @@
-config:
-    azureloadavg:
-        connectionstring: Endpoint=sb://xxxx.servicebus.windows.net/;SharedAccessKeyName=send;SharedAccessKey=XXXXX
-        eventhubname: loadavgin

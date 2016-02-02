@@ -114,13 +114,7 @@ Now, configure the sample:
 
 ## Build the samples
 
-1. On the board, run the following command to build and install the Apache Proton libraries:
-
-  ```
-	sudo ~/azure-event-hubs/c/build_all/linux/build_proton.sh --install /usr
-	```
-
-5. Assuming build\_proton.sh completed successfully, you can now build the SDK samples using the following command:
+You can now build the SDK samples using the following command:
 
 	```
   ~/azure-event-hubs/c/build_all/linux/build.sh

@@ -30,8 +30,6 @@ include_directories(.)
 add_executable(sendasync ${sendasync_c_files} ${sendasync_h_files})
 
 target_link_libraries(sendasync
-        eventhub_client)
+        eventhub_client uamqp)
 
 linkSharedUtil(sendasync)
-linkProton(sendasync)
-

@@ -19,9 +19,6 @@ set(eventhub_test_h_files
 #the following "set" statetement exports across the project a global variable called EVENTHUB_TEST_INC_FOLDER that expands to whatever needs to included when using eventhub_test library
 set(EVENTHUB_TEST_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using eventhub_test" FORCE)
 
-include_directories(${EVENTHUB_TEST_INC_FOLDER} ${SHARED_UTIL_INC_FOLDER} ${PROTON_C_INCLUDES})
-includeProton()
-
 IF(WIN32)
     #windows needs this define
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)

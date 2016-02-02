@@ -1,4 +1,4 @@
-#Microsoft Azure Event Hubs Clients
+﻿#Microsoft Azure Event Hubs Clients
 
 This project provides client-side libraries to enable easy interaction with Microsoft Azure Event Hubs.
 
@@ -40,7 +40,6 @@ The following platforms have been tested against this library:
 * Ubuntu 14.04 LTS
 * Fedora 20
 * Debian 7.5
-* Ubuntu Snappy 
 * Raspbian (tested device Raspberry Pi 2)
 
 

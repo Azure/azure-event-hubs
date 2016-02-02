@@ -1,8 +1,0 @@
-name: azureloadavg
-version: 1.2
-vendor: Thomas Conte <thomas@conte.com>
-icon: meta/icon.png
-services:
- - name: azureloadavg
-   description: Azure loadavg telemetry service
-   start: bin/loadavg

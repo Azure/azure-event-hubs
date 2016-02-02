@@ -7,6 +7,7 @@ cmake_minimum_required(VERSION 2.8.11)
 compileAsC99()
 
 set(eventhub_client_c_files
+    ./src/connection_string_parser.c
     ./src/eventdata.c
     ./src/eventhubclient.c
     ./src/eventhubclient_ll.c
@@ -14,6 +15,7 @@ set(eventhub_client_c_files
 )
 
 set(eventhub_client_h_files
+    ./inc/connection_string_parser.h
     ./inc/eventdata.h
     ./inc/eventhubclient.h
     ./inc/eventhubclient_ll.h
@@ -27,8 +29,6 @@ set(EVENTHUB_CLIENT_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "thi
 
 include_directories(${SHARED_UTIL_INC_FOLDER})
 
-includeProton()
-
 include_directories(${EVENTHUB_CLIENT_INC_FOLDER})
 
 IF(WIN32)
@@ -37,13 +37,12 @@ IF(WIN32)
     add_definitions(-DGB_MEASURE_MEMORY_FOR_THIS -DGB_DEBUG_ALLOC)
 ENDIF(WIN32)
 
-add_definitions(-Dqpid_proton_EXPORTS)
-
 add_library(eventhub_client 
     ${eventhub_client_c_files} 
     ${eventhub_client_h_files}
 )
 
+target_link_libraries(eventhub_client uamqp)
 linkSharedUtil(eventhub_client)
 
 add_subdirectory(samples)

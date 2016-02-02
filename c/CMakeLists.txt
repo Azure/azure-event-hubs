@@ -9,8 +9,6 @@ option(run_e2e_tests "set run_e2e_tests to ON to run e2e tests (default is OFF) 
 option(skip_unittests "set skip_unittests to ON to skip unittests (default is OFF)[if possible, they are always build]" OFF)
 option(compileOption_C "passes a string to the command line of the C compiler" OFF)
 option(compileOption_CXX "passes a string to the command line of the C++ compiler" OFF)
-SET(PROTON_C_INCLUDES "" CACHE STRING "directory where proton-c include files resides. Not needed if the proton_build.sh file is successfully run")
-SET(PROTON_LIB "qpid-proton" CACHE STRING "name of the qpid c library. This can be a fully qualified path or simply the name of the lib")
 
 #Use solution folders. 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -24,6 +22,9 @@ if(IN_OPENWRT)
 endif()
 
 add_subdirectory(azure-uamqp-c)
+
+include_directories(${UAMQP_INC_FOLDER})
+
 if(NOT TARGET aziotsharedutil)
     add_subdirectory(azure-c-shared-utility/c)
 endif()
@@ -42,51 +43,6 @@ endif()
 
 #this project uses several other projects that are build not by these CMakeFiles
 #this project also targets several OSes
-
-#this function takes care of three things:
-#1. add the includes of proton
-#2. link qpid-proton(d).lib
-#3. copying some shared libraries(.dll or .so) to the location of the output executable
-function(includeProton)
-    if(WIN32)
-        include_directories($ENV{proton_path}/qpid-proton/proton-c/include)
-    elseif( NOT "${PRONTON_C_INCLUDES}" STREQUAL "" )
-        include_directories(${PRONTON_C_INCLUDES})
-    endif()
-endfunction(includeProton)
-
-function(linkProton whatExecutableIsBuilding)
-    includeProton()
-    if(WIN32)
-        if( CMAKE_SIZEOF_VOID_P EQUAL 4 )
-            target_link_libraries(${whatExecutableIsBuilding} $ENV{proton_path}/qpid-proton/build/proton-c/Debug/qpid-protond.lib)
-            file(COPY $ENV{proton_path}/qpid-proton/build/proton-c/Debug/qpid-protond.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-        else()
-            target_link_libraries(${whatExecutableIsBuilding} $ENV{proton_path}/qpid-proton/build_x64/proton-c/Debug/qpid-protond.lib)
-            file(COPY $ENV{proton_path}/qpid-proton/build_x64/proton-c/Debug/qpid-protond.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-        endif()
-    else()
-        target_link_libraries(${whatExecutableIsBuilding} ${PROTON_LIB})
-    endif()
-endfunction(linkProton)
-
-function(includeHttp)
-#function body to be similar to includeProton
-endfunction(includeHttp)
-
-function(linkHttp whatExecutableIsBuilding)
-    includeHttp()
-    if(WIN32)
-        if(WINCE)
-              target_link_libraries(${whatExecutableIsBuilding} crypt32.lib)
-          target_link_libraries(${whatExecutableIsBuilding} ws2.lib)
-        else()
-            target_link_libraries(${whatExecutableIsBuilding} winhttp.lib)
-        endif()
-    else()
-        target_link_libraries(${whatExecutableIsBuilding} curl)
-    endif()
-endfunction(linkHttp)
 
 function(linkSharedUtil whatIsBuilding)
     target_link_libraries(${whatIsBuilding} aziotsharedutil)
