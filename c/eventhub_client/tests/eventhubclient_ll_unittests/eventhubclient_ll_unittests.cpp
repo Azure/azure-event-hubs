@@ -139,9 +139,6 @@ static bool g_setProperty = false;
 static bool g_includeProperties = false;
 static DLIST_ENTRY* saved_pending_list;
 
-static size_t currentmalloc_call;
-static size_t whenShallmalloc_fail;
-
 static size_t g_current_pn_messenger_call;
 static size_t g_when_pn_messenger_fail;
 
@@ -353,24 +350,7 @@ public:
 
     /* gballoc mocks */
     MOCK_STATIC_METHOD_1(, void*, gballoc_malloc, size_t, size)
-        void* result2;
-        currentmalloc_call++;
-        if (whenShallmalloc_fail>0)
-        {
-            if (currentmalloc_call == whenShallmalloc_fail)
-            {
-                result2 = (void*)NULL;
-            }
-            else
-            {
-                result2 = BASEIMPLEMENTATION::gballoc_malloc(size);
-            }
-        }
-        else
-        {
-            result2 = BASEIMPLEMENTATION::gballoc_malloc(size);
-        }
-    MOCK_METHOD_END(void*, result2);
+    MOCK_METHOD_END(void*, BASEIMPLEMENTATION::gballoc_malloc(size));
 
     MOCK_STATIC_METHOD_2(, void*, gballoc_realloc, void*, ptr, size_t, size)
         MOCK_METHOD_END(void*, BASEIMPLEMENTATION::gballoc_realloc(ptr, size));
@@ -579,8 +559,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         saved_saslclientio_parameters = NULL;
         saved_sasl_mechanism_create_parameters = NULL;
 
-        currentmalloc_call = 0;
-        whenShallmalloc_fail = 0;
         g_setProperty = false;
 
         g_currentEventClone_call = 0;

@@ -649,7 +649,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDLE event
     }
     else
     {
-        EVENTHUB_EVENT_LIST *newEntry = (EVENTHUB_EVENT_LIST*)malloc(sizeof(EVENTHUB_EVENT_LIST));
+        EVENTHUB_EVENT_LIST* newEntry = (EVENTHUB_EVENT_LIST*)malloc(sizeof(EVENTHUB_EVENT_LIST));
         if (newEntry == NULL)
         {
             result = EVENTHUBCLIENT_ERROR;
