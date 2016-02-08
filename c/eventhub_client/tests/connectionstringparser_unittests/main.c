@@ -6,6 +6,6 @@
 int main(void)
 {
     size_t failedTestCount = 0;
-    RUN_TEST_SUITE(connectionparser_unittests, failedTestCount);
+    RUN_TEST_SUITE(connectionstringparser_unittests, failedTestCount);
     return failedTestCount;
 }

@@ -5,13 +5,13 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 compileAsC99()
-set(theseTestsName connectionparser_unittests)
+set(theseTestsName connectionstringparser_unittests)
 set(${theseTestsName}_cpp_files
 ${theseTestsName}.cpp
 )
 
 set(${theseTestsName}_c_files
-../../src/connectionparser.c
+../../src/connection_string_parser.c
 )
 
 set(${theseTestsName}_h_files
