@@ -1554,6 +1554,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
     }
 
     /* Tests_SRS_EVENTHUBCLIENT_LL_03_009: [EventHubClient_LL_Destroy shall terminate the usage of this EventHubClient_LL specified by the eventHubLLHandle and cleanup all associated resources.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_081: [The key host name, key name and key allocated in EventHubClient_LL_CreateFromConnectionString shall be freed.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_042: [The message sender shall be freed by calling messagesender_destroy.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_043: [The link shall be freed by calling link_destroy.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_044: [The session shall be freed by calling session_destroy.] */
@@ -1580,6 +1581,9 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, xio_destroy(TEST_TLSIO_HANDLE));
         STRICT_EXPECTED_CALL(mocks, saslmechanism_destroy(TEST_SASL_MECHANISM_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_TARGET_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
 
@@ -1590,6 +1594,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         // Implicit
     }
 
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_081: [The key host name, key name and key allocated in EventHubClient_LL_CreateFromConnectionString shall be freed.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_041: [All pending message data shall be freed.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_040: [All the pending messages shall be indicated as error by calling the associated callback with EVENTHUBCLIENT_CONFIRMATION_DESTROY.] */
     TEST_FUNCTION(EventHubClient_LL_Destroy_frees_2_pending_messages)
@@ -1608,6 +1613,9 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         mocks.ResetAllCalls();
 
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_TARGET_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
 
         /* 1st item */
@@ -1645,6 +1653,9 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         mocks.ResetAllCalls();
 
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_TARGET_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
 

@@ -609,7 +609,11 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_048: [The SASL plain mechanism shall be freed by calling saslmechanism_destroy.] */
         (void)destroy_message_sender(eventhub_client_ll);
 
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_081: [The key host name, key name and key allocated in EventHubClient_LL_CreateFromConnectionString shall be freed.] */
         STRING_delete(eventhub_client_ll->target_address);
+        STRING_delete(eventhub_client_ll->host_name);
+        STRING_delete(eventhub_client_ll->keyName);
+        STRING_delete(eventhub_client_ll->keyValue);
 
         /* Codes_SRS_EVENTHUBCLIENT_LL_04_017: [EventHubClient_LL_Destroy shall complete all the event notifications callbacks that are in the outgoingdestroy the outgoingEvents with the result EVENTHUBCLIENT_CONFIRMATION_DESTROY.] */
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_041: [All pending message data shall be freed.] */
