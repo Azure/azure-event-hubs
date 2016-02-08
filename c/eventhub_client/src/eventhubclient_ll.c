@@ -163,6 +163,8 @@ static void destroy_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         saslmechanism_destroy(eventhub_client_ll->sasl_mechanism_handle);
         eventhub_client_ll->sasl_mechanism_handle = NULL;
     }
+
+    eventhub_client_ll->message_sender_state = MESSAGE_SENDER_STATE_IDLE;
 }
 
 static void on_message_sender_state_changed(const void* context, MESSAGE_SENDER_STATE new_state, MESSAGE_SENDER_STATE previous_state)
