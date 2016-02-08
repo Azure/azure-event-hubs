@@ -117,11 +117,11 @@ static const AMQP_VALUE TEST_PROPERTY_2_KEY_AMQP_VALUE = (AMQP_VALUE)0x5003;
 static const AMQP_VALUE TEST_PROPERTY_2_VALUE_AMQP_VALUE = (AMQP_VALUE)0x5004;
 static const AMQP_VALUE TEST_UAMQP_MAP = (AMQP_VALUE)0x5004;
 
-const char* const no_property_keys[] = { "test_property_key" };
-const char* const no_property_values[] = { "test_property_value" };
-const char* const* no_property_keys_ptr = no_property_keys;
-const char* const* no_property_values_ptr = no_property_values;
-size_t no_property_size = 0;
+static const char* const no_property_keys[] = { "test_property_key" };
+static const char* const no_property_values[] = { "test_property_value" };
+static const char* const* no_property_keys_ptr = no_property_keys;
+static const char* const* no_property_values_ptr = no_property_values;
+static size_t no_property_size = 0;
 
 static const char* TEXT_MESSAGE = "Hello From EventHubClient Unit Tests";
 static const char* TEST_CHAR = "TestChar";
@@ -142,14 +142,8 @@ static DLIST_ENTRY* saved_pending_list;
 static size_t currentmalloc_call;
 static size_t whenShallmalloc_fail;
 
-static size_t g_current_pn_messenger_call;
-static size_t g_when_pn_messenger_fail;
-
 static size_t g_currentEventClone_call;
 static size_t g_whenShallEventClone_fail;
-
-static size_t g_currentEventDataGetData_call;
-static size_t g_whenEventDataGetData_fail;
 
 typedef struct CALLBACK_CONFIRM_INFO
 {
@@ -586,8 +580,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         g_currentEventClone_call = 0;
         g_whenShallEventClone_fail = 0;
         g_confirmationResult = EVENTHUBCLIENT_CONFIRMATION_ERROR;
-        g_whenEventDataGetData_fail = 0;
-        g_currentEventDataGetData_call = 0;
 
         g_includeProperties = false;
     }
@@ -656,6 +648,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
     {
         STRICT_EXPECTED_CALL((*mocks), STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL((*mocks), STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL((*mocks), STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL((*mocks), STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -675,8 +669,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL((*mocks), session_create(TEST_CONNECTION_HANDLE, NULL, NULL));
         STRICT_EXPECTED_CALL((*mocks), session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL((*mocks), messaging_create_source("ingress"));
-        STRICT_EXPECTED_CALL((*mocks), STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL((*mocks), messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH));
         STRICT_EXPECTED_CALL((*mocks), link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
         STRICT_EXPECTED_CALL((*mocks), link_set_snd_settle_mode(TEST_LINK_HANDLE, sender_settle_mode_unsettled));
@@ -1786,6 +1778,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn("Host2");
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" "Host2" "/" "AnotherOne");
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn("Mwahaha");
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -1805,8 +1799,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_create(TEST_CONNECTION_HANDLE, NULL, NULL));
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"));
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" "Host2" "/" "AnotherOne");
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" "Host2" "/" "AnotherOne"));
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, link_set_snd_settle_mode(TEST_LINK_HANDLE, sender_settle_mode_unsettled));
@@ -1858,6 +1850,30 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
     }
 
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
+    TEST_FUNCTION(when_getting_the_target_address_string_content_fails_then_EventHubClient_LL_DoWork_does_not_proceed)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        mocks.ResetAllCalls();
+
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
+            .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn((char*)NULL);
+
+        // act
+        EventHubClient_LL_DoWork(eventHubHandle);
+
+        // assert
+        mocks.AssertActualAndExpectedCalls();
+
+        // cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
     TEST_FUNCTION(when_getting_the_string_content_for_the_keyname_fails_then_EventHubClient_LL_DoWork_does_not_proceed)
     {
         // arrange
@@ -1868,6 +1884,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn((char*)NULL);
 
@@ -1892,6 +1910,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -1918,6 +1938,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -1946,6 +1968,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -1976,6 +2000,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2008,6 +2034,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2042,6 +2070,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2079,6 +2109,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2118,6 +2150,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2160,6 +2194,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2204,6 +2240,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2250,6 +2288,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2297,6 +2337,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2317,8 +2359,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"))
             .SetReturn(TEST_SOURCE_AMQP_VALUE);
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH))
             .SetReturn((AMQP_VALUE)NULL);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_SOURCE_AMQP_VALUE));
@@ -2349,6 +2389,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2369,8 +2411,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"))
             .SetReturn(TEST_SOURCE_AMQP_VALUE);
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH))
             .SetReturn(TEST_TARGET_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE))
@@ -2404,6 +2444,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2424,8 +2466,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"))
             .SetReturn(TEST_SOURCE_AMQP_VALUE);
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH))
             .SetReturn(TEST_TARGET_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
@@ -2461,6 +2501,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2481,8 +2523,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"))
             .SetReturn(TEST_SOURCE_AMQP_VALUE);
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH))
             .SetReturn(TEST_TARGET_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
@@ -2519,6 +2559,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_HOSTNAME_STRING_HANDLE))
             .SetReturn(TEST_HOSTNAME);
+        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
+            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEYNAME_STRING_HANDLE))
             .SetReturn(TEST_KEYNAME);
         STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_KEY_STRING_HANDLE))
@@ -2539,8 +2581,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, session_set_outgoing_window(TEST_SESSION_HANDLE, 10));
         STRICT_EXPECTED_CALL(mocks, messaging_create_source("ingress"))
             .SetReturn(TEST_SOURCE_AMQP_VALUE);
-        STRICT_EXPECTED_CALL(mocks, STRING_c_str(TEST_TARGET_STRING_HANDLE))
-            .SetReturn("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH);
         STRICT_EXPECTED_CALL(mocks, messaging_create_target("amqps://" TEST_HOSTNAME "/" TEST_EVENTHUB_PATH))
             .SetReturn(TEST_TARGET_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
@@ -3416,6 +3456,72 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("test_property_value"))
             .SetReturn(TEST_PROPERTY_1_VALUE_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_1_KEY_AMQP_VALUE, TEST_PROPERTY_1_VALUE_AMQP_VALUE))
+            .SetReturn(1);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_KEY_AMQP_VALUE));
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_VALUE_AMQP_VALUE));
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_UAMQP_MAP));
+        STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, sendAsyncConfirmationCallback(EVENTHUBCLIENT_CONFIRMATION_ERROR, (void*)0x4242));
+        EXPECTED_CALL(mocks, DList_RemoveEntryList(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, EventData_Destroy(TEST_CLONED_EVENTDATA_HANDLE_1));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+
+        STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+
+        // act
+        EventHubClient_LL_DoWork(eventHubHandle);
+
+        // assert
+        mocks.AssertActualAndExpectedCalls();
+
+        // cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    /* Tests__SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    TEST_FUNCTION(when_setting_the_message_annotations_on_the_message_fails_the_event_is_indicated_as_errored)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        setup_messenger_initialize_success(&mocks);
+        EventHubClient_LL_DoWork(eventHubHandle);
+        saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_OPEN, MESSAGE_SENDER_STATE_IDLE);
+        (void)EventHubClient_LL_SendAsync(eventHubHandle, TEST_EVENTDATA_HANDLE, sendAsyncConfirmationCallback, (void*)0x4242);
+        mocks.ResetAllCalls();
+
+        unsigned char test_data[] = { 0x42 };
+        unsigned char* buffer = test_data;
+        size_t length = sizeof(test_data);
+        BINARY_DATA binary_data = { test_data, length };
+
+        const char* const one_property_keys[] = { "test_property_key" };
+        const char* const one_property_values[] = { "test_property_value" };
+        const char* const* one_property_keys_ptr = one_property_keys;
+        const char* const* one_property_values_ptr = one_property_values;
+        size_t one_property_size = 1;
+
+        STRICT_EXPECTED_CALL(mocks, message_create());
+        STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_1, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &buffer, sizeof(buffer))
+            .CopyOutArgumentBuffer(3, &length, sizeof(length));
+        STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
+        STRICT_EXPECTED_CALL(mocks, EventData_Properties(TEST_CLONED_EVENTDATA_HANDLE_1));
+        STRICT_EXPECTED_CALL(mocks, Map_GetInternals(TEST_MAP_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &one_property_keys_ptr, sizeof(one_property_keys_ptr))
+            .CopyOutArgumentBuffer(3, &one_property_values_ptr, sizeof(one_property_values_ptr))
+            .CopyOutArgumentBuffer(4, &one_property_size, sizeof(one_property_size));
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_create_map())
+            .SetReturn(TEST_UAMQP_MAP);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("test_property_key"))
+            .SetReturn(TEST_PROPERTY_1_KEY_AMQP_VALUE);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("test_property_value"))
+            .SetReturn(TEST_PROPERTY_1_VALUE_AMQP_VALUE);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_1_KEY_AMQP_VALUE, TEST_PROPERTY_1_VALUE_AMQP_VALUE));
+        STRICT_EXPECTED_CALL(mocks, message_set_message_annotations(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP))
             .SetReturn(1);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_KEY_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_VALUE_AMQP_VALUE));
