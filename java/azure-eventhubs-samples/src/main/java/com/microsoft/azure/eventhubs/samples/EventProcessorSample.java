@@ -11,8 +11,8 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	int hostCount = 1;
-    	PartitionManager.dummyPartitionCount = 8;
+    	int hostCount = 2;
+    	PartitionManager.dummyPartitionCount = 4;
     	
     	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	
@@ -59,24 +59,24 @@ public class EventProcessorSample {
     {
         public void onOpen(PartitionContext context) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " is opening");
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is opening");
         }
 
         public void onClose(PartitionContext context, CloseReason reason) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " is closing for reason " + reason.toString());
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is closing for reason " + reason.toString());
         }
 
         public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " got message batch");
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " got message batch");
             int messageCount = 0;
             for (EventData data : messages)
             {
                 System.out.println("SAMPLE: " + new String(data.getBody(), "UTF8"));
                 messageCount++;
             }
-            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " batch size was " + messageCount);
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " batch size was " + messageCount);
         }
     }
 }
