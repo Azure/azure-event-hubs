@@ -776,6 +776,64 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
     return result;
 }
 
+int encode_callback(void* context, const unsigned char* bytes, size_t length)
+{
+    BINARY_DATA* message_body_binary = (BINARY_DATA*)context;
+    memcpy(message_body_binary->bytes + message_body_binary->length, bytes, length);
+    message_body_binary->length += length;
+    return 0;
+}
+
+int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_list, size_t event_count)
+{
+    int result = 0;
+    size_t index;
+    AMQP_VALUE message_body;
+    BINARY_DATA message_body_binary;
+    size_t length = 0;
+
+    message_set_message_format(message, 0x80013700);
+
+    for (index = 0; index < event_count; index++)
+    {
+        BINARY_DATA payload;
+        if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
+        {
+            break;
+        }
+        
+        size_t payload_length;
+        data data = { payload.bytes, payload.length };
+        AMQP_VALUE data_value = amqpvalue_create_data(data);
+        amqpvalue_get_encoded_size(data_value, &payload_length);
+        length += payload_length;
+        amqpvalue_destroy(data_value);
+    }
+
+    message_body_binary.bytes = (unsigned char*)malloc(length);
+    message_body_binary.length = 0;
+
+    for (index = 0; index < event_count; index++)
+    {
+        BINARY_DATA payload;
+        if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
+        {
+            break;
+        }
+
+        size_t payload_length;
+        data data = { payload.bytes, payload.length };
+        AMQP_VALUE data_value = amqpvalue_create_data(data);
+        amqpvalue_get_encoded_size(data_value, &payload_length);
+        amqpvalue_encode(data_value, &encode_callback, &message_body_binary);
+        amqpvalue_destroy(data_value);
+    }
+
+    message_add_body_amqp_data(message, message_body_binary);
+
+    return result;
+}
+
 void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
 {
     /* Codes_SRS_EVENTHUBCLIENT_LL_04_018: [if parameter eventhub_client_ll is NULL EventHubClient_LL_DoWork shall immediately return.]   */
@@ -914,6 +972,13 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                             amqpvalue_destroy(properties_uamqp_map);
                                         }
                                     }
+                                }
+                            }
+                            else
+                            {
+                                if (create_batch_message(message, currentEvent->eventDataList, currentEvent->eventCount) != 0)
+                                {
+
                                 }
                             }
 
