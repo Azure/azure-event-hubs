@@ -779,7 +779,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
 int encode_callback(void* context, const unsigned char* bytes, size_t length)
 {
     BINARY_DATA* message_body_binary = (BINARY_DATA*)context;
-    memcpy(message_body_binary->bytes + message_body_binary->length, bytes, length);
+    memcpy((unsigned char*)message_body_binary->bytes + message_body_binary->length, bytes, length);
     message_body_binary->length += length;
     return 0;
 }
@@ -788,7 +788,6 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
 {
     int result = 0;
     size_t index;
-    AMQP_VALUE message_body;
     BINARY_DATA message_body_binary;
     size_t length = 0;
 
