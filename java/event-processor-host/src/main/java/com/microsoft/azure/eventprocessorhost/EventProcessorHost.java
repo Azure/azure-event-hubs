@@ -192,12 +192,12 @@ public final class EventProcessorHost
     
     void logWithHostAndPartition(PartitionContext context, String logMessage)
     {
-    	logWithHostAndPartition(context.getLease().getPartitionId(), logMessage);
+    	logWithHostAndPartition(context.getPartitionId(), logMessage);
     }
     
     void logWithHostAndPartition(PartitionContext context, String logMessage, Exception e)
     {
-    	logWithHostAndPartition(context.getLease().getPartitionId(), logMessage, e);
+    	logWithHostAndPartition(context.getPartitionId(), logMessage, e);
     }
 
 

@@ -51,6 +51,11 @@ public class PartitionContext
     {
         this.lease = lease;
     }
+    
+    public String getPartitionId()
+    {
+    	return this.partitionId;
+    }
 
     public Future<Void> Checkpoint()
     {

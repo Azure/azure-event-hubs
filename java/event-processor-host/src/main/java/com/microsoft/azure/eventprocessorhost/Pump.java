@@ -232,7 +232,7 @@ public class Pump implements Runnable
             this.keepGoing = false;
         }
 
-        private static Boolean serialize = true;
+        private static Boolean serialize = false;
         
         // DUMMY STARTS
         // workaround for threading issues in underlying client
@@ -255,7 +255,6 @@ public class Pump implements Runnable
         	
         	EventHubClient ehClient = null;
         	PartitionReceiver ehReceiver = null;
-        	Lease lease = this.partitionContext.getLease();
         	
         	// DUMMY STARTS
         	String startingOffset = "0"; // should get from checkpoint manager
@@ -274,10 +273,10 @@ public class Pump implements Runnable
 					ehClient = (EventHubClient) this.receiveFuture.get();
 					this.receiveFuture = null;
             	}
-            	long epoch = lease.getEpoch() + 1;
+            	long epoch = this.lease.getEpoch() + 1;
             	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
-				this.receiveFuture = ehClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), lease.getPartitionId(), startingOffset, epoch);
-				lease.setEpoch(epoch); // TODO need to update lease!
+				this.receiveFuture = ehClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(), startingOffset, epoch);
+				this.lease.setEpoch(epoch); // TODO need to update lease!
 				ehReceiver = (PartitionReceiver) this.receiveFuture.get();
 				this.receiveFuture = null;
 			}
