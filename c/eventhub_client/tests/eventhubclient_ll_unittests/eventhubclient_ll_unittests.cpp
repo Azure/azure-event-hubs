@@ -255,7 +255,7 @@ public:
     MOCK_METHOD_END(MESSAGE_HANDLE, TEST_MESSAGE_HANDLE);
     MOCK_STATIC_METHOD_1(, void, message_destroy, MESSAGE_HANDLE, message)
     MOCK_VOID_METHOD_END();
-    MOCK_STATIC_METHOD_2(, int, message_set_message_annotations, MESSAGE_HANDLE, message, annotations, delivery_annotations);
+    MOCK_STATIC_METHOD_2(, int, message_set_application_properties, MESSAGE_HANDLE, message, AMQP_VALUE, application_properties);
     MOCK_METHOD_END(int, 0);
     MOCK_STATIC_METHOD_2(, int, message_add_body_amqp_data, MESSAGE_HANDLE, message, BINARY_DATA, binary_data);
     MOCK_METHOD_END(int, 0);
@@ -461,7 +461,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , AMQP_VALUE, messaging_cre
 
 DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , MESSAGE_HANDLE, message_create);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, message_destroy, MESSAGE_HANDLE, message);
-DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_message_annotations, MESSAGE_HANDLE, message, annotations, delivery_annotations);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_application_properties, MESSAGE_HANDLE, message, AMQP_VALUE, application_properties);
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_add_body_amqp_data, MESSAGE_HANDLE, message, BINARY_DATA, binary_data);
 
 DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context, LOGGER_LOG, logger_log);
@@ -2989,11 +2989,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as message annotations to the message.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the annotations by calling amqpvalue_create_map.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as application properties to the message.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the application properties by calling amqpvalue_create_map.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_056: [For each property a key and value AMQP value shall be created by calling amqpvalue_create_string.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_057: [Then each property shall be added to the annotations map by calling amqpvalue_set_map_value.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_058: [The resulting map shall be set as the message annotations by calling message_set_message_annotations.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_057: [Then each property shall be added to the application properties map by calling amqpvalue_set_map_value.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_058: [The resulting map shall be set as the message application properties by calling message_set_application_properties.] */
     TEST_FUNCTION(one_property_is_added_to_a_non_batched_message)
     {
         // arrange
@@ -3035,7 +3035,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_1_KEY_AMQP_VALUE, TEST_PROPERTY_1_VALUE_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_KEY_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_VALUE_AMQP_VALUE));
-        STRICT_EXPECTED_CALL(mocks, message_set_message_annotations(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP));
+        STRICT_EXPECTED_CALL(mocks, message_set_application_properties(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_UAMQP_MAP));
         STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
         STRICT_EXPECTED_CALL(mocks, messagesender_send(TEST_MESSAGE_SENDER_HANDLE, TEST_MESSAGE_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
@@ -3054,11 +3054,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as message annotations to the message.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the annotations by calling amqpvalue_create_map.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as application properties to the message.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the application properties by calling amqpvalue_create_map.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_056: [For each property a key and value AMQP value shall be created by calling amqpvalue_create_string.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_057: [Then each property shall be added to the annotations map by calling amqpvalue_set_map_value.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_058: [The resulting map shall be set as the message annotations by calling message_set_message_annotations.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_057: [Then each property shall be added to the application properties map by calling amqpvalue_set_map_value.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_058: [The resulting map shall be set as the message application properties by calling message_set_application_properties.] */
     TEST_FUNCTION(two_properties_are_added_to_a_non_batched_message)
     {
         // arrange
@@ -3107,7 +3107,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_VALUE_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_2_KEY_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_2_VALUE_AMQP_VALUE));
-        STRICT_EXPECTED_CALL(mocks, message_set_message_annotations(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP));
+        STRICT_EXPECTED_CALL(mocks, message_set_application_properties(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_UAMQP_MAP));
         STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
         STRICT_EXPECTED_CALL(mocks, messagesender_send(TEST_MESSAGE_SENDER_HANDLE, TEST_MESSAGE_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
@@ -3126,7 +3126,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_getting_the_properties_from_the_event_data_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3176,7 +3176,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_getting_the_properties_details_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3230,7 +3230,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_creating_the_AMQP_map_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3285,7 +3285,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_creating_the_AMQP_property_key_value_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3343,7 +3343,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_creating_the_AMQP_property_value_value_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3404,7 +3404,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_setting_the_property_in_the_uAMQP_map_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3468,8 +3468,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-    /* Tests__SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the annotations the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
     TEST_FUNCTION(when_setting_the_message_annotations_on_the_message_fails_the_event_is_indicated_as_errored)
     {
         // arrange
@@ -3510,7 +3509,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("test_property_value"))
             .SetReturn(TEST_PROPERTY_1_VALUE_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_1_KEY_AMQP_VALUE, TEST_PROPERTY_1_VALUE_AMQP_VALUE));
-        STRICT_EXPECTED_CALL(mocks, message_set_message_annotations(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP))
+        STRICT_EXPECTED_CALL(mocks, message_set_application_properties(TEST_MESSAGE_HANDLE, TEST_UAMQP_MAP))
             .SetReturn(1);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_KEY_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_PROPERTY_1_VALUE_AMQP_VALUE));
