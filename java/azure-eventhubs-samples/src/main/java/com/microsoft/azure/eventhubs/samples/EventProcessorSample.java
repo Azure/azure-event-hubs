@@ -11,12 +11,12 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	PartitionManager.dummyHostCount = 3;
+    	int hostCount = 1;
     	PartitionManager.dummyPartitionCount = 8;
     	
-    	EventProcessorHost[] hosts = new EventProcessorHost[PartitionManager.dummyHostCount];
+    	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	
-    	for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+    	for (int i = 0; i < hostCount; i++)
     	{
     		hosts[i] = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", "storage connection string");
     		System.out.println("Registering host " + i + " named " + hosts[i].getHostName());
@@ -36,7 +36,7 @@ public class EventProcessorSample {
         try
         {
             System.in.read();
-            for (int i = 0; i < PartitionManager.dummyHostCount; i++)
+            for (int i = 0; i < hostCount; i++)
             {
 	            System.out.println("Calling unregister " + i);
 	            Future<?> blah = hosts[i].unregisterEventProcessor();
@@ -59,23 +59,25 @@ public class EventProcessorSample {
     {
         public void onOpen(PartitionContext context) throws Exception
         {
-            System.out.println("Partition " + context.getLease().getPartitionId() + " is opening");
+            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " is opening");
         }
 
         public void onClose(PartitionContext context, CloseReason reason) throws Exception
         {
-            System.out.println("Partition " + context.getLease().getPartitionId() + " is closing for reason " + reason.toString());
+            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " is closing for reason " + reason.toString());
         }
 
         public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception
         {
-            System.out.println("Partition " + context.getLease().getPartitionId() + " got messages");
+            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " got message batch");
+            int messageCount = 0;
             for (EventData data : messages)
             {
-                System.out.println(new String(data.getBody(), "UTF8"));
+                System.out.println("SAMPLE: " + new String(data.getBody(), "UTF8"));
+                messageCount++;
             }
+            System.out.println("SAMPLE: Partition " + context.getLease().getPartitionId() + " batch size was " + messageCount);
         }
-
     }
 }
 
