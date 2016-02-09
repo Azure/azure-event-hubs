@@ -372,7 +372,16 @@ public class Pump implements Runnable
             if (ehReceiver != null)
             {
             	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH receiver");
-            	ehReceiver.close();
+            	try
+            	{
+					ehReceiver.close();
+				}
+            	catch (ServiceBusException e)
+            	{
+                    // DUMMY STARTS
+                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing receiver", e);
+                    // DUMMY ENDS
+				}
             	ehReceiver = null;
             }
             
