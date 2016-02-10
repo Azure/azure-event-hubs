@@ -11,17 +11,15 @@ The C Version of this Azure Event Hub Client SDK is located under the folder [ro
 The EventHubClient “C” library provides developers a means of connecting to an already created Event Hub and the ability to send data to it. 
 
 The library includes the following features:
-* The library communicates to an existing Event Hub over AMQP protocol.
-* The library uses Proton-C to establish the AMQP communication necessary.
+* The library communicates to an existing Event Hub over AMQP protocol (using uAMQP).
 * Buffers data when network connection is down.
-* Batches messages to improve communication efficiency.
+* Supports batching.
 
 
 The library code:
 * Is written in ANSI C (C99) to maximize code portability.
 * Avoids compiler extensions.
 * Its output is a static lib.
-* Exposes a platform abstraction layer to isolate OS dependencies (HTTPAPI). Refer to the porting guide for more information.
 
 
 The library provides the following APIs:
@@ -50,17 +48,6 @@ This folder contains platform-specific build scripts for the client library and 
 
 #docs
 Contains device getting started and setup documentation.
-
-#common
-Contains components which are not specific to Event Hubs. It includes the following subdirectories:
- 
-   * build: Contains one subfolder for each platform (e.g. Windows, Linux). Subfolders contain makefiles, batch files, solutions that are used to generate the library binaries.
-   * docs: Requirements, designs notes, manuals.
-   * inc: Public include files.
-   * src: Client library source files.
-   * tools: Tools used for libraries.
-   * unittests: Unit tests for source code.
-
 
 #eventhub_client 
 

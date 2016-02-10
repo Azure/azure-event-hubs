@@ -786,7 +786,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
     return result;
 }
 
-int encode_callback(void* context, const unsigned char* bytes, size_t length)
+static int encode_callback(void* context, const unsigned char* bytes, size_t length)
 {
     EVENT_DATA_BINARY* message_body_binary = (EVENT_DATA_BINARY*)context;
     (void)memcpy(message_body_binary->bytes + message_body_binary->length, bytes, length);
