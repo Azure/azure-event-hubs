@@ -3706,7 +3706,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
-#if 0
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_082: [If the number of event data entries for the message is greater than 1 (batched) then the message format shall be set to 0x80013700 by calling message_set_message_format.] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_084: [For each event in the batch:] */
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_085: [The event shall be added to the message by into a separate data section by calling message_add_body_amqp_data.] */
@@ -5153,7 +5152,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         // cleanup
         EventHubClient_LL_Destroy(eventHubHandle);
     }
-#endif
 
     /* EventHubClient_LL_SendBatchAsync */
 
