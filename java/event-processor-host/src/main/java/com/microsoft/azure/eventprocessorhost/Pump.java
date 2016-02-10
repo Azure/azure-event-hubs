@@ -77,7 +77,7 @@ public class Pump implements Runnable
                 if (!this.leases.containsKey(partitionId))
                 {
                     PartitionPump partitionPump = this.pumps.get(partitionId);
-                    if (partitionPump.isRunning())
+                    if (!partitionPump.isClosing())
                     {
                     	this.host.logWithHostAndPartition(partitionId, "closing pump");
                         partitionPump.forceClose(CloseReason.LeaseLost);
@@ -104,7 +104,7 @@ public class Pump implements Runnable
                 {
                     if (this.pumps.containsKey(partitionId))
                     {
-                        if (!this.pumps.get(partitionId).isRunning())
+                        if (this.pumps.get(partitionId).getPumpStatus() == PartitionPumpStatus.closed)
                         {
                         	this.host.logWithHostAndPartition(partitionId, "Restarting pump");
                             this.pumps.remove(partitionId);
@@ -153,6 +153,8 @@ public class Pump implements Runnable
         partitionPump.startPump();
         this.pumps.put(lease.getPartitionId(), partitionPump); // do the put after start, if the start fails then put doesn't happen
     }
+    
+    public enum PartitionPumpStatus { uninitialized, opening, running, closing, closed };
 
     private class PartitionPump
     {
@@ -162,7 +164,7 @@ public class Pump implements Runnable
         
         private CompletableFuture<?> internalOperationFuture = null;
         private Lease lease;
-        private Boolean pumpRunning = false;
+        private PartitionPumpStatus pumpStatus = PartitionPumpStatus.uninitialized;
         private CloseReason reason = CloseReason.Shutdown; // default to shutdown
         
     	private EventHubClient eventHubClient = null;
@@ -178,13 +180,13 @@ public class Pump implements Runnable
 
         public void startPump() throws Exception
         {
+        	this.pumpStatus = PartitionPumpStatus.opening;
+        	
             this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.lease.getPartitionId());
             this.partitionContext.setEventHubPath(this.host.getEventHubPath());
             this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
             this.partitionContext.setLease(this.lease);
             this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
-
-            //this.future = this.host.getExecutorService().submit(this);
 
             try
             {
@@ -231,7 +233,7 @@ public class Pump implements Runnable
             this.internalReceiveHandler = new InternalReceiveHandler();
             this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
             
-            this.pumpRunning = true;
+            this.pumpStatus = PartitionPumpStatus.running;
         }
         
         private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
@@ -274,7 +276,8 @@ public class Pump implements Runnable
 				}
             	catch (ServiceBusException e)
             	{
-                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing old receiver", e);
+            		// Nothing we can do about this except log it.
+                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing EH receiver", e);
 				}
             	this.partitionReceiver = null;
             }
@@ -287,13 +290,19 @@ public class Pump implements Runnable
             }
         }
 
-        public Boolean isRunning()
+        public PartitionPumpStatus getPumpStatus()
         {
-        	return this.pumpRunning;
+        	return this.pumpStatus;
+        }
+        
+        public Boolean isClosing()
+        {
+        	return ((this.pumpStatus == PartitionPumpStatus.closing) || (this.pumpStatus == PartitionPumpStatus.closed));
         }
 
         public void forceClose(CloseReason reason)
         {
+        	this.pumpStatus = PartitionPumpStatus.closing;
             this.host.logWithHostAndPartition(this.partitionContext, "Forcing close"); // DUMMY
             this.reason = reason;
             shutdown();
@@ -301,7 +310,9 @@ public class Pump implements Runnable
 
         public void shutdown()
         {
-        	// If an operation is stuck, this lets us shut down anyway.
+        	this.pumpStatus = PartitionPumpStatus.closing;
+
+        	// If an open operation is stuck, this lets us shut down anyway.
         	CompletableFuture<?> captured = this.internalOperationFuture;
         	if (captured != null)
         	{
@@ -329,10 +340,11 @@ public class Pump implements Runnable
                     // DUMMY ENDS
                 }
             }
+
+            // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
+            this.host.getExecutorService().submit(() -> cleanUpClients());
             
-            cleanUpClients();
-            
-            this.pumpRunning = false;
+            this.pumpStatus = PartitionPumpStatus.closed;
         }
         
         
