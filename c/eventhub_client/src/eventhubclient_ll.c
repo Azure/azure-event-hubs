@@ -39,6 +39,12 @@ static const char SB_STRING[] = "sb://";
 static const size_t OUTGOING_WINDOW_SIZE = 10;
 static const size_t OUTGOING_WINDOW_BUFFER = 5;
 
+typedef struct EVENT_DATA_BINARY_TAG
+{
+    unsigned char* bytes;
+    size_t length;
+} EVENT_DATA_BINARY;
+
 typedef enum EVENTHUB_EVENT_STATUS_TAG
 {
     WAITING_TO_BE_SENT = 0,
@@ -778,8 +784,8 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
 
 int encode_callback(void* context, const unsigned char* bytes, size_t length)
 {
-    BINARY_DATA* message_body_binary = (BINARY_DATA*)context;
-    (void)memcpy((unsigned char*)message_body_binary->bytes + message_body_binary->length, bytes, length);
+    EVENT_DATA_BINARY* message_body_binary = (EVENT_DATA_BINARY*)context;
+    (void)memcpy(message_body_binary->bytes + message_body_binary->length, bytes, length);
     message_body_binary->length += length;
     return 0;
 }
@@ -888,7 +894,6 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
         for (index = 0; index < event_count; index++)
         {
             BINARY_DATA payload;
-            BINARY_DATA body_data_binary;
 
             if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
             {
@@ -944,28 +949,33 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                         }
                         else
                         {
+                            EVENT_DATA_BINARY event_data_binary;
+
                             payload_length += temp_length;
 
-                            body_data_binary.length = 0;
-                            body_data_binary.bytes = (unsigned char*)malloc(payload_length);
-                            if (body_data_binary.bytes == NULL)
+                            event_data_binary.length = 0;
+                            event_data_binary.bytes = (unsigned char*)malloc(payload_length);
+                            if (event_data_binary.bytes == NULL)
                             {
                                 is_error = true;
                             }
                             else
                             {
-                                if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &body_data_binary) != 0)) ||
-                                    (amqpvalue_encode(data_value, &encode_callback, &body_data_binary) != 0))
+                                if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &event_data_binary) != 0)) ||
+                                    (amqpvalue_encode(data_value, &encode_callback, &event_data_binary) != 0))
                                 {
                                     is_error = true;
                                 }
                                 else
                                 {
-                                    if (message_add_body_amqp_data(message, body_data_binary) != 0)
+                                    BINARY_DATA body_binary_data = { event_data_binary.bytes, event_data_binary.length };
+                                    if (message_add_body_amqp_data(message, body_binary_data) != 0)
                                     {
                                         is_error = true;
                                     }
                                 }
+
+                                free(event_data_binary.bytes);
                             }
                         }
 

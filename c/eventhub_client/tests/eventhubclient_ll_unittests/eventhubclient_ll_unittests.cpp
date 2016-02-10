@@ -94,12 +94,12 @@ EVENTHUBCLIENT_CONFIRMATION_RESULT g_confirmationResult;
 #define TEST_CLONED_EVENTDATA_HANDLE_2     (EVENTDATA_HANDLE)0x4241
 
 #define TEST_EVENTDATA_HANDLE     (EVENTDATA_HANDLE)0x4243
+#define TEST_EVENTDATA_HANDLE_1   (EVENTDATA_HANDLE)0x4244
+#define TEST_EVENTDATA_HANDLE_2   (EVENTDATA_HANDLE)0x4245
 
 #define TEST_STRING_TOKENIZER_HANDLE (STRING_TOKENIZER_HANDLE)0x48
 #define TEST_MAP_HANDLE (MAP_HANDLE)0x49
 #define MICROSOFT_MESSAGE_FORMAT 0x80013700
-#define EVENT_HANDLE_COUNT  3
-#define OVER_MAX_PACKET_SIZE    256*1024
 
 #define CONNECTION_STRING "Endpoint=sb://servicebusName.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=icT5kKsJr/Dw7oZveq7OPsSxu5Trmr6aiWlgI5zIT/8="
 #define TEST_EVENTHUB_PATH "eventHubName"
@@ -129,6 +129,10 @@ static const char* const no_property_values[] = { "test_property_value" };
 static const char* const* no_property_keys_ptr = no_property_keys;
 static const char* const* no_property_values_ptr = no_property_values;
 static size_t no_property_size = 0;
+
+static unsigned char* g_expected_encoded_buffer[2];
+static size_t g_expected_encoded_length[2];
+static size_t g_expected_encoded_counter;
 
 static const char* TEXT_MESSAGE = "Hello From EventHubClient Unit Tests";
 static const char* TEST_CHAR = "TestChar";
@@ -365,6 +369,8 @@ public:
     MOCK_STATIC_METHOD_1(, void, amqpvalue_destroy, AMQP_VALUE, value);
     MOCK_VOID_METHOD_END();
     MOCK_STATIC_METHOD_3(, int, amqpvalue_encode, AMQP_VALUE, value, AMQPVALUE_ENCODER_OUTPUT, encoder_output, void*, context)
+        encoder_output(context, g_expected_encoded_buffer[g_expected_encoded_counter], g_expected_encoded_length[g_expected_encoded_counter]);
+        g_expected_encoded_counter++;
     MOCK_METHOD_END(int, 0);
     MOCK_STATIC_METHOD_2(, int, amqpvalue_get_encoded_size, AMQP_VALUE, value, size_t*, encoded_size)
     MOCK_METHOD_END(int, 0);
@@ -3692,6 +3698,100 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         // act
         saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_ERROR, MESSAGE_SENDER_STATE_OPEN);
+
+        // assert
+        mocks.AssertActualAndExpectedCalls();
+
+        // cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_082: [If the number of event data entries for the message is greater than 1 (batched) then the message format shall be set to 0x80013700 by calling message_set_message_format.] */
+    TEST_FUNCTION(a_batched_message_with_2_events_and_no_properties_is_added_to_the_message_body)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        setup_messenger_initialize_success(&mocks);
+        EventHubClient_LL_DoWork(eventHubHandle);
+        saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_OPEN, MESSAGE_SENDER_STATE_IDLE);
+        EVENTDATA_HANDLE batch[] = { TEST_EVENTDATA_HANDLE_1, TEST_EVENTDATA_HANDLE_2 };
+        STRICT_EXPECTED_CALL(mocks, EventData_Clone(TEST_EVENTDATA_HANDLE_1))
+            .SetReturn(TEST_CLONED_EVENTDATA_HANDLE_1);
+        STRICT_EXPECTED_CALL(mocks, EventData_Clone(TEST_EVENTDATA_HANDLE_2))
+            .SetReturn(TEST_CLONED_EVENTDATA_HANDLE_2);
+        (void)EventHubClient_LL_SendBatchAsync(eventHubHandle, batch, sizeof(batch) / sizeof(EVENTDATA_HANDLE), sendAsyncConfirmationCallback, (void*)0x4242);
+        mocks.ResetAllCalls();
+
+        unsigned char test_data[] = { 0x42 };
+        unsigned char* buffer = test_data;
+        size_t length = sizeof(test_data);
+        g_expected_encoded_counter = 0;
+
+        STRICT_EXPECTED_CALL(mocks, message_create());
+        STRICT_EXPECTED_CALL(mocks, message_set_message_format(TEST_MESSAGE_HANDLE, MICROSOFT_MESSAGE_FORMAT));
+
+        // 1st event
+        STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_1, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &buffer, sizeof(buffer))
+            .CopyOutArgumentBuffer(3, &length, sizeof(length));
+        STRICT_EXPECTED_CALL(mocks, EventData_Properties(TEST_CLONED_EVENTDATA_HANDLE_1));
+        STRICT_EXPECTED_CALL(mocks, Map_GetInternals(TEST_MAP_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
+            .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
+            .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
+        amqp_binary amqy_binary = { test_data, length };
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
+            .SetReturn(TEST_DATA_1);
+        unsigned char encoded_data_1[] = { 0x42 };
+        size_t data_encoded_size = sizeof(encoded_data_1);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_get_encoded_size(TEST_DATA_1, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &data_encoded_size, sizeof(data_encoded_size));
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(data_encoded_size));
+        g_expected_encoded_buffer[0] = encoded_data_1;
+        g_expected_encoded_length[0] = data_encoded_size;
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_encode(TEST_DATA_1, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreArgument(2).IgnoreArgument(3);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_DATA_1));
+        BINARY_DATA binary_data = { encoded_data_1, data_encoded_size };
+        STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+
+        //2nd event
+        STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_2, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &buffer, sizeof(buffer))
+            .CopyOutArgumentBuffer(3, &length, sizeof(length));
+        STRICT_EXPECTED_CALL(mocks, EventData_Properties(TEST_CLONED_EVENTDATA_HANDLE_2));
+        STRICT_EXPECTED_CALL(mocks, Map_GetInternals(TEST_MAP_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
+            .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
+            .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
+        amqy_binary = { test_data, length };
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
+            .SetReturn(TEST_DATA_2);
+        unsigned char encoded_data_2[] = { 0x43, 0x44 };
+        data_encoded_size = sizeof(encoded_data_2);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_get_encoded_size(TEST_DATA_2, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &data_encoded_size, sizeof(data_encoded_size));
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(data_encoded_size));
+        g_expected_encoded_buffer[1] = encoded_data_2;
+        g_expected_encoded_length[1] = data_encoded_size;
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_encode(TEST_DATA_2, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreArgument(2).IgnoreArgument(3);
+        STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_DATA_2));
+        binary_data = { encoded_data_2, data_encoded_size };
+        STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+
+        STRICT_EXPECTED_CALL(mocks, messagesender_send(TEST_MESSAGE_SENDER_HANDLE, TEST_MESSAGE_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreArgument(3).IgnoreArgument(4);
+        STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+
+        STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+
+        // act
+        EventHubClient_LL_DoWork(eventHubHandle);
 
         // assert
         mocks.AssertActualAndExpectedCalls();
