@@ -190,12 +190,30 @@ public class Pump implements Runnable
             {
 				openClients();
 			}
-            catch (ServiceBusException | IOException | InterruptedException | ExecutionException e)
+            catch (ServiceBusException | IOException | InterruptedException e)
             {
 				// DUMMY figure out the retry policy here
 				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
+				throw e;
 				// DUMMY ENDS
 			}
+            catch (ExecutionException e)
+            {
+            	if (e.getCause() instanceof ReceiverDisconnectedException)
+            	{
+            		// DUMMY This is probably due to a receiver with a higher epoch
+            		// Is there a way to be sure without checking the exception text?
+            		this.host.logWithHostAndPartition(this.partitionContext, "Receiver disconnected on create", e);
+            		// DUMMY ENDS
+            	}
+            	else
+            	{
+    				// DUMMY figure out the retry policy here
+    				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
+    				// DUMMY ENDS
+            	}
+        		throw e;
+            }
 
         	try
             {
