@@ -100,6 +100,7 @@ static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
         }
         else
         {
+            /* Codes_SRS_EVENTHUBCLIENT_LL_01_097: [The partition key for each event shall be obtained by calling EventData_getPartitionKey.] */
             const char* currPartKey = EventData_GetPartitionKey(eventDataList[index]);
             if (index == 0)
             {
@@ -710,6 +711,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
 {
     EVENTHUBCLIENT_RESULT result;
     /* Codes_SRS_EVENTHUBCLIENT_LL_07_012: [EventHubClient_LL_SendBatchAsync shall return EVENTHUBCLIENT_INVALLID_ARG if eventhubClientLLHandle or eventDataList are NULL or if sendAsnycConfirmationCallback equals NULL and userContextCallback does not equal NULL.] */
+    /* Codes_SRS_EVENTHUBCLIENT_LL_01_095: [EventHubClient_LL_SendBatchAsync shall return EVENTHUBCLIENT_INVALID_ARG if the count argument is zero.] */
     if (eventhub_client_ll == NULL || eventDataList == NULL || count == 0 || (sendAsyncConfirmationCallback == NULL && userContextCallback != NULL))
     {
         result = EVENTHUBCLIENT_INVALID_ARG;
@@ -720,7 +722,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
         size_t index;
         if (ValidateEventDataList(eventDataList, count) != 0)
         {
-            /* Codes_SRS_EVENTHUBCLIENT_LL_07_013: [EventHubClient_LL_SendBatchAsync shall return EVENTHUBCLIENT_ERROR for any Error that is encountered.] */
+            /* Codes_Tests_SRS_EVENTHUBCLIENT_LL_01_096: [If the partitionKey properties on the events in the batch are not the same then EventHubClient_LL_SendBatchAsync shall fail and return EVENTHUBCLIENT_ERROR.] */
             result = EVENTHUBCLIENT_ERROR;
             LOG_ERROR;
         }
@@ -729,6 +731,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
             EVENTHUB_EVENT_LIST *newEntry = (EVENTHUB_EVENT_LIST*)malloc(sizeof(EVENTHUB_EVENT_LIST));
             if (newEntry == NULL)
             {
+                /* Codes_SRS_EVENTHUBCLIENT_LL_07_013: [EventHubClient_LL_SendBatchAsync shall return EVENTHUBCLIENT_ERROR for any Error that is encountered.] */
                 result = EVENTHUBCLIENT_ERROR;
                 LOG_ERROR;
             }
@@ -739,6 +742,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
                 newEntry->eventDataList = malloc(sizeof(EVENTDATA_HANDLE)*count);
                 if (newEntry->eventDataList == NULL)
                 {
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_07_013: [EventHubClient_LL_SendBatchAsync shall return EVENTHUBCLIENT_ERROR for any Error that is encountered.] */
                     free(newEntry);
                     result = EVENTHUBCLIENT_ERROR;
                     LOG_ERROR;
@@ -822,8 +826,9 @@ static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE*
             /* Codes_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as application properties to the message.] */
             /* Codes_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the application properties by calling amqpvalue_create_map.] */
             *uamqp_properties_map = amqpvalue_create_map();
-            if (uamqp_properties_map == NULL)
+            if (*uamqp_properties_map == NULL)
             {
+                /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                 LogError("Cannot build uAMQP properties map.\r\n");
                 result = __LINE__;
             }
@@ -863,6 +868,7 @@ static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE*
                 if (i < property_count)
                 {
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                     LogError("Could not fill all properties in the uAMQP properties map.\r\n");
                     amqpvalue_destroy(*uamqp_properties_map);
                     result = __LINE__;
@@ -935,6 +941,7 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_093: [If the property count is 0 for an event part of the batch, then no property map shall be serialized for that event.] */
                         if (uamqp_properties_map != NULL)
                         {
+                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_087: [The properties shall be serialized as AMQP application_properties.] */
                             application_properties = amqpvalue_create_application_properties(uamqp_properties_map);
                             if (application_properties == NULL)
                             {
@@ -942,59 +949,64 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                             }
                             else
                             {
-                                size_t property_payload_length = 0;
-
+                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_091: [The size needed for the properties and data section shall be obtained by calling amqpvalue_get_encoded_size.] */
                                 if (amqpvalue_get_encoded_size(application_properties, &temp_length) != 0)
-                                {
-                                    is_error = true;
-                                }
-
-                                payload_length += temp_length;
-                            }
-                        }
-
-                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_091: [The size needed for the properties and data section shall be obtained by calling amqpvalue_get_encoded_size.] */
-                        if (amqpvalue_get_encoded_size(data_value, &temp_length) != 0)
-                        {
-                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                            is_error = true;
-                        }
-                        else
-                        {
-                            EVENT_DATA_BINARY event_data_binary;
-
-                            payload_length += temp_length;
-
-                            event_data_binary.length = 0;
-                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_090: [Enough memory shall be allocated to hold the properties and binary payload for each event part of the batch.] */
-                            event_data_binary.bytes = (unsigned char*)malloc(payload_length);
-                            if (event_data_binary.bytes == NULL)
-                            {
-                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                is_error = true;
-                            }
-                            else
-                            {
-                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_092: [The properties and binary data shall be encoded by calling amqpvalue_encode and passing an encoding function that places the encoded data into the memory allocated for the event.] */
-                                if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &event_data_binary) != 0)) ||
-                                    (amqpvalue_encode(data_value, &encode_callback, &event_data_binary) != 0))
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                     is_error = true;
                                 }
                                 else
                                 {
-                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_085: [The event shall be added to the message by into a separate data section by calling message_add_body_amqp_data.] */
-                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_086: [The buffer passed to message_add_body_amqp_data shall contain the properties and the binary event payload serialized as AMQP values.] */
-                                    BINARY_DATA body_binary_data = { event_data_binary.bytes, event_data_binary.length };
-                                    if (message_add_body_amqp_data(message, body_binary_data) != 0)
+                                    payload_length += temp_length;
+                                }
+                            }
+                        }
+
+                        if (!is_error)
+                        {
+                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_091: [The size needed for the properties and data section shall be obtained by calling amqpvalue_get_encoded_size.] */
+                            if (amqpvalue_get_encoded_size(data_value, &temp_length) != 0)
+                            {
+                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                                is_error = true;
+                            }
+                            else
+                            {
+                                EVENT_DATA_BINARY event_data_binary;
+
+                                payload_length += temp_length;
+
+                                event_data_binary.length = 0;
+                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_090: [Enough memory shall be allocated to hold the properties and binary payload for each event part of the batch.] */
+                                event_data_binary.bytes = (unsigned char*)malloc(payload_length);
+                                if (event_data_binary.bytes == NULL)
+                                {
+                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                                    is_error = true;
+                                }
+                                else
+                                {
+                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_092: [The properties and binary data shall be encoded by calling amqpvalue_encode and passing an encoding function that places the encoded data into the memory allocated for the event.] */
+                                    if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &event_data_binary) != 0)) ||
+                                        (amqpvalue_encode(data_value, &encode_callback, &event_data_binary) != 0))
                                     {
-                                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_089: [If message_add_body_amqp_data fails, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                         is_error = true;
                                     }
-                                }
+                                    else
+                                    {
+                                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_085: [The event shall be added to the message by into a separate data section by calling message_add_body_amqp_data.] */
+                                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_086: [The buffer passed to message_add_body_amqp_data shall contain the properties and the binary event payload serialized as AMQP values.] */
+                                        BINARY_DATA body_binary_data = { event_data_binary.bytes, event_data_binary.length };
+                                        if (message_add_body_amqp_data(message, body_binary_data) != 0)
+                                        {
+                                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_089: [If message_add_body_amqp_data fails, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                                            is_error = true;
+                                        }
+                                    }
 
-                                free(event_data_binary.bytes);
+                                    free(event_data_binary.bytes);
+                                }
                             }
                         }
 
