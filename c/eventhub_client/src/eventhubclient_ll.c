@@ -885,36 +885,45 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
     size_t index;
     size_t length = 0;
 
+    /* Codes_SRS_EVENTHUBCLIENT_LL_01_082: [If the number of event data entries for the message is greater than 1 (batched) then the message format shall be set to 0x80013700 by calling message_set_message_format.] */
     if (message_set_message_format(message, 0x80013700) != 0)
     {
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_083: [If message_set_message_format fails, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+        LogError("Failed setting the message format to MS message format.\r\n");
         result = __LINE__;
     }
     else
     {
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_084: [For each event in the batch:] */
         for (index = 0; index < event_count; index++)
         {
             BINARY_DATA payload;
 
             if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
             {
+                /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                 break;
             }
             else
             {
-                data data = { payload.bytes, payload.length };
-                AMQP_VALUE data_value = amqpvalue_create_data(data);
-                if (data_value == NULL)
+                AMQP_VALUE uamqp_properties_map;
+                bool is_error = false;
+
+                /* create the properties map */
+                if (create_properties_map(event_data_list[index], &uamqp_properties_map) != 0)
                 {
-                    break;
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                    is_error = true;
                 }
                 else
                 {
-                    bool is_error = false;
-                    AMQP_VALUE uamqp_properties_map;
+                    data data = { payload.bytes, payload.length };
 
-                    /* create the properties map */
-                    if (create_properties_map(event_data_list[index], &uamqp_properties_map) != 0)
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_088: [The event payload shall be serialized as an AMQP message data section.] */
+                    AMQP_VALUE data_value = amqpvalue_create_data(data);
+                    if (data_value == NULL)
                     {
+                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                         is_error = true;
                     }
                     else
@@ -923,6 +932,7 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                         size_t temp_length = 0;
                         AMQP_VALUE application_properties = NULL;
 
+                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_093: [If the property count is 0 for an event part of the batch, then no property map shall be serialized for that event.] */
                         if (uamqp_properties_map != NULL)
                         {
                             application_properties = amqpvalue_create_application_properties(uamqp_properties_map);
@@ -943,8 +953,10 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                             }
                         }
 
+                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_091: [The size needed for the properties and data section shall be obtained by calling amqpvalue_get_encoded_size.] */
                         if (amqpvalue_get_encoded_size(data_value, &temp_length) != 0)
                         {
+                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                             is_error = true;
                         }
                         else
@@ -954,23 +966,30 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                             payload_length += temp_length;
 
                             event_data_binary.length = 0;
+                            /* Codes_SRS_EVENTHUBCLIENT_LL_01_090: [Enough memory shall be allocated to hold the properties and binary payload for each event part of the batch.] */
                             event_data_binary.bytes = (unsigned char*)malloc(payload_length);
                             if (event_data_binary.bytes == NULL)
                             {
+                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                 is_error = true;
                             }
                             else
                             {
+                                /* Codes_SRS_EVENTHUBCLIENT_LL_01_092: [The properties and binary data shall be encoded by calling amqpvalue_encode and passing an encoding function that places the encoded data into the memory allocated for the event.] */
                                 if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &event_data_binary) != 0)) ||
                                     (amqpvalue_encode(data_value, &encode_callback, &event_data_binary) != 0))
                                 {
+                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                     is_error = true;
                                 }
                                 else
                                 {
+                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_085: [The event shall be added to the message by into a separate data section by calling message_add_body_amqp_data.] */
+                                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_086: [The buffer passed to message_add_body_amqp_data shall contain the properties and the binary event payload serialized as AMQP values.] */
                                     BINARY_DATA body_binary_data = { event_data_binary.bytes, event_data_binary.length };
                                     if (message_add_body_amqp_data(message, body_binary_data) != 0)
                                     {
+                                        /* Codes_SRS_EVENTHUBCLIENT_LL_01_089: [If message_add_body_amqp_data fails, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                         is_error = true;
                                     }
                                 }
@@ -987,14 +1006,14 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                         {
                             amqpvalue_destroy(uamqp_properties_map);
                         }
-                    }
 
-                    amqpvalue_destroy(data_value);
-
-                    if (is_error)
-                    {
-                        break;
+                        amqpvalue_destroy(data_value);
                     }
+                }
+
+                if (is_error)
+                {
+                    break;
                 }
             }
         }
@@ -1159,7 +1178,8 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             {
                                 if (create_batch_message(message, currentEvent->eventDataList, currentEvent->eventCount) != 0)
                                 {
-
+                                    is_error = true;
+                                    LogError("Failed creating batch message.\r\n");
                                 }
                             }
 
