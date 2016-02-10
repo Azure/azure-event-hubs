@@ -76,7 +76,7 @@ public class PartitionManager
             for (Future<Lease> future : allLeases)
             {
                 Lease possibleLease = future.get();
-                if ((possibleLease.getOwner().compareTo(this.host.getHostName()) == 0) || possibleLease.isExpired())
+                if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
                 {
                     Lease gotLease = leaseManager.acquireLease(possibleLease.getPartitionId()).get();
                     if (gotLease != null)

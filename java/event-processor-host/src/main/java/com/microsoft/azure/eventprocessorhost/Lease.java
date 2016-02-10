@@ -103,9 +103,9 @@ public class Lease
         this.token = token;
     }
 
-    public Boolean isExpired()
+    private Boolean isExpired()
     {
-        // TODO -- is this correct? Or are there cases where a lease has an owner but is expired anyway?
-        return (this.owner.length() == 0);
+    	// .NET always returns false
+    	return false;
     }
 }

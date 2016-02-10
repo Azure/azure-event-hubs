@@ -225,12 +225,8 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         public Lease call()
         {
             // DUMMY STARTS
-            Lease returnLease = null;
-            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
-            {
-                returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
-            }
-            else
+            Lease returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
+            if (returnLease == null)
             {
             	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "getLease() no existing lease");
             }
@@ -261,6 +257,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
                 Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.eventHubPath,
                         AzureStorageCheckpointLeaseManager.this.consumerGroup, this.partitionId);
                 lease.setEpoch(0L);
+                lease.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
                 InMemoryLeaseStore.getSingleton().inMemoryLeases.put(this.partitionId, lease);
             }
             return null;
@@ -295,14 +292,13 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         public Lease call()
         {
             // DUMMY STARTS
-            Lease leaseToReturn = null;
-            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
+            Lease leaseToReturn = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
+            if (leaseToReturn != null)
             {
-                leaseToReturn = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
-                if (leaseToReturn.isExpired())
+                if (leaseToReturn.getOwner().length() == 0)
                 {
-                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() acquired lease");
                     leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
+                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() acquired lease");
                 }
                 else if (leaseToReturn.getOwner().compareTo(AzureStorageCheckpointLeaseManager.this.host.getHostName()) == 0)
                 {
@@ -310,8 +306,9 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
                 }
                 else
                 {
-                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() stole lease from " + leaseToReturn.getOwner());
+                	String oldOwner = leaseToReturn.getOwner();
                 	leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
+                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() stole lease from " + oldOwner);
                 }
             }
             else
