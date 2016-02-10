@@ -117,6 +117,13 @@ static const AMQP_VALUE TEST_PROPERTY_2_KEY_AMQP_VALUE = (AMQP_VALUE)0x5003;
 static const AMQP_VALUE TEST_PROPERTY_2_VALUE_AMQP_VALUE = (AMQP_VALUE)0x5004;
 static const AMQP_VALUE TEST_UAMQP_MAP = (AMQP_VALUE)0x5004;
 
+static const AMQP_VALUE DUMMY_APPLICATION_PROPERTIES = (AMQP_VALUE)0x6001;
+static const AMQP_VALUE TEST_APPLICATION_PROPERTIES_1 = (AMQP_VALUE)0x6002;
+static const AMQP_VALUE TEST_APPLICATION_PROPERTIES_2 = (AMQP_VALUE)0x6003;
+static const AMQP_VALUE DUMMY_DATA = (AMQP_VALUE)0x7001;
+static const AMQP_VALUE TEST_DATA_1 = (AMQP_VALUE)0x7002;
+static const AMQP_VALUE TEST_DATA_2 = (AMQP_VALUE)0x7003;
+
 static const char* const no_property_keys[] = { "test_property_key" };
 static const char* const no_property_values[] = { "test_property_value" };
 static const char* const* no_property_keys_ptr = no_property_keys;
@@ -196,6 +203,30 @@ static bool operator==(const BINARY_DATA left, const BINARY_DATA& right)
     }
 }
 
+std::ostream& operator<<(std::ostream& left, const amqp_binary& binary)
+{
+    std::ios::fmtflags f(left.flags());
+    left << std::hex;
+    for (size_t i = 0; i < binary.length; i++)
+    {
+        left << ((const unsigned char*)binary.bytes)[i];
+    }
+    left.flags(f);
+    return left;
+}
+
+static bool operator==(const amqp_binary left, const amqp_binary& right)
+{
+    if (left.length != right.length)
+    {
+        return false;
+    }
+    else
+    {
+        return memcmp(left.bytes, right.bytes, left.length) == 0;
+    }
+}
+
 TYPED_MOCK_CLASS(CEventHubClientLLMocks, CGlobalMock)
 {
 public:
@@ -258,6 +289,8 @@ public:
     MOCK_STATIC_METHOD_2(, int, message_set_application_properties, MESSAGE_HANDLE, message, AMQP_VALUE, application_properties);
     MOCK_METHOD_END(int, 0);
     MOCK_STATIC_METHOD_2(, int, message_add_body_amqp_data, MESSAGE_HANDLE, message, BINARY_DATA, binary_data);
+    MOCK_METHOD_END(int, 0);
+    MOCK_STATIC_METHOD_2(, int, message_set_message_format, MESSAGE_HANDLE, message, uint32_t, message_format)
     MOCK_METHOD_END(int, 0);
 
     /* messagesender mocks */
@@ -331,6 +364,14 @@ public:
     MOCK_METHOD_END(int, 0);
     MOCK_STATIC_METHOD_1(, void, amqpvalue_destroy, AMQP_VALUE, value);
     MOCK_VOID_METHOD_END();
+    MOCK_STATIC_METHOD_3(, int, amqpvalue_encode, AMQP_VALUE, value, AMQPVALUE_ENCODER_OUTPUT, encoder_output, void*, context)
+    MOCK_METHOD_END(int, 0);
+    MOCK_STATIC_METHOD_2(, int, amqpvalue_get_encoded_size, AMQP_VALUE, value, size_t*, encoded_size)
+    MOCK_METHOD_END(int, 0);
+    MOCK_STATIC_METHOD_1(, AMQP_VALUE, amqpvalue_create_application_properties, AMQP_VALUE, value)
+    MOCK_METHOD_END(AMQP_VALUE, DUMMY_APPLICATION_PROPERTIES);
+    MOCK_STATIC_METHOD_1(, AMQP_VALUE, amqpvalue_create_data, data, value)
+    MOCK_METHOD_END(AMQP_VALUE, DUMMY_DATA);
 
     /* map mocks */
     MOCK_STATIC_METHOD_2(, const char*, Map_GetValueFromKey, MAP_HANDLE, handle, const char*, key)
@@ -463,6 +504,7 @@ DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , MESSAGE_HANDLE, message_c
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, message_destroy, MESSAGE_HANDLE, message);
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_application_properties, MESSAGE_HANDLE, message, AMQP_VALUE, application_properties);
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_add_body_amqp_data, MESSAGE_HANDLE, message, BINARY_DATA, binary_data);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_message_format, MESSAGE_HANDLE, message, uint32_t, message_format);
 
 DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context, LOGGER_LOG, logger_log);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, messagesender_destroy, MESSAGE_SENDER_HANDLE, message_sender);
@@ -483,6 +525,10 @@ DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , AMQP_VALUE, amqpvalue_cre
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , AMQP_VALUE, amqpvalue_create_string, const char*, value);
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , int, amqpvalue_set_map_value, AMQP_VALUE, map, AMQP_VALUE, key, AMQP_VALUE, value);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, amqpvalue_destroy, AMQP_VALUE, value);
+DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , int, amqpvalue_encode, AMQP_VALUE, value, AMQPVALUE_ENCODER_OUTPUT, encoder_output, void*, context);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, amqpvalue_get_encoded_size, AMQP_VALUE, value, size_t*, encoded_size);
+DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , AMQP_VALUE, amqpvalue_create_application_properties, AMQP_VALUE, value);
+DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , AMQP_VALUE, amqpvalue_create_data, data, value);
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , const char*, Map_GetValueFromKey, MAP_HANDLE, handle, const char*, key);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, Map_Destroy, MAP_HANDLE, handle);
