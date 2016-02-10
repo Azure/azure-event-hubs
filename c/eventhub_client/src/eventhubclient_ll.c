@@ -779,7 +779,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
 int encode_callback(void* context, const unsigned char* bytes, size_t length)
 {
     BINARY_DATA* message_body_binary = (BINARY_DATA*)context;
-    memcpy((unsigned char*)message_body_binary->bytes + message_body_binary->length, bytes, length);
+    (void)memcpy((unsigned char*)message_body_binary->bytes + message_body_binary->length, bytes, length);
     message_body_binary->length += length;
     return 0;
 }
@@ -788,47 +788,83 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
 {
     int result = 0;
     size_t index;
-    BINARY_DATA message_body_binary;
     size_t length = 0;
 
-    message_set_message_format(message, 0x80013700);
-
-    for (index = 0; index < event_count; index++)
+    if (message_set_message_format(message, 0x80013700) != 0)
     {
-        BINARY_DATA payload;
-        if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
-        {
-            break;
-        }
-        
-        size_t payload_length;
-        data data = { payload.bytes, payload.length };
-        AMQP_VALUE data_value = amqpvalue_create_data(data);
-        amqpvalue_get_encoded_size(data_value, &payload_length);
-        length += payload_length;
-        amqpvalue_destroy(data_value);
+        result = __LINE__;
     }
-
-    message_body_binary.bytes = (unsigned char*)malloc(length);
-    message_body_binary.length = 0;
-
-    for (index = 0; index < event_count; index++)
+    else
     {
-        BINARY_DATA payload;
-        if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
+        for (index = 0; index < event_count; index++)
         {
-            break;
+            BINARY_DATA payload;
+            BINARY_DATA body_data_binary;
+
+            if (EventData_GetData(event_data_list[index], &payload.bytes, &payload.length) != EVENTDATA_OK)
+            {
+                break;
+            }
+            else
+            {
+                data data = { payload.bytes, payload.length };
+                AMQP_VALUE data_value = amqpvalue_create_data(data);
+                if (data_value == NULL)
+                {
+                    break;
+                }
+                else
+                {
+                    size_t payload_length;
+                    bool is_error = false;
+
+                    if (amqpvalue_get_encoded_size(data_value, &payload_length) != 0)
+                    {
+                        is_error = true;
+                    }
+                    else
+                    {
+                        body_data_binary.length = 0;
+                        body_data_binary.bytes = (unsigned char*)malloc(payload_length);
+                        if (body_data_binary.bytes == NULL)
+                        {
+                            is_error = true;
+                        }
+                        else
+                        {
+                            if (amqpvalue_encode(data_value, &encode_callback, &body_data_binary) != 0)
+                            {
+                                is_error = true;
+                            }
+                            else
+                            {
+                                if (message_add_body_amqp_data(message, body_data_binary) != 0)
+                                {
+                                    is_error = true;
+                                }
+                            }
+                        }
+                    }
+
+                    amqpvalue_destroy(data_value);
+
+                    if (is_error)
+                    {
+                        break;
+                    }
+                }
+            }
         }
 
-        size_t payload_length;
-        data data = { payload.bytes, payload.length };
-        AMQP_VALUE data_value = amqpvalue_create_data(data);
-        amqpvalue_get_encoded_size(data_value, &payload_length);
-        amqpvalue_encode(data_value, &encode_callback, &message_body_binary);
-        amqpvalue_destroy(data_value);
+        if (index < event_count)
+        {
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
     }
-
-    message_add_body_amqp_data(message, message_body_binary);
 
     return result;
 }
