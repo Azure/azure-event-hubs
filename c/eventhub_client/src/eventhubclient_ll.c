@@ -784,6 +784,95 @@ int encode_callback(void* context, const unsigned char* bytes, size_t length)
     return 0;
 }
 
+static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE* uamqp_properties_map)
+{
+    int result;
+    MAP_HANDLE properties_map;
+    const char* const* property_keys;
+    const char* const* property_values;
+    size_t property_count;
+
+    if ((properties_map = EventData_Properties(event_data_handle)) == NULL)
+    {
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+        LogError("Cannot get the properties map.\r\n");
+        result = __LINE__;
+    }
+    else if (Map_GetInternals(properties_map, &property_keys, &property_values, &property_count) != MAP_OK)
+    {
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+        LogError("Cannot get the properties map.\r\n");
+        result = __LINE__;
+    }
+    else
+    {
+        if (property_count == 0)
+        {
+            *uamqp_properties_map = NULL;
+            result = 0;
+        }
+        else
+        {
+            /* Codes_SRS_EVENTHUBCLIENT_LL_01_054: [If the number of event data entries for the message is 1 (not batched) the event data properties shall be added as application properties to the message.] */
+            /* Codes_SRS_EVENTHUBCLIENT_LL_01_055: [A map shall be created to hold the application properties by calling amqpvalue_create_map.] */
+            *uamqp_properties_map = amqpvalue_create_map();
+            if (uamqp_properties_map == NULL)
+            {
+                LogError("Cannot build uAMQP properties map.\r\n");
+                result = __LINE__;
+            }
+            else
+            {
+                size_t i;
+
+                for (i = 0; i < property_count; i++)
+                {
+                    AMQP_VALUE property_key;
+                    AMQP_VALUE property_value;
+
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_056: [For each property a key and value AMQP value shall be created by calling amqpvalue_create_string.] */
+                    if ((property_key = amqpvalue_create_string(property_keys[i])) == NULL)
+                    {
+                        break;
+                    }
+
+                    if ((property_value = amqpvalue_create_string(property_values[i])) == NULL)
+                    {
+                        amqpvalue_destroy(property_key);
+                        break;
+                    }
+
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_057: [Then each property shall be added to the application properties map by calling amqpvalue_set_map_value.] */
+                    if (amqpvalue_set_map_value(*uamqp_properties_map, property_key, property_value) != 0)
+                    {
+                        amqpvalue_destroy(property_key);
+                        amqpvalue_destroy(property_value);
+                        break;
+                    }
+
+                    amqpvalue_destroy(property_key);
+                    amqpvalue_destroy(property_value);
+                }
+
+                if (i < property_count)
+                {
+                    /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
+                    LogError("Could not fill all properties in the uAMQP properties map.\r\n");
+                    amqpvalue_destroy(*uamqp_properties_map);
+                    result = __LINE__;
+                }
+                /* Codes_SRS_EVENTHUBCLIENT_LL_01_058: [The resulting map shall be set as the message application properties by calling message_set_application_properties.] */
+                else
+                {
+                    result = 0;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_list, size_t event_count)
 {
     int result = 0;
@@ -815,34 +904,78 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                 }
                 else
                 {
-                    size_t payload_length;
                     bool is_error = false;
+                    AMQP_VALUE uamqp_properties_map;
 
-                    if (amqpvalue_get_encoded_size(data_value, &payload_length) != 0)
+                    /* create the properties map */
+                    if (create_properties_map(event_data_list[index], &uamqp_properties_map) != 0)
                     {
                         is_error = true;
                     }
                     else
                     {
-                        body_data_binary.length = 0;
-                        body_data_binary.bytes = (unsigned char*)malloc(payload_length);
-                        if (body_data_binary.bytes == NULL)
+                        size_t payload_length = 0;
+                        size_t temp_length = 0;
+                        AMQP_VALUE application_properties = NULL;
+
+                        if (uamqp_properties_map != NULL)
                         {
-                            is_error = true;
-                        }
-                        else
-                        {
-                            if (amqpvalue_encode(data_value, &encode_callback, &body_data_binary) != 0)
+                            application_properties = amqpvalue_create_application_properties(uamqp_properties_map);
+                            if (application_properties == NULL)
                             {
                                 is_error = true;
                             }
                             else
                             {
-                                if (message_add_body_amqp_data(message, body_data_binary) != 0)
+                                size_t property_payload_length = 0;
+
+                                if (amqpvalue_get_encoded_size(application_properties, &temp_length) != 0)
                                 {
                                     is_error = true;
                                 }
+
+                                payload_length += temp_length;
                             }
+                        }
+
+                        if (amqpvalue_get_encoded_size(data_value, &temp_length) != 0)
+                        {
+                            is_error = true;
+                        }
+                        else
+                        {
+                            payload_length += temp_length;
+
+                            body_data_binary.length = 0;
+                            body_data_binary.bytes = (unsigned char*)malloc(payload_length);
+                            if (body_data_binary.bytes == NULL)
+                            {
+                                is_error = true;
+                            }
+                            else
+                            {
+                                if (((uamqp_properties_map != NULL) && (amqpvalue_encode(application_properties, &encode_callback, &body_data_binary) != 0)) ||
+                                    (amqpvalue_encode(data_value, &encode_callback, &body_data_binary) != 0))
+                                {
+                                    is_error = true;
+                                }
+                                else
+                                {
+                                    if (message_add_body_amqp_data(message, body_data_binary) != 0)
+                                    {
+                                        is_error = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (application_properties != NULL)
+                        {
+                            amqpvalue_destroy(application_properties);
+                        }
+                        if (uamqp_properties_map != NULL)
+                        {
+                            amqpvalue_destroy(uamqp_properties_map);
                         }
                     }
 
