@@ -154,7 +154,7 @@ public class Pump implements Runnable
         this.pumps.put(lease.getPartitionId(), partitionPump); // do the put after start, if the start fails then put doesn't happen
     }
     
-    public enum PartitionPumpStatus { uninitialized, opening, running, closing, closed };
+    public enum PartitionPumpStatus { uninitialized, opening, openfailed, running, closing, closed };
 
     private class PartitionPump
     {
@@ -196,11 +196,13 @@ public class Pump implements Runnable
             {
 				// DUMMY figure out the retry policy here
 				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
+				this.pumpStatus = PartitionPumpStatus.openfailed;
 				throw e;
 				// DUMMY ENDS
 			}
             catch (ExecutionException e)
             {
+				this.pumpStatus = PartitionPumpStatus.openfailed;
             	if (e.getCause() instanceof ReceiverDisconnectedException)
             	{
             		// DUMMY This is probably due to a receiver with a higher epoch
