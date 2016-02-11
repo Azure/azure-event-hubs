@@ -229,6 +229,9 @@ public class Pump implements Runnable
             	// Null it out so we don't try to operate on it further.
             	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor", e);
             	this.processor = null;
+            	this.pumpStatus = PartitionPumpStatus.openfailed;
+                // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
+                this.host.getExecutorService().submit(() -> cleanUpClients());
             	throw e;
             }
             
