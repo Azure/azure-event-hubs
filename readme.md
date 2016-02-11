@@ -21,44 +21,18 @@ The library code:
 * Avoids compiler extensions.
 * Its output is a static lib.
 
+The library has a dependency on azure-uamqp-c and azure-c-shared-utility. They are used as submodules.
+When switching branches remember to update the submodules by:
 
-The library provides the following APIs:
-* EventHubClientLib_CreateFromConnectionString
-* EventHubClientLib_Send
-* EventHubClientLib_SendAsync
-* EventHubClientLib_SendBatch
-* EventHubClientLib_SendBatchAsync
-* EventHubClientLib_Destroy
+```
+git submodule update --init --recursive
+```
 
+#Building it
 
-#Tested platforms
-The following platforms have been tested against this library:
-* Windows 7
-* Windows 8.1
-* Ubuntu 14.04 LTS
-* Fedora 20
-* Debian 7.5
-* Raspbian (tested device Raspberry Pi 2)
-
-
-#Directory structure of repository
-
-#build_all
-This folder contains platform-specific build scripts for the client library and dependent components
-
-#docs
-Contains device getting started and setup documentation.
-
-#eventhub_client 
-
-This folder contains Azure Event Hubs client components.
-
-#testtools
-
-Contain tools that are currently used in testing the client libraries: Mocking Framework (micromock), Generic Test Runner (CTest), Unit Test Project Template, etc.
-
-#tools
-Miscellaneous tools, e.g., Event Hubs data viewer.
+* Create a folder named build under the c directory
+* Run cmake ..
+* Build
 
 Node.js Version 
 ====================
