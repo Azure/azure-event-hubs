@@ -11,7 +11,7 @@ EventHubClient Class for .net [http://msdn.microsoft.com/en-us/library/microsoft
 
 ##Exposed API
 
-```C
+```c
 #define EVENTHUBCLIENT_RESULT_VALUES            \
     EVENTHUBCLIENT_OK,                          \
     EVENTHUBCLIENT_INVALID_ARG,                 \
@@ -48,7 +48,7 @@ extern void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLH
 
 ###EventHubClient_LL_CreateFromConnectionString
 
-```C
+```c
 extern EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char* connectionString, const char* eventHubPath);
 ```
 **SRS_EVENTHUBCLIENT_LL_03_002: \[**EventHubClient_LL_CreateFromConnectionString shall allocate a new event hub client LL instance.**\]**
@@ -70,7 +70,7 @@ Endpoint=sb://[namespace].servicebus.windows.net;SharedAccessKeyName=[keyname];S
 
 ###EventHubClient_LL_SendAsync
 
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle , EVENTDATA_HANDLE eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
 ```
 
@@ -82,7 +82,7 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDL
 
 ###EventHubClient_LL_SendBatchAsync
 
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTDATA_HANDLE* eventDataList, size_t count,  EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
 ```
 
@@ -96,7 +96,7 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_
 
 ###EventHubClient_LL_DoWork
 
-```C
+```c
 extern void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
 ```
 
@@ -177,7 +177,7 @@ For each message that is pending:
 
 ###EventHubClient_LL_Destroy
 
-```C
+```c
 extern void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
 ```
 

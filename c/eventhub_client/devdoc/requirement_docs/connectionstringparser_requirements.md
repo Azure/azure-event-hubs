@@ -8,13 +8,13 @@ The format of the connection string is:
 
 ##Exposed API
 
-```C
+```c
 extern MAP_HANDLE connectionstringparser_parse(STRING_HANDLE connection_string);
 ```
 
 ###connectionstringparser_parse
 
-```C
+```c
 extern MAP_HANDLE connectionstringparser_parse(STRING_HANDLE connection_string);
 ```
 

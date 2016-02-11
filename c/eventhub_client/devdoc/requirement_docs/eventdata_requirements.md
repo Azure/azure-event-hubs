@@ -10,7 +10,7 @@ EventData Class in .Net [http://msdn.microsoft.com/en-us/library/microsoft.servi
 
 ##Exposed API
 
-```C
+```c
 #define EVENTDATA_RESULT_VALUES        \
     EVENTDATA_OK,                      \
     EVENTDATA_INVALID_ARG,             \
@@ -33,7 +33,7 @@ extern MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle);
 
 ###EventData_CreateWithNewMemory
 
-```C
+```c
 extern EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t length);
 ```
 
@@ -44,7 +44,7 @@ extern EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data,
 
 ###EventData_GetData
 
-```C
+```c
 extern EVENTDATA_RESULT EventData_GetData(EVENTDATA_HANDLE eventDataHandle, const unsigned char** buffer, size_t* size);
 ```
 
@@ -56,7 +56,7 @@ extern EVENTDATA_RESULT EventData_GetData(EVENTDATA_HANDLE eventDataHandle, cons
 
 ###EventData_Clone
 
-```C
+```c
 extern EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle);
 ```
 
@@ -68,7 +68,7 @@ extern EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle);
 
 ###EventData_Destroy
 
-```C
+```c
 extern void EventData_Destroy(EVENTDATA_HANDLE eventDataHandle);
 ```
 
@@ -77,7 +77,7 @@ extern void EventData_Destroy(EVENTDATA_HANDLE eventDataHandle);
 
 ###EventData_GetPartitionKey
 
-```C
+```c
 extern const char* EventData_GetPartitionKey(EVENTDATA_HANDLE eventDataHandle);
 ```
 
@@ -87,7 +87,7 @@ extern const char* EventData_GetPartitionKey(EVENTDATA_HANDLE eventDataHandle);
 
 ###EventData_SetPartitionKey
 
-```C
+```c
 extern EVENTDATA_RESULT EventData_SetPartitionKey(EVENTDATA_HANDLE eventDataHandle, const char* partitionKey);
 ```
 
@@ -99,7 +99,7 @@ extern EVENTDATA_RESULT EventData_SetPartitionKey(EVENTDATA_HANDLE eventDataHand
 
 ###EventData_Properties
 
-```C
+```c
 extern MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle);
 ```
 

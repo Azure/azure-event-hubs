@@ -12,7 +12,7 @@ EventHubClient Class for .net [http://msdn.microsoft.com/en-us/library/microsoft
 
 ##Exposed API
 
-```C
+```c
 typedef void* EVENTHUBCLIENT_HANDLE;
  
 extern const char* EventHubClient_GetVersionString(void);
@@ -26,7 +26,7 @@ extern void EventHubClient_Destroy(EVENTHUBCLIENT_HANDLE eventHubHandle);
 
 ###EventHubClient_GetVersionString
 
-```C
+```c
 extern const char* EventHubClient_GetVersionString(void);
 ```
 
@@ -34,7 +34,7 @@ extern const char* EventHubClient_GetVersionString(void);
 
 ###EventHubClient_CreateFromConnectionString
 
-```C
+```c
 extern EVENTHUBCLIENT_HANDLE EventHubClient_CreateFromConnectionString(const char* connectionString, const char* eventHubPath);
 ```
 
@@ -45,7 +45,7 @@ extern EVENTHUBCLIENT_HANDLE EventHubClient_CreateFromConnectionString(const cha
 
 ###Execute_LowerLayerSendAsync
 
-```C
+```c
 extern int Execute_LowerLayerSendAsync(EVENTHUBCLIENT_STRUCT* eventHubClientInfo, EVENTDATA_HANDLE eventDataHandle, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK notificiationCallback, void* userContextCallback);
 ```
 
@@ -58,7 +58,7 @@ extern int Execute_LowerLayerSendAsync(EVENTHUBCLIENT_STRUCT* eventHubClientInfo
 
 ###Execute_LowerLayerSendBatchAsync
 
-```C
+```c
 extern int Execute_LowerLayerSendAsync(EVENTHUBCLIENT_STRUCT* eventHubClientInfo, EVENTDATA_HANDLE* eventDataList, size_t count, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncCallback, void* userContextCallback);
 ```
 
@@ -71,7 +71,7 @@ extern int Execute_LowerLayerSendAsync(EVENTHUBCLIENT_STRUCT* eventHubClientInfo
 **SRS_EVENTHUBCLIENT_07_049: \[**If the EventHubClient_LL_SendAsync call fails then Execute_LowerLayerSendAsync shall return a nonzero value.**\]** 
 
 ###Create_DoWorkThreadIfNeccesary
-```C
+```c
 extern int Create_DoWorkThreadIfNeccesary (EVENTHUBCLIENT_STRUCT* eventHubClientInfo);
 ```
 
@@ -80,7 +80,7 @@ extern int Create_DoWorkThreadIfNeccesary (EVENTHUBCLIENT_STRUCT* eventHubClient
 **SRS_EVENTHUBCLIENT_07_035: \[**Create_DoWorkThreadIfNeccesary shall return a nonzero value if any failure is encountered.**\]** 
 
 ###EventHubClient_Send
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE eventDataHandle);
 ```
 
@@ -93,7 +93,7 @@ EventHubClient_Send shall call into EventHubClient_LL_SendAsync to send content 
 **SRS_EVENTHUBCLIENT_03_013: \[**EventHubClient_Send shall return EVENTHUBCLIENT_OK upon successful completion of the Execute_LowerLayerSendAsync and the callback function.**\]** 
 
 ###EventHubClient_SendAsync
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendAsync(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE eventDataHandle, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncCallback, void* userContextCallback);
 ```
 **SRS_EVENTHUBCLIENT_03_021: \[**EventHubClient_SendAsync shall return EVENTHUBCLIENT_INVALID_ARG if eventHubHandle or eventDataHandle is NULL.**\]**
@@ -101,7 +101,7 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_SendAsync(EVENTHUBCLIENT_HANDLE even
 **SRS_EVENTHUBCLIENT_07_037: \[**On Success EventHubClient_SendAsync shall return EVENTHUBCLIENT_OK.**\]** 
 
 ###EventHubClient_SendBatch
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE* eventDataList);
 ```
 
@@ -113,7 +113,7 @@ EventHubClient_SendBatch shall call into EventHubClient_LL_SendBatchAsync to sen
 **SRS_EVENTHUBCLIENT_07_054: \[**EventHubClient_SendBatch shall return EVENTHUBCLIENT_OK upon successful completion of the Execute_LowerLayerSendBatchAsync and the callback function.**\]** 
 
 ###EventHubClient_SendBatchAsync
-```C
+```c
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatchAsync(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE* eventDataList, size_t count, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncCallback, void* userContextCallback);
 ```
 
@@ -122,7 +122,7 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatchAsync(EVENTHUBCLIENT_HANDLE
 **SRS_EVENTHUBCLIENT_07_042: \[**On Success EventHubClient_SendBatchAsync shall return EVENTHUBCLIENT_OK.**\]** 
 
 ###EventHubClient_Destroy
-```C
+```c
 extern void EventHubClient_Destroy(EVENTHUBCLIENT_HANDLE eventHubHandle);
 ```
 
