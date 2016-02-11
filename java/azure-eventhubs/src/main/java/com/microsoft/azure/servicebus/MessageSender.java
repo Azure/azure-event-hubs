@@ -39,6 +39,7 @@ public class MessageSender extends ClientEntity
 	private final String sendPath;
 	private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
+	private final Object pendingSendWaitersLock;
 	
 	private ConcurrentHashMap<byte[], ReplayableWorkItem<Void>> pendingSendWaiters;
 	private Sender sendLink;
@@ -51,10 +52,10 @@ public class MessageSender extends ClientEntity
 	public static CompletableFuture<MessageSender> Create(
 			final MessagingFactory factory,
 			final String sendLinkName,
-			final String senderPath) throws IllegalEntityException
+			final String senderPath)
 	{
 		MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
-		SendLinkHandler handler = new SendLinkHandler(sendLinkName, msgSender);
+		SendLinkHandler handler = new SendLinkHandler(msgSender);
 		BaseHandler.setHandler(msgSender.sendLink, handler);
 		return msgSender.linkOpen;
 	}
@@ -65,6 +66,7 @@ public class MessageSender extends ClientEntity
 		this.sendPath = senderPath;
 		this.underlyingFactory = factory;
 		this.operationTimeout = factory.getOperationTimeout();
+		this.pendingSendWaitersLock = new Object();
 		
 		// clone ?
 		this.retryPolicy = factory.getRetryPolicy();
@@ -186,7 +188,7 @@ public class MessageSender extends ClientEntity
 		assert sentMsgSize != byteArrayOffset : "Contract of the ProtonJ library for Sender.Send API changed";
         
 		CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-		synchronized (this.pendingSendWaiters)
+		synchronized (this.pendingSendWaitersLock)
 		{
 			this.pendingSendWaiters.put(tag, 
 					new ReplayableWorkItem<Void>(bytes, sentMsgSize, AmqpConstants.AmqpBatchMessageFormat, onSend, this.operationTimeout));
@@ -226,31 +228,33 @@ public class MessageSender extends ClientEntity
 			}
 			else if (!this.pendingSendWaiters.isEmpty())
 			{
-				synchronized(this.pendingSendWaiters)
+				ConcurrentHashMap<byte[], ReplayableWorkItem<Void>> unacknowledgedSends = null;
+				synchronized(this.pendingSendWaitersLock)
 				{
-					ConcurrentHashMap<byte[], ReplayableWorkItem<Void>> unacknowledgedSends = this.pendingSendWaiters;
+					unacknowledgedSends = this.pendingSendWaiters;
 					this.pendingSendWaiters = new ConcurrentHashMap<byte[], ReplayableWorkItem<Void>>();
-					
-					unacknowledgedSends.forEachValue(1, new Consumer<ReplayableWorkItem<Void>>(){
-						@Override
-						public void accept(ReplayableWorkItem<Void> sendWork)
-						{
-							byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
-					        Delivery dlv = sendLink.delivery(tag);
-					        dlv.setMessageFormat(sendWork.getMessageFormat());
-					        
-					        int sentMsgSize = sendLink.send(sendWork.getMessage(), 0, sendWork.getEncodedMessageSize());
-					        assert sentMsgSize != sendWork.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
-					        
-					        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-					        pendingSendWaiters.put(tag, new ReplayableWorkItem<Void>(sendWork.getMessage(), sendWork.getEncodedMessageSize(), sendWork.getMessageFormat(), onSend, operationTimeout));
-					        
-					        sendLink.advance();
-						}
-					});
-					
-					unacknowledgedSends.clear();
 				}
+				
+				unacknowledgedSends.forEachValue(1, new Consumer<ReplayableWorkItem<Void>>()
+				{
+					@Override
+					public void accept(ReplayableWorkItem<Void> sendWork)
+					{
+						byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
+				        Delivery dlv = sendLink.delivery(tag);
+				        dlv.setMessageFormat(sendWork.getMessageFormat());
+				        
+				        int sentMsgSize = sendLink.send(sendWork.getMessage(), 0, sendWork.getEncodedMessageSize());
+				        assert sentMsgSize != sendWork.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
+				        
+				        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
+				        pendingSendWaiters.put(tag, new ReplayableWorkItem<Void>(sendWork.getMessage(), sendWork.getEncodedMessageSize(), sendWork.getMessageFormat(), onSend, operationTimeout));
+				        
+				        sendLink.advance();
+					}
+				});
+				
+				unacknowledgedSends.clear();
 			}
 		}
 		else
@@ -302,7 +306,7 @@ public class MessageSender extends ClientEntity
 						public void run()
 						{
 							MessageSender.this.sendLink = MessageSender.this.createSendLink();
-							SendLinkHandler handler = new SendLinkHandler(MessageSender.this.getClientId(), MessageSender.this);
+							SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
 							BaseHandler.setHandler(MessageSender.this.sendLink, handler);
 							MessageSender.this.retryPolicy.incrementRetryCount(MessageSender.this.getClientId());
 						}
@@ -315,25 +319,28 @@ public class MessageSender extends ClientEntity
 	
 	public void onSendComplete(byte[] deliveryTag, DeliveryState outcome)
 	{
-		synchronized(this.pendingSendWaiters)
+		ReplayableWorkItem<Void> pendingSendWorkItem = null;
+		synchronized(this.pendingSendWaitersLock)
         {
-			CompletableFuture<Void> pendingSend = this.pendingSendWaiters.get(deliveryTag).getWork();
-			if (pendingSend != null)
-			{
-				if (outcome == Accepted.getInstance())
-				{
-					this.retryPolicy.resetRetryCount(this.getClientId());
-					pendingSend.complete(null);
-				}
-				else 
-				{
-					// TODO: enumerate all cases - if we ever return failed delivery from Service - do they translate to exceptions ?
-					pendingSend.completeExceptionally(ServiceBusException.create(false, outcome.toString()));
-				}
-				
-				this.pendingSendWaiters.remove(deliveryTag);
-			}
+			pendingSendWorkItem = this.pendingSendWaiters.get(deliveryTag);
         }
+		
+		if (pendingSendWorkItem != null)
+		{
+			CompletableFuture<Void> pendingSend = pendingSendWorkItem.getWork();
+			if (outcome == Accepted.getInstance())
+			{
+				this.retryPolicy.resetRetryCount(this.getClientId());
+				pendingSend.complete(null);
+			}
+			else 
+			{
+				// TODO: enumerate all cases - if we ever return failed delivery from Service - do they translate to exceptions ?
+				pendingSend.completeExceptionally(ServiceBusException.create(false, outcome.toString()));
+			}
+			
+			this.pendingSendWaiters.remove(deliveryTag);
+		}
 	}
 
 	private Sender createSendLink()
@@ -342,7 +349,9 @@ public class MessageSender extends ClientEntity
 		Session session = connection.session();
         session.open();
         
-        Sender sender = session.sender(this.getClientId());
+        String sendLinkName = this.getClientId();
+        sendLinkName = sendLinkName.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer());
+        Sender sender = session.sender(sendLinkName);
         
         Target target = new Target();
         target.setAddress(this.sendPath);
@@ -374,6 +383,7 @@ public class MessageSender extends ClientEntity
 							{
 								Exception operationTimedout = new TimeoutException(
 										String.format(Locale.US, "Send Link(%s) open() timed out", MessageSender.this.getClientId()));
+
 								if (TRACE_LOGGER.isLoggable(Level.WARNING))
 								{
 									TRACE_LOGGER.log(Level.WARNING, 
