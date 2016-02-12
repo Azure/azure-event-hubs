@@ -119,30 +119,30 @@ public final class EventProcessorHost
 
     public static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
     
-    public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
+    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType)
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
         return registerEventProcessorFactory(defaultFactory, EventProcessorOptions.getDefaultOptions());
     }
 
-    public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions)
+    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions)
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
         return registerEventProcessorFactory(defaultFactory, processorOptions);
     }
 
-    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory)
+    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory)
     {
         return registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());
     }
 
-    public Future<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
+    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        return EventProcessorHost.executorService.submit(new PumpStartupCallable());
+        return EventProcessorHost.executorService.submit(() -> { this.pump = new Pump(EventProcessorHost.this); pump.doPump(); } );
     }
 
     public Future<?> unregisterEventProcessor()
@@ -214,22 +214,5 @@ public final class EventProcessorHost
     void logWithHostAndPartition(PartitionContext context, String logMessage, Exception e)
     {
     	logWithHostAndPartition(context.getPartitionId(), logMessage, e);
-    }
-
-
-    private class PumpStartupCallable implements Callable<Void>
-    {
-        // This method is running in its own thread and can block during startup without causing trouble.
-        // Before exiting, it starts the pump manager.
-        // When this method returns, that signals the Future returned from Register* and indicates to the user that
-        // EPH startup is sufficiently complete and the pump is running. User is not required to care about this,
-        // but the info is available if desired.
-        public Void call()
-        {
-            Pump pump = new Pump(EventProcessorHost.this);
-            EventProcessorHost.this.pump = pump;
-            pump.doPump();
-            return null;
-        }
     }
 }
