@@ -183,7 +183,11 @@ public final class EventProcessorHost
     {
     	log("host " + this.hostName + ": " + logMessage);
     	logWithHost("Caught " + e.toString());
-    	e.printStackTrace();
+    	StackTraceElement[] stack = e.getStackTrace();
+    	for (int i = 0; i < stack.length; i++)
+    	{
+    		logWithHost(stack[i].toString());
+    	}
     }
     
     void logWithHostAndPartition(String partitionId, String logMessage)
@@ -193,9 +197,13 @@ public final class EventProcessorHost
     
     void logWithHostAndPartition(String partitionId, String logMessage, Exception e)
     {
-    	logWithHost("partition " + partitionId + ": " + logMessage);
+    	logWithHostAndPartition(partitionId, logMessage);
     	logWithHostAndPartition(partitionId, "Caught " + e.toString());
-    	e.printStackTrace();
+    	StackTraceElement[] stack = e.getStackTrace();
+    	for (int i = 0; i < stack.length; i++)
+    	{
+    		logWithHostAndPartition(partitionId, stack[i].toString());
+    	}
     }
     
     void logWithHostAndPartition(PartitionContext context, String logMessage)
