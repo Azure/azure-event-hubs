@@ -37,7 +37,7 @@ public class Pump implements Runnable
 
     public void doPump()
     {
-        this.pumpFuture = host.getExecutorService().submit(this);
+        this.pumpFuture = EventProcessorHost.getExecutorService().submit(this);
     }
 
     public Future<?> requestPumpStop()
@@ -231,7 +231,7 @@ public class Pump implements Runnable
             	this.processor = null;
             	this.pumpStatus = PartitionPumpStatus.openfailed;
                 // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
-                this.host.getExecutorService().submit(() -> cleanUpClients());
+                EventProcessorHost.getExecutorService().submit(() -> cleanUpClients());
             	throw e;
             }
             
@@ -347,7 +347,7 @@ public class Pump implements Runnable
             }
 
             // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
-            this.host.getExecutorService().submit(() -> cleanUpClients());
+            EventProcessorHost.getExecutorService().submit(() -> cleanUpClients());
             
             this.pumpStatus = PartitionPumpStatus.closed;
         }

@@ -14,9 +14,6 @@ public final class EventProcessorHost
     private final String consumerGroupName;
     private String eventHubConnectionString;
 
-    private ExecutorService executorService;
-    private Boolean weOwnExecutor = false;
-
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
     private PartitionManager partitionManager;
@@ -24,6 +21,13 @@ public final class EventProcessorHost
     private EventProcessorOptions processorOptions;
 
     private Pump pump = null;
+
+    // Thread pool is shared among all instances of EventProcessorHost
+    // weOwnExecutor exists to support user-supplied thread pools if we add that feature later.
+    // executorRefCount is required because the last host must shut down the thread pool if we own it.
+    private static ExecutorService executorService = Executors.newCachedThreadPool();
+    private static int executorRefCount = 0;
+    private static Boolean weOwnExecutor = true;
 
     public EventProcessorHost(
             final String namespaceName,
@@ -34,7 +38,7 @@ public final class EventProcessorHost
             final String storageConnectionString)
     {
         this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
-                new AzureStorageCheckpointLeaseManager(storageConnectionString, namespaceName, eventHubPath, consumerGroupName));
+                new AzureStorageCheckpointLeaseManager(storageConnectionString));
     }
 
     private EventProcessorHost(
@@ -72,29 +76,19 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
-        this(hostName, namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
-                checkpointManager, leaseManager, Executors.newCachedThreadPool());
-        this.weOwnExecutor = true;
-    }
-
-    public EventProcessorHost(
-            final String hostName,
-            final String namespaceName,
-            final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
-            final String consumerGroupName,
-            ICheckpointManager checkpointManager,
-            ILeaseManager leaseManager,
-            ExecutorService executorService)
-    {
         this.hostName = hostName;
         this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
         this.consumerGroupName = consumerGroupName;
         this.checkpointManager = checkpointManager;
         this.leaseManager = leaseManager;
-        this.executorService = executorService;
+        if (EventProcessorHost.weOwnExecutor)
+        {
+	        synchronized(EventProcessorHost.weOwnExecutor)
+	        {
+	        	EventProcessorHost.executorRefCount++;
+	        }
+        }
 
         this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
                 sharedAccessKeyName, sharedAccessKey).toString();
@@ -103,7 +97,7 @@ public final class EventProcessorHost
 
         if (leaseManager instanceof AzureStorageCheckpointLeaseManager)
         {
-            ((AzureStorageCheckpointLeaseManager)leaseManager).setLateSettings(this, executorService);
+            ((AzureStorageCheckpointLeaseManager)leaseManager).setHost(this);
         }
     }
 
@@ -116,13 +110,15 @@ public final class EventProcessorHost
         return this.checkpointManager;
     }
     public ILeaseManager getLeaseManager() { return this.leaseManager; }
-    public ExecutorService getExecutorService() { return this.executorService; }
     public PartitionManager getPartitionManager() { return this.partitionManager; }
     public IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     public String getEventHubPath() { return this.eventHubPath; }
+    public String getNamespaceName() { return this.namespaceName; }
     public String getConsumerGroupName() { return this.consumerGroupName; }
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
 
+    public static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    
     public <T extends IEventProcessor> Future<Void> registerEventProcessor(Class<T> eventProcessorType)
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
@@ -146,16 +142,28 @@ public final class EventProcessorHost
     {
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        return this.executorService.submit(new PumpStartupCallable());
+        return EventProcessorHost.executorService.submit(new PumpStartupCallable());
     }
 
     public Future<?> unregisterEventProcessor()
     {
         Future<?> retval = this.pump.requestPumpStop();
-        if (this.weOwnExecutor)
+        
+        if (EventProcessorHost.weOwnExecutor)
         {
-            this.executorService.shutdown();
+        	synchronized(EventProcessorHost.weOwnExecutor)
+        	{
+        		EventProcessorHost.executorRefCount--;
+        		if (EventProcessorHost.executorRefCount <= 0)
+        		{
+        			// It is OK to call shutdown() here even though threads are still running.
+        			// Shutdown() causes the executor to stop accepting new tasks, but existing tasks will
+        			// run to completion. The pool will terminate when all existing tasks finish.
+        			EventProcessorHost.executorService.shutdown();
+        		}
+        	}
         }
+        
         return retval;
     }
     

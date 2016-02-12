@@ -8,42 +8,33 @@ import java.util.concurrent.*;
 public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
-    private String namespaceName;
-    private String eventHubPath;
-    private String consumerGroup;
-    private ExecutorService executorService = null;
     private String storageConnectionString;
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString, String namespaceName,
-                                              String eventHubPath, String consumerGroup)
+    public AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
         this.storageConnectionString = storageConnectionString;
-        this.namespaceName = namespaceName;
-        this.eventHubPath = eventHubPath;
-        this.consumerGroup = consumerGroup;
     }
 
-    // These values can't be set in the constructor because the object is constructed before the
-    // caller has set them up.
-    public void setLateSettings(EventProcessorHost host, ExecutorService executorService)
+    // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
+    // because it is still being constructed.
+    public void setHost(EventProcessorHost host)
     {
         this.host = host;
-        this.executorService = executorService;
     }
 
     public Future<Boolean> checkpointStoreExists()
     {
-        return this.executorService.submit(new CheckpointStoreExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(new CheckpointStoreExistsCallable());
     }
 
     public Future<Boolean> createCheckpointStoreIfNotExists()
     {
-        return this.executorService.submit(new CreateCheckpointStoreIfNotExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(new CreateCheckpointStoreIfNotExistsCallable());
     }
 
     public Future<String> getCheckpoint(String partitionId)
     {
-        return this.executorService.submit(new GetCheckpointCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new GetCheckpointCallable(partitionId));
     }
 
     public Iterable<Future<String>> getAllCheckpoints()
@@ -55,28 +46,28 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     public Future<Void> updateCheckpoint(String partitionId, String offset)
     {
-        return this.executorService.submit(new UpdateCheckpointCallable(partitionId, offset));
+        return EventProcessorHost.getExecutorService().submit(new UpdateCheckpointCallable(partitionId, offset));
     }
 
     public Future<Void> deleteCheckpoint(String partitionId)
     {
-        return this.executorService.submit(new DeleteCheckpointCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new DeleteCheckpointCallable(partitionId));
     }
 
 
     public Future<Boolean> leaseStoreExists()
     {
-        return this.executorService.submit(new LeaseStoreExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(new LeaseStoreExistsCallable());
     }
 
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
-        return this.executorService.submit(new CreateLeaseStoreIfNotExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(new CreateLeaseStoreIfNotExistsCallable());
     }
 
     public Future<Lease> getLease(String partitionId)
     {
-        return this.executorService.submit(new GetLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new GetLeaseCallable(partitionId));
     }
 
     public Iterable<Future<Lease>> getAllLeases()
@@ -94,32 +85,32 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     public Future<Void> createLeaseIfNotExists(String partitionId)
     {
-        return this.executorService.submit(new CreateLeaseIfNotExistsCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new CreateLeaseIfNotExistsCallable(partitionId));
     }
 
     public Future<Void> deleteLease(String partitionId)
     {
-        return this.executorService.submit(new DeleteLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new DeleteLeaseCallable(partitionId));
     }
 
     public Future<Lease> acquireLease(String partitionId)
     {
-        return this.executorService.submit(new AcquireLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(new AcquireLeaseCallable(partitionId));
     }
 
     public Future<Boolean> renewLease(Lease lease)
     {
-        return this.executorService.submit(new RenewLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(new RenewLeaseCallable(lease));
     }
 
     public Future<Boolean> releaseLease(Lease lease)
     {
-        return this.executorService.submit(new ReleaseLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(new ReleaseLeaseCallable(lease));
     }
 
     public Future<Boolean> updateLease(Lease lease)
     {
-        return this.executorService.submit(new UpdateLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(new UpdateLeaseCallable(lease));
     }
 
 
@@ -254,8 +245,8 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
             else
             {
             	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "createLeaseIfNotExists() creating new lease");
-                Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.eventHubPath,
-                        AzureStorageCheckpointLeaseManager.this.consumerGroup, this.partitionId);
+                Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.host.getEventHubPath(),
+                        AzureStorageCheckpointLeaseManager.this.host.getConsumerGroupName(), this.partitionId);
                 lease.setEpoch(0L);
                 lease.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
                 InMemoryLeaseStore.getSingleton().inMemoryLeases.put(this.partitionId, lease);
