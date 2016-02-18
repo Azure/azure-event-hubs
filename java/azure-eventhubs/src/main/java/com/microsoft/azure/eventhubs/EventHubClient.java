@@ -94,15 +94,15 @@ public class EventHubClient extends ClientEntity
 	}
 	
 	/**
-	 * Create an {@link EventHubSender} which can publish {@link EventData}'s directly to a specific EventHub partition
+	 * Create an {@link PartitionSender} which can publish {@link EventData}'s directly to a specific EventHub partition
 	 * @param partitionId partitionId of EventHub to send the {@link EventData}'s to
 	 * @return
 	 * @throws ServiceBusException
 	 */
-	public final CompletableFuture<EventHubSender> createPartitionSender(final String partitionId)
+	public final CompletableFuture<PartitionSender> createPartitionSender(final String partitionId)
 		throws ServiceBusException
 	{
-		return EventHubSender.Create(this.underlyingFactory, this.eventHubName, partitionId);
+		return PartitionSender.Create(this.underlyingFactory, this.eventHubName, partitionId);
 	}
 	
 	/** 
@@ -134,7 +134,7 @@ public class EventHubClient extends ClientEntity
 	 * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds 256k bytes
 	 * @throws ServiceBusException
 	 * @see {@link #send(EventData, String)}
-	 * @see {@link EventHubSender#send(EventData)} 
+	 * @see {@link PartitionSender#send(EventData)} 
 	 */
 	public final CompletableFuture<Void> send(EventData data) 
 			throws ServiceBusException
@@ -163,7 +163,7 @@ public class EventHubClient extends ClientEntity
 	 * @throws PayloadSizeExceededException if the total size of the {@link EventData} collection exceeds 256k bytes
 	 * @throws ServiceBusException
 	 * @see {@link #send(EventData, String)}
-	 * @see {@link EventHubSender#send(EventData)} 
+	 * @see {@link PartitionSender#send(EventData)} 
 	 */
 	public final CompletableFuture<Void> send(Iterable<EventData> eventDatas) 
 			throws ServiceBusException
@@ -192,7 +192,7 @@ public class EventHubClient extends ClientEntity
 	 * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds 256 K.bytes
 	 * @throws ServiceBusException
 	 * @see {@link #send(EventData)}
-	 * @see {@link EventHubSender#send(EventData)} 
+	 * @see {@link PartitionSender#send(EventData)} 
 	 */
 	public final CompletableFuture<Void> send(EventData eventData, String partitionKey) 
 			throws ServiceBusException
@@ -227,7 +227,7 @@ public class EventHubClient extends ClientEntity
 	 * @throws PayloadSizeExceededException if the total size of the {@link EventData}'s exceeds 256k bytes
 	 * @throws ServiceBusException
 	 * @see {@link #send(EventData)}
-	 * @see {@link EventHubSender#send(EventData)} 
+	 * @see {@link PartitionSender#send(EventData)} 
 	 */
 	public final CompletableFuture<Void> send(final Collection<EventData> eventDatas, final String partitionKey) 
 		throws ServiceBusException
