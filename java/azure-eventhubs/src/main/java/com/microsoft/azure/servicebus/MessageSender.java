@@ -20,7 +20,6 @@ import org.apache.qpid.proton.amqp.transport.*;
 import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.engine.impl.DeliveryImpl;
 import org.apache.qpid.proton.message.Message;
-import org.omg.PortableInterceptor.ACTIVE;
 
 import com.microsoft.azure.servicebus.*;
 import com.microsoft.azure.servicebus.Timer;
@@ -40,25 +39,35 @@ public class MessageSender extends ClientEntity
 	private final String sendPath;
 	private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
-	private final Object pendingSendWaitersLock;
+	private final Runnable operationTimer;
+	private final Duration timerTimeout;
 	
 	private ConcurrentHashMap<byte[], ReplayableWorkItem<Void>> pendingSendWaiters;
 	private Sender sendLink;
-	private CompletableFuture<MessageSender> linkOpen; 
+	private CompletableFuture<MessageSender> linkFirstOpen; 
 	private AtomicLong nextTag;
-	private TimeoutTracker currentOperationTracker;
+	private TimeoutTracker openLinkTracker;
 	private boolean linkCreateScheduled;
 	private Object linkCreateLock;
+	private Exception lastKnownLinkError;
 	
 	public static CompletableFuture<MessageSender> Create(
 			final MessagingFactory factory,
 			final String sendLinkName,
 			final String senderPath)
 	{
-		MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
-		SendLinkHandler handler = new SendLinkHandler(msgSender);
-		BaseHandler.setHandler(msgSender.sendLink, handler);
-		return msgSender.linkOpen;
+		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
+		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
+		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
+		msgSender.linkCreateScheduled = true;
+		Timer.schedule(new Runnable() {
+			@Override
+			public void run()
+			{
+				msgSender.sendLink = msgSender.createSendLink();
+			}
+		}, Duration.ofSeconds(0), TimerType.OneTimeRun);
+		return msgSender.linkFirstOpen;
 	}
 	
 	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath)
@@ -67,19 +76,50 @@ public class MessageSender extends ClientEntity
 		this.sendPath = senderPath;
 		this.underlyingFactory = factory;
 		this.operationTimeout = factory.getOperationTimeout();
-		this.pendingSendWaitersLock = new Object();
+		this.timerTimeout = this.operationTimeout.getSeconds() > 9 ? this.operationTimeout.dividedBy(3) : Duration.ofSeconds(5);
+		this.lastKnownLinkError = null;
 		
-		// clone ?
 		this.retryPolicy = factory.getRetryPolicy();
-		this.sendLink = this.createSendLink();
-		this.currentOperationTracker = TimeoutTracker.create(factory.getOperationTimeout());
-		this.initializeLinkOpen(this.currentOperationTracker);
-		this.linkCreateScheduled = true;
 		
 		this.pendingSendWaiters = new ConcurrentHashMap<byte[], ReplayableWorkItem<Void>>();
 		this.nextTag = new AtomicLong(0);
 		 
 		this.linkCreateLock = new Object();
+		
+		this.operationTimer = new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					if (MessageSender.this.pendingSendWaiters != null)
+					{
+						Iterator<Entry<byte[], ReplayableWorkItem<Void>>> pendingDeliveries = MessageSender.this.pendingSendWaiters.entrySet().iterator();
+						while(pendingDeliveries.hasNext())
+						{
+							Entry<byte[], ReplayableWorkItem<Void>> pendingSend = pendingDeliveries.next();
+							if (pendingSend == null)
+							{
+								break;
+							}
+							
+							ReplayableWorkItem<Void> pendingSendWork = pendingSend.getValue();
+							if (pendingSendWork.getTimeoutTracker().remaining().compareTo(ClientConstants.TimerTolerance) < 0)
+							{
+								pendingDeliveries.remove();
+								Exception cause = pendingSendWork.getLastKnownException() == null 
+										? MessageSender.this.lastKnownLinkError : pendingSendWork.getLastKnownException();
+								pendingSendWork.getWork().completeExceptionally(
+										ServiceBusException.create(
+												cause != null && cause instanceof ServiceBusException ? ((ServiceBusException) cause).getIsTransient() : ClientConstants.DefaultIsTransient, 
+												String.format(Locale.US, "Send operation on entity(%s), link(%s) timed out."
+													, MessageSender.this.getSendPath()
+													, MessageSender.this.sendLink.getName()),
+												cause));
+							}
+						}
+					}
+				}
+			};
 	}
 	
 	public String getSendPath()
@@ -87,83 +127,78 @@ public class MessageSender extends ClientEntity
 		return this.sendPath;
 	}
 	
-	public CompletableFuture<Void> send(Message msg, int messageFormat) throws PayloadSizeExceededException
+	public CompletableFuture<Void> send(byte[] bytes, int arrayOffset, int messageFormat)
 	{
-		if (this.sendLink.getRemoteState() == EndpointState.CLOSED)
-		{
-			this.scheduleRecreate(Duration.ofSeconds(0));
-		}
-		
-		// TODO: fix allocation per call - use BufferPool
-		byte[] bytes = new byte[MaxMessageLength];
-		int encodedSize;
-		
-		try
-		{
-			encodedSize = msg.encode(bytes, 0, MaxMessageLength);
-		}
-		catch(BufferOverflowException exception)
-		{
-			throw new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s", MaxMessageLength), exception);
-		}
-		
-		byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
-        Delivery dlv = this.sendLink.delivery(tag);
-        dlv.setMessageFormat(messageFormat);
-        
-        int sentMsgSize = this.sendLink.send(bytes, 0, encodedSize);
-        assert sentMsgSize != encodedSize : "Contract of the ProtonJ library for Sender.Send API changed";
-        
-        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-        
-        this.pendingSendWaiters.put(tag, new ReplayableWorkItem<Void>(bytes, sentMsgSize, messageFormat, onSend, this.operationTimeout));
-		
-        this.sendLink.advance();
-        return onSend;
+		return this.send(bytes, arrayOffset, messageFormat, null, null);
 	}
 	
-	// accepts even if PartitionKey is null - and hence, the layer above this api is supposed to enforce
-	public CompletableFuture<Void> send(final Iterable<Message> messages, final String partitionKey)
+	public CompletableFuture<Void> send(
+			final byte[] bytes,
+			final int arrayOffset,
+			final int messageFormat,
+			final CompletableFuture<Void> onSend,
+			final TimeoutTracker tracker)
+	{
+		byte[] tag = String.valueOf(this.nextTag.incrementAndGet()).getBytes();
+		
+		if (this.sendLink.getLocalState() == EndpointState.CLOSED)
+		{
+			this.scheduleRecreate(Duration.ofSeconds(0));
+		}		
+		else
+        {
+        	Delivery dlv = this.sendLink.delivery(tag);
+        	dlv.setMessageFormat(messageFormat);
+
+	        int sentMsgSize = this.sendLink.send(bytes, 0, arrayOffset);
+	        assert sentMsgSize != arrayOffset : "Contract of the ProtonJ library for Sender.Send API changed";
+	        
+	        this.sendLink.advance();
+        }
+        
+		CompletableFuture<Void> onSendFuture = (onSend == null) ? new CompletableFuture<Void>() : onSend; 
+        this.pendingSendWaiters.put(
+        		tag, 
+        		new ReplayableWorkItem<Void>(
+        				bytes, 
+        				arrayOffset, 
+        				messageFormat, 
+        				onSendFuture, 
+        				tracker == null ? this.operationTimeout : tracker.remaining()));
+		
+        return onSendFuture;
+	}
+	
+	/**
+	 * accepts even if PartitionKey is null - and hence, the code consuming this api is supposed to enforce
+	 */
+	public CompletableFuture<Void> send(final Iterable<Message> messages)
 		throws ServiceBusException
 	{
-		if (messages == null || IteratorUtil.sizeEquals(messages.iterator(), 0))
+		if (messages == null || IteratorUtil.sizeEquals(messages, 0))
 		{
 			throw new IllegalArgumentException("Sending Empty batch of messages is not allowed.");
 		}
-		
-		if (IteratorUtil.sizeEquals(messages.iterator(), 1))
+
+		Message firstMessage = messages.iterator().next();			
+		if (IteratorUtil.sizeEquals(messages, 1))
 		{
-			Message firstMessage = messages.iterator().next();			
 			return this.send(firstMessage);
-		}
-		
-		if (this.sendLink.getRemoteState() == EndpointState.CLOSED)
-		{
-			this.scheduleRecreate(Duration.ofSeconds(0));
 		}
 		
 		// proton-j doesn't support multiple dataSections to be part of AmqpMessage
 		// here's the alternate approach provided by them: https://github.com/apache/qpid-proton/pull/54
 		Message batchMessage = Proton.message();
-		MessageAnnotations messageAnnotations = batchMessage.getMessageAnnotations() == null ? new MessageAnnotations(new HashMap<Symbol, Object>()) 
-				: batchMessage.getMessageAnnotations();
-		messageAnnotations.getValue().put(AmqpConstants.PartitionKey, partitionKey);
-		batchMessage.setMessageAnnotations(messageAnnotations);
-		
-		// TODO: fix allocation per call - use BufferPool
+		batchMessage.setMessageAnnotations(firstMessage.getMessageAnnotations());
+				
 		byte[] bytes = new byte[MaxMessageLength];
 		int encodedSize = batchMessage.encode(bytes, 0, MaxMessageLength);
 		int byteArrayOffset = encodedSize;
 		
-		byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
-        Delivery dlv = this.sendLink.delivery(tag);
-        dlv.setMessageFormat(AmqpConstants.AmqpBatchMessageFormat);
-        
 		for(Message amqpMessage: messages)
 		{
 			Message messageWrappedByData = Proton.message();
 			
-			// TODO: essential optimization
 			byte[] messageBytes = new byte[MaxMessageLength];
 			int messageSizeBytes = amqpMessage.encode(messageBytes, 0, MaxMessageLength);
 			messageWrappedByData.setBody(new Data(new Binary(messageBytes, 0, messageSizeBytes)));
@@ -174,28 +209,29 @@ public class MessageSender extends ClientEntity
 			}
 			catch(BufferOverflowException exception)
 			{
-				// TODO: is it intended for this purpose - else compute msg. size before hand.
-				dlv.clear();
 				throw new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s", MaxMessageLength), exception);
 			}
 			
 			byteArrayOffset = byteArrayOffset + encodedSize;
 		}
 		
-		int sentMsgSize = this.sendLink.send(bytes, 0, byteArrayOffset);
-		assert sentMsgSize != byteArrayOffset : "Contract of the ProtonJ library for Sender.Send API changed";
-        
-		CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-		this.pendingSendWaiters.put(tag, 
-					new ReplayableWorkItem<Void>(bytes, sentMsgSize, AmqpConstants.AmqpBatchMessageFormat, onSend, this.operationTimeout));
-		
-        this.sendLink.advance();
-        return onSend;
+		return this.send(bytes, byteArrayOffset, AmqpConstants.AmqpBatchMessageFormat);
 	}
 	
 	public CompletableFuture<Void> send(Message msg) throws ServiceBusException
 	{
-		return this.send(msg, DeliveryImpl.DEFAULT_MESSAGE_FORMAT);
+		byte[] bytes = new byte[MaxMessageLength];
+		int encodedSize = 0;
+		try
+		{
+			encodedSize = msg.encode(bytes, 0, MaxMessageLength);
+		}
+		catch(BufferOverflowException exception)
+		{
+			throw new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s", MaxMessageLength), exception);
+		}
+		
+		return this.send(bytes, encodedSize, DeliveryImpl.DEFAULT_MESSAGE_FORMAT);
 	}
 	
 	public void close()
@@ -208,18 +244,17 @@ public class MessageSender extends ClientEntity
 	
 	public void onOpenComplete(Exception completionException)
 	{
-		synchronized(this.linkCreateLock)
-		{
-			this.linkCreateScheduled = false;
-		}
-		
 		if (completionException == null)
 		{
-			this.currentOperationTracker = null;
+			this.openLinkTracker = null;
 			this.retryPolicy.resetRetryCount(this.getClientId());
-			if (!this.linkOpen.isDone())
+			this.underlyingFactory.links.add(this.sendLink);
+			this.lastKnownLinkError = null;
+			
+			if (!this.linkFirstOpen.isDone())
 			{
-				this.linkOpen.complete(this);
+				this.linkFirstOpen.complete(this);
+				Timer.schedule(this.operationTimer, this.timerTimeout, TimerType.RepeatRun);
 			}
 			else if (!this.pendingSendWaiters.isEmpty())
 			{
@@ -230,21 +265,16 @@ public class MessageSender extends ClientEntity
 					unacknowledgedSends.forEachEntry(1, new Consumer<Map.Entry<byte[], ReplayableWorkItem<Void>>>()
 					{
 						@Override
-						public void accept(Entry<byte[], ReplayableWorkItem<Void>> sendWork) {
+						public void accept(Entry<byte[], ReplayableWorkItem<Void>> sendWork)
+						{
 							ReplayableWorkItem<Void> pendingSend = MessageSender.this.pendingSendWaiters.remove(sendWork.getKey());
 							if (pendingSend != null)
 							{
-								byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
-						        Delivery dlv = sendLink.delivery(tag);
-						        dlv.setMessageFormat(pendingSend.getMessageFormat());
-						        
-						        int sentMsgSize = sendLink.send(pendingSend.getMessage(), 0, pendingSend.getEncodedMessageSize());
-						        assert sentMsgSize != pendingSend.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
-						        
-						        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-						        pendingSendWaiters.put(tag, new ReplayableWorkItem<Void>(pendingSend.getMessage(), pendingSend.getEncodedMessageSize(), pendingSend.getMessageFormat(), onSend, operationTimeout));
-						        
-						        sendLink.advance();
+								MessageSender.this.send(pendingSend.getMessage(), 
+										pendingSend.getEncodedMessageSize(),
+										pendingSend.getMessageFormat(),
+										pendingSend.getWork(),
+										pendingSend.getTimeoutTracker());
 							}
 						}
 					});
@@ -254,21 +284,34 @@ public class MessageSender extends ClientEntity
 		}
 		else
 		{		
-			this.linkOpen.completeExceptionally(completionException);
+			this.linkFirstOpen.completeExceptionally(completionException);
+		}
+		
+		synchronized(this.linkCreateLock)
+		{
+			this.linkCreateScheduled = false;
 		}
 	}
 	
 	public void onError(ErrorCondition error)
 	{
 		Exception completionException = ExceptionUtil.toException(error);
-		
-		// if CurrentOpTracker is null - no operation is in progress
-		Duration remainingTime = this.currentOperationTracker == null 
-						? Duration.ofSeconds(0)
-						: (this.currentOperationTracker.elapsed().compareTo(this.operationTimeout) > 0) 
+		this.onError(completionException);
+	}
+	
+	public void onError(Exception completionException)
+	{
+		Duration remainingTime = this.openLinkTracker == null 
+						? this.operationTimeout
+						: (this.openLinkTracker.elapsed().compareTo(this.operationTimeout) > 0) 
 								? Duration.ofSeconds(0) 
-								: this.operationTimeout.minus(this.currentOperationTracker.elapsed());
+								: this.operationTimeout.minus(this.openLinkTracker.elapsed());
 		Duration retryInterval = this.retryPolicy.getNextRetryInterval(this.getClientId(), completionException, remainingTime);
+		
+		if (completionException != null)
+		{
+			this.lastKnownLinkError = completionException;
+		}
 		
 		if (retryInterval != null)
 		{
@@ -276,14 +319,7 @@ public class MessageSender extends ClientEntity
 			return;
 		}
 		
-		synchronized (this.linkOpen)
-		{
-			if (!this.linkOpen.isDone())
-			{
-				this.onOpenComplete(completionException);
-				return;
-			}
-		}
+		this.onOpenComplete(completionException);
 	}
 	
 	private void scheduleRecreate(Duration runAfter)
@@ -304,14 +340,18 @@ public class MessageSender extends ClientEntity
 				@Override
 				public void run()
 				{
-					if (MessageSender.this.sendLink.getRemoteState() != EndpointState.CLOSED)
+					if (MessageSender.this.sendLink.getLocalState() != EndpointState.CLOSED)
 					{
 						return;
 					}
 					
-					MessageSender.this.sendLink = MessageSender.this.createSendLink();
-					SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
-					BaseHandler.setHandler(MessageSender.this.sendLink, handler);
+					Sender sender = MessageSender.this.createSendLink();
+					if (sender != null)
+					{
+						MessageSender.this.underlyingFactory.links.remove(MessageSender.this.sendLink);
+						MessageSender.this.sendLink = sender;
+					}
+					
 					MessageSender.this.retryPolicy.incrementRetryCount(MessageSender.this.getClientId());
 				}
 			},
@@ -319,35 +359,93 @@ public class MessageSender extends ClientEntity
 			TimerType.OneTimeRun);
 	}
 	
-	public void onSendComplete(byte[] deliveryTag, DeliveryState outcome)
+	public void onSendComplete(final byte[] deliveryTag, final DeliveryState outcome)
 	{
-		ReplayableWorkItem<Void> pendingSendWorkItem = null;
-		synchronized(this.pendingSendWaitersLock)
-        {
-			pendingSendWorkItem = this.pendingSendWaiters.get(deliveryTag);
-        }
-		
+		TRACE_LOGGER.log(Level.FINE, String.format("linkName[%s]", this.sendLink.getName()));
+		ReplayableWorkItem<Void> pendingSendWorkItem = this.pendingSendWaiters.get(deliveryTag);
+        
 		if (pendingSendWorkItem != null)
 		{
 			CompletableFuture<Void> pendingSend = pendingSendWorkItem.getWork();
-			if (outcome == Accepted.getInstance())
+			if (outcome instanceof Accepted)
 			{
 				this.retryPolicy.resetRetryCount(this.getClientId());
+				this.pendingSendWaiters.remove(deliveryTag);
 				pendingSend.complete(null);
+			}
+			else if (outcome instanceof Rejected)
+			{
+				Rejected rejected = (Rejected) outcome;
+				ErrorCondition error = rejected.getError();
+				Exception exception = ExceptionUtil.toException(error);
+
+				Duration retryInterval = this.retryPolicy.getNextRetryInterval(
+						this.getClientId(), exception, pendingSendWorkItem.getTimeoutTracker().remaining());
+				if (retryInterval == null)
+				{
+					this.pendingSendWaiters.remove(deliveryTag);
+					pendingSend.completeExceptionally(exception);
+				}
+				else
+				{
+					pendingSendWorkItem.setLastKnownException(exception);
+					Timer.schedule(new Runnable()
+					{
+						@Override
+						public void run()
+						{
+							MessageSender.this.reSend(deliveryTag);
+						}
+					}, retryInterval, TimerType.OneTimeRun);
+				}
 			}
 			else 
 			{
-				// TODO: enumerate all cases - if we ever return failed delivery from Service - do they translate to exceptions ?
+				this.pendingSendWaiters.remove(deliveryTag);
 				pendingSend.completeExceptionally(ServiceBusException.create(false, outcome.toString()));
 			}
-			
-			this.pendingSendWaiters.remove(deliveryTag);
 		}
 	}
 
+	private void reSend(Object deliveryTag)
+	{
+		ReplayableWorkItem<Void> pendingSend = this.pendingSendWaiters.remove(deliveryTag);
+		if (pendingSend != null)
+		{
+			byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
+	        Delivery dlv = this.sendLink.delivery(tag);
+	        dlv.setMessageFormat(pendingSend.getMessageFormat());
+	        
+	        int sentMsgSize = this.sendLink.send(pendingSend.getMessage(), 0, pendingSend.getEncodedMessageSize());
+	        assert sentMsgSize != pendingSend.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
+	        
+	        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
+	        this.pendingSendWaiters.put(tag, 
+	        		new ReplayableWorkItem<Void>(pendingSend.getMessage(), 
+	        				pendingSend.getEncodedMessageSize(), pendingSend.getMessageFormat(), onSend, this.operationTimeout));
+	        
+	        this.sendLink.advance();
+		}
+	}
+	
 	private Sender createSendLink()
 	{
-		Connection connection = this.underlyingFactory.getConnection();
+		Connection connection = null;
+		try
+		{
+			// TODO throw it on the appropriate operation
+			connection = this.underlyingFactory.getConnectionAsync().get();
+		} 
+		catch (InterruptedException|ExecutionException exception)
+		{
+			Throwable throwable = exception.getCause();
+			if (throwable != null && throwable instanceof Exception)
+			{
+				this.onError((Exception) throwable);
+				return null;
+			}
+		} 
+		
 		Session session = connection.session();
         session.open();
         
@@ -364,6 +462,9 @@ public class MessageSender extends ClientEntity
         
         sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
         
+        SendLinkHandler handler = new SendLinkHandler(this);
+        BaseHandler.setHandler(sender, handler);
+		
         sender.open();
         return sender;
 	}
@@ -371,7 +472,7 @@ public class MessageSender extends ClientEntity
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
 	private void initializeLinkOpen(TimeoutTracker timeout)
 	{
-		this.linkOpen = new CompletableFuture<MessageSender>();
+		this.linkFirstOpen = new CompletableFuture<MessageSender>();
 		
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
 		Timer.schedule(
@@ -379,22 +480,20 @@ public class MessageSender extends ClientEntity
 				{
 					public void run()
 					{
-						synchronized(MessageSender.this.linkOpen)
+						if (!MessageSender.this.linkFirstOpen.isDone())
 						{
-							if (!MessageSender.this.linkOpen.isDone())
-							{
-								Exception operationTimedout = new TimeoutException(
-										String.format(Locale.US, "Send Link(%s) open() timed out", MessageSender.this.getClientId()));
+							Exception operationTimedout = ServiceBusException.create(true,
+									String.format(Locale.US, "SendLink(%s).open() on Entity(%s) timed out",
+											MessageSender.this.sendLink.getName(), MessageSender.this.getSendPath()));
 
-								if (TRACE_LOGGER.isLoggable(Level.WARNING))
-								{
-									TRACE_LOGGER.log(Level.WARNING, 
-											String.format(Locale.US, "message Sender(linkName: %s, path: %s) open call timedout", MessageSender.this.getClientId(), MessageSender.this.sendPath), 
-											operationTimedout);
-								}
-								
-								MessageSender.this.linkOpen.completeExceptionally(operationTimedout);
+							if (TRACE_LOGGER.isLoggable(Level.WARNING))
+							{
+								TRACE_LOGGER.log(Level.WARNING, 
+										String.format(Locale.US, "message Sender(linkName: %s, path: %s) open call timedout", MessageSender.this.getClientId(), MessageSender.this.sendPath), 
+										operationTimedout);
 							}
+							
+							MessageSender.this.linkFirstOpen.completeExceptionally(operationTimedout);
 						}
 					}
 				}
@@ -403,8 +502,13 @@ public class MessageSender extends ClientEntity
 	}
 
 	@Override
-	public CompletableFuture<Void> closeAsync() {
-		// TODO Auto-generated method stub
-		return null;
+	public CompletableFuture<Void> closeAsync()
+	{
+		if (this.sendLink != null && this.sendLink.getLocalState() != EndpointState.CLOSED)
+		{
+			this.sendLink.close();
+		}
+		
+		return CompletableFuture.completedFuture(null);
 	}
 }

@@ -3,6 +3,7 @@ package com.microsoft.azure.servicebus;
 import java.io.IOException;
 import java.nio.channels.*;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -86,7 +87,8 @@ public class MessagingFactory extends ClientEntity
 						&& !this.waitingConnectionOpen)
 				{
 					this.connection.free();
-					try {
+					try
+					{
 						this.startReactor(new ReactorHandler() {
 							@Override
 							public void onReactorInit(Event e)
@@ -166,17 +168,28 @@ public class MessagingFactory extends ClientEntity
 	{
 		this.connection.close();
 		
+		// TODO: Abstract out processOnClose on all links-connections
 		// dispatch the TransportError to all dependent registered links
-		for (Link link : this.links)
+		Iterator<Link> literator = this.links.iterator();
+		while (literator.hasNext())
 		{
-			Receiver receiver = (Receiver) link;
-			if (receiver!=null)
+			Link link = literator.next();
+			if (link instanceof Receiver)
 			{
-				Handler handler = BaseHandler.getHandler(receiver);
+				Handler handler = BaseHandler.getHandler((Receiver) link);
 				if (handler != null && handler instanceof ReceiveLinkHandler)
 				{
 					ReceiveLinkHandler recvLinkHandler = (ReceiveLinkHandler) handler;
-					recvLinkHandler.processOnClose(receiver, error);
+					recvLinkHandler.processOnClose(link, error);
+				}
+			}
+			else if(link instanceof Sender)
+			{
+				Handler handler = BaseHandler.getHandler((Sender) link);
+				if (handler != null && handler instanceof SendLinkHandler)
+				{
+					SendLinkHandler sendLinkHandler = (SendLinkHandler) handler;
+					sendLinkHandler.processOnClose(link, error);
 				}
 			}
 		}

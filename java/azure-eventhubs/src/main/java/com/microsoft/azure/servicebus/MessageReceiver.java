@@ -1,6 +1,5 @@
 package com.microsoft.azure.servicebus;
 
-import java.io.IOException;
 import java.time.*;
 import java.time.temporal.*;
 import java.util.*;
@@ -56,6 +55,7 @@ public class MessageReceiver extends ClientEntity
 	
 	private boolean linkCreateScheduled;
 	private Object linkCreateLock;
+	private Exception lastKnownLinkError;
 	
 	private MessageReceiver(final MessagingFactory factory, 
 			final String name, 
@@ -80,6 +80,7 @@ public class MessageReceiver extends ClientEntity
 		this.linkCreateLock = new Object();
 		this.receiveHandlerLock = new Object();
 		this.linkClose = new CompletableFuture<Void>();
+		this.lastKnownLinkError = null;
 		
 		if (offset != null)
 		{
@@ -149,11 +150,17 @@ public class MessageReceiver extends ClientEntity
 	
 	private CompletableFuture<MessageReceiver> createLink()
 	{
-		this.receiveLink = this.createReceiveLink(true);
-		
 		this.linkOpen = new WorkItem<MessageReceiver>(new CompletableFuture<MessageReceiver>(), this.operationTimeout);
 		this.scheduleLinkOpenTimeout(this.linkOpen.getTimeoutTracker());
 		this.linkCreateScheduled = true;
+		
+		Timer.schedule(new Runnable() {
+			@Override
+			public void run()
+			{
+				MessageReceiver.this.receiveLink = MessageReceiver.this.createReceiveLink();
+			}}, Duration.ofSeconds(0), TimerType.OneTimeRun);
+		
 		return this.linkOpen.getWork();
 	}
 	
@@ -221,22 +228,25 @@ public class MessageReceiver extends ClientEntity
 	
 	public void onOpenComplete(Exception exception)
 	{
-		synchronized (this.linkOpen)
+		if (exception == null)
 		{
-			if (exception == null)
-			{
-				this.lastCommunicatedAt = Instant.now();
+			this.lastCommunicatedAt = Instant.now();
+			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
 				this.linkOpen.getWork().complete(this);
-				this.underlyingFactory.links.add(this.receiveLink);
-			}
-			else
-			{
-				this.linkOpen.getWork().completeExceptionally(exception);
-			}
 			
-			this.offsetInclusive = false; // re-open link always starts from the last received offset
-			this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
+			this.underlyingFactory.links.add(this.receiveLink);
+			this.lastKnownLinkError = null;
 		}
+		else
+		{
+			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
+				this.linkOpen.getWork().completeExceptionally(exception);
+			
+			this.lastKnownLinkError = exception;
+		}
+		
+		this.offsetInclusive = false; // re-open link always starts from the last received offset
+		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
 		
 		synchronized (this.linkCreateLock)
 		{
@@ -309,7 +319,11 @@ public class MessageReceiver extends ClientEntity
 	public void onError(ErrorCondition error)
 	{		
 		Exception completionException = ExceptionUtil.toException(error);
-		
+		this.onError(completionException);
+	}
+	
+	public void onError(Exception exception)
+	{
 		WorkItem<Collection<Message>> currentReceive = this.pendingReceives.peek();
 		
 		TimeoutTracker currentOperationTracker = currentReceive != null 
@@ -320,7 +334,7 @@ public class MessageReceiver extends ClientEntity
 						: (currentOperationTracker.elapsed().compareTo(this.operationTimeout) > 0) 
 								? Duration.ofSeconds(0) 
 								: this.operationTimeout.minus(currentOperationTracker.elapsed());
-		Duration retryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), completionException, remainingTime);
+		Duration retryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), exception, remainingTime);
 		
 		if (retryInterval != null)
 		{
@@ -328,13 +342,9 @@ public class MessageReceiver extends ClientEntity
 			return;
 		}
 		
-		if (!this.linkOpen.getWork().isDone())
-		{
-			this.onOpenComplete(completionException);
-			return;
-		}
+		this.onOpenComplete(exception);
 		
-		if (completionException != null && this.receiveHandler != null)
+		if (exception != null && this.receiveHandler != null)
 		{
 			synchronized (this.receiveHandlerLock)
 			{
@@ -344,10 +354,10 @@ public class MessageReceiver extends ClientEntity
 					{
 						TRACE_LOGGER.log(Level.WARNING, 
 								String.format(Locale.US, "%s: LinkName (%s), receiverpath (%s): encountered Exception (%s) while receiving from ServiceBus service.", 
-										Instant.now().toString(), this.receiveLink.getName(), this.receivePath, completionException.getClass()));
+										Instant.now().toString(), this.receiveLink.getName(), this.receivePath, exception.getClass()));
 					}
 					
-					this.receiveHandler.onError(completionException);
+					this.receiveHandler.onError(exception);
 				}
 			}
 		}
@@ -357,13 +367,13 @@ public class MessageReceiver extends ClientEntity
 			while ((workItem = this.pendingReceives.poll()) != null)
 			{
 				CompletableFuture<Collection<Message>> future = workItem.getWork();
-				if (completionException instanceof ServiceBusException && ((ServiceBusException) completionException).getIsTransient())
+				if (exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient())
 				{
 					future.complete(null);
 				}
 				else
 				{
-					future.completeExceptionally(completionException);
+					future.completeExceptionally(exception);
 				}
 			}
 		}
@@ -377,7 +387,7 @@ public class MessageReceiver extends ClientEntity
 		}
 	}
 	
-	private Receiver createReceiveLink(boolean isConnectionAsync)
+	private Receiver createReceiveLink()
 	{	
 		Source source = new Source();
         source.setAddress(receivePath);
@@ -410,17 +420,21 @@ public class MessageReceiver extends ClientEntity
         
         Connection connection = null;
         
-		try {
-			connection = !isConnectionAsync ? this.underlyingFactory.getConnection()
-					: this.underlyingFactory.getConnectionAsync().get();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+        try
+		{
+			connection = this.underlyingFactory.getConnectionAsync().get();
 		}
-		
+		catch (InterruptedException|ExecutionException exception)
+		{
+			Throwable throwable = exception.getCause();
+			if (throwable != null && throwable instanceof Exception)
+			{
+				this.onError((Exception) exception.getCause());
+			}
+			
+			return null;
+		}
+    
 		Session ssn = connection.session();
 		
 		String receiveLinkName = this.getClientId();
@@ -531,7 +545,12 @@ public class MessageReceiver extends ClientEntity
 						return;
 					}
 					
-					MessageReceiver.this.receiveLink = MessageReceiver.this.createReceiveLink(true);
+					Receiver receiver = MessageReceiver.this.createReceiveLink();
+					if (receiver != null)
+					{
+						MessageReceiver.this.underlyingFactory.links.remove(MessageReceiver.this.receiveLink);
+						MessageReceiver.this.receiveLink = receiver;
+					}
 					
 					synchronized (MessageReceiver.this.linkCreateLock) 
 					{
@@ -555,7 +574,11 @@ public class MessageReceiver extends ClientEntity
 					{
 						if (!linkOpen.getWork().isDone())
 						{
-							Exception operationTimedout = new TimeoutException(String.format(Locale.US, "Receive Link(%s) %s() timed out", MessageReceiver.this.receiveLink.getName(), "Open"));
+							Exception cause = MessageReceiver.this.lastKnownLinkError;
+							Exception operationTimedout = ServiceBusException.create(
+									cause != null && cause instanceof ServiceBusException ? ((ServiceBusException) cause).getIsTransient() : ClientConstants.DefaultIsTransient,
+									String.format(Locale.US, "ReceiveLink(%s) %s() on path(%s) timed out", MessageReceiver.this.receiveLink.getName(), "Open", MessageReceiver.this.receivePath),
+									cause);
 							if (TRACE_LOGGER.isLoggable(Level.WARNING))
 							{
 								TRACE_LOGGER.log(Level.WARNING, 
