@@ -2,14 +2,19 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
-public class PartitionManager
+public class PartitionManager implements Runnable
 {
     private EventProcessorHost host;
+    private Pump pump;
 
     private ArrayList<String> partitionIds = null;
+    
+    private boolean keepGoing = true;
 
     // DUMMY STARTS
     public static int dummyPartitionCount = 4;
@@ -18,6 +23,7 @@ public class PartitionManager
     public PartitionManager(EventProcessorHost host)
     {
         this.host = host;
+        this.pump = new Pump(this.host);
     }
     
     public Iterable<String> getPartitionIds()
@@ -36,94 +42,157 @@ public class PartitionManager
         return this.partitionIds;
     }
     
-    public HashMap<String, Lease> getSomeLeases() throws Exception
+    public void stopPartitions()
     {
-        ILeaseManager leaseManager = this.host.getLeaseManager();
-        HashMap<String, Lease> ourLeases = new HashMap<String, Lease>();
+    	this.keepGoing = false;
+    }
+    
+    public void run()
+    {
+    	try
+    	{
+    		runLoop();
+    		this.host.logWithHost("Partition manager main loop exited normally, shutting down");
+    	}
+    	catch (Exception e)
+    	{
+    		this.host.logWithHost("Exception, shutting down partition manager", e);
+    	}
+    	
+    	// Cleanup
+    	this.host.logWithHost("Shutting down all pumps");
+    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+    	
+    	// All of the shutdown threads have been launched, we can shut down the executor now.
+    	// Shutting down the executor only prevents new tasks from being submitted.
+    	// We can't wait for executor termination here because this thread is in the executor.
+    	this.host.stopExecutor();
+    	
+    	// Wait for shutdown threads.
+    	for (Future<?> removal : pumpRemovals)
+    	{
+    		try
+    		{
+				removal.get();
+			}
+    		catch (InterruptedException | ExecutionException e)
+    		{
+    			// Log but otherwise ignore.
+    			this.host.logWithHost("Failure during shutdown", e);
+			}
+    	}
+    	
+    	this.host.logWithHost("Partition manager exiting");
+    }
+    
+    private void runLoop() throws Exception
+    {
+    	while (this.keepGoing)
+    	{
+            ILeaseManager leaseManager = this.host.getLeaseManager();
+            HashMap<String, Lease> allLeases = new HashMap<String, Lease>();
 
-        if (!leaseManager.leaseStoreExists().get())
-        {
-            if (!leaseManager.createLeaseStoreIfNotExists().get())
+            if (!leaseManager.leaseStoreExists().get())
             {
-                // DUMMY STARTS
-                throw new Exception("couldn't create lease store");
-                // DUMMY ENDS
-            }
-
-            // Determine how many partitions there are, create leases for them, and acquire those leases
-            // DUMMY STARTS
-            for (String id : getPartitionIds())
-            {
-                leaseManager.createLeaseIfNotExists(id).get();
-                Lease gotLease = leaseManager.acquireLease(id).get();
-                if (gotLease != null)
+                if (!leaseManager.createLeaseStoreIfNotExists().get())
                 {
-                    ourLeases.put(id, gotLease);
+                    // DUMMY STARTS
+                    throw new Exception("couldn't create lease store");
+                    // DUMMY ENDS
                 }
-            }
-            // DUMMY ENDS
-        }
-        else
-        {
-            // Inspect all leases.
-            // Take any leases that currently belong to us.
-            // If any are expired, take those.
-            // Grab more if needed for load balancing
 
-            Iterable<Future<Lease>> allLeases = leaseManager.getAllLeases();
-            int ourLeasesCount = 0;
-            ArrayList<Lease> somebodyElsesLeases = new ArrayList<Lease>();
-            for (Future<Lease> future : allLeases)
-            {
-                Lease possibleLease = future.get();
-                if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
+                // Determine how many partitions there are, create leases for them, and acquire those leases
+                // DUMMY STARTS
+                for (String id : getPartitionIds())
                 {
-                    Lease gotLease = leaseManager.acquireLease(possibleLease.getPartitionId()).get();
+                    leaseManager.createLeaseIfNotExists(id).get();
+                    Lease gotLease = leaseManager.acquireLease(id).get();
                     if (gotLease != null)
                     {
-                        ourLeases.put(gotLease.getPartitionId(), gotLease);
-                        ourLeasesCount++;
+                        allLeases.put(gotLease.getPartitionId(), gotLease);
                     }
                 }
-                else
+                // DUMMY ENDS
+            }
+            else
+            {
+                // Inspect all leases.
+                // Take any leases that currently belong to us.
+                // If any are expired, take those.
+                Iterable<Future<Lease>> gettingAllLeases = leaseManager.getAllLeases();
+                ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
+                int ourLeasesCount = 0;
+                for (Future<Lease> future : gettingAllLeases)
                 {
-                	somebodyElsesLeases.add(possibleLease);
+                    Lease possibleLease = future.get();
+                    if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
+                    {
+                        Lease gotLease = leaseManager.acquireLease(possibleLease.getPartitionId()).get();
+                        if (gotLease != null)
+                        {
+                            allLeases.put(gotLease.getPartitionId(), gotLease);
+                            ourLeasesCount++;
+                        }
+                    }
+                    else
+                    {
+                    	allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                    	leasesOwnedByOthers.add(possibleLease);
+                    }
+                }
+                
+                // Grab more leases if available and needed for load balancing
+                if (leasesOwnedByOthers.size() > 0)
+                {
+    	            Iterable<Lease> stealTheseLeases = whichLeasesToSteal(leasesOwnedByOthers, ourLeasesCount);
+    	            if (stealTheseLeases != null)
+    	            {
+    	            	for (Lease stealee : stealTheseLeases)
+    	            	{
+    	            		Lease takenLease = leaseManager.acquireLease(stealee.getPartitionId()).get();
+    	                	if (takenLease != null)
+    	                	{
+    	                		this.host.logWithHostAndPartition(takenLease.getPartitionId(), "Stole lease");
+    	                		allLeases.put(takenLease.getPartitionId(), takenLease);
+    	                		ourLeasesCount++;
+    	                	}
+    	                	else
+    	                	{
+    	                		this.host.logWithHost("Failed to steal lease for partition " + stealee.getPartitionId());
+    	                	}
+    	            	}
+    	            }
+                }
+
+                // Update pump with new state of leases.
+                for (String partitionId : allLeases.keySet())
+                {
+                	Lease updatedLease = allLeases.get(partitionId);
+                	this.host.logWithHost("Lease on partition " + updatedLease.getPartitionId() + " owned by " + updatedLease.getOwner()); // DUMMY
+                	if (updatedLease.getOwner().compareTo(this.host.getHostName()) == 0)
+                	{
+                		this.pump.addPump(partitionId, updatedLease);
+                	}
+                	else
+                	{
+                		this.pump.removePump(partitionId, CloseReason.LeaseLost);
+                	}
                 }
             }
-
-            if (somebodyElsesLeases.size() > 0)
+    		
+            // DUMMY STARTS
+            // Sleep, ten seconds for now
+            try
             {
-	            Iterable<Lease> stealTheseLeases = whichLeasesToSteal(somebodyElsesLeases, ourLeasesCount);
-	            if (stealTheseLeases != null)
-	            {
-	            	for (Lease stealee : stealTheseLeases)
-	            	{
-	            		Lease takenLease = leaseManager.acquireLease(stealee.getPartitionId()).get();
-	                	if (takenLease != null)
-	                	{
-	                		this.host.logWithHostAndPartition(takenLease.getPartitionId(), "Stole lease");
-	                		ourLeases.put(takenLease.getPartitionId(), takenLease);
-	                		ourLeasesCount++;
-	                	}
-	                	else
-	                	{
-	                		this.host.logWithHost("Failed to steal lease for partition " + stealee.getPartitionId());
-	                	}
-	            	}
-	            }
+                Thread.sleep(10000);
             }
-
-            // DUMMY BEGINS
-            allLeases = leaseManager.getAllLeases();
-            for (Future<Lease> future : allLeases)
+            catch (InterruptedException e)
             {
-            	Lease dumpLease = future.get();
-            	this.host.logWithHost("Lease on partition " + dumpLease.getPartitionId() + " owned by " + dumpLease.getOwner());
+            	// Log if sleep was interrupted so we can tell if it happens a lot.
+            	// Beyond that, we don't care.
+                this.host.logWithHost("Sleep was interrupted", e);
             }
-            // DUMMY ENDS
-        }
-
-        return ourLeases;
+    	}
     }
     
     private Iterable<Lease> whichLeasesToSteal(ArrayList<Lease> stealableLeases, int haveLeaseCount)
@@ -133,7 +202,7 @@ public class PartitionManager
     	int hostCount = countsByOwner.size() + 1;
     	int desiredToHave = (totalLeases + hostCount - 1) / hostCount; // round up
     	ArrayList<Lease> stealTheseLeases = null;
-    	if ((desiredToHave - haveLeaseCount) == 1)
+    	if (((desiredToHave - haveLeaseCount) == 1) && (haveLeaseCount > 0))
     	{
     		this.host.logWithHost("Have only one less than desired, skipping lease stealing");
     	}

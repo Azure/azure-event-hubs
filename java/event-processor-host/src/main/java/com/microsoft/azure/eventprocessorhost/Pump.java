@@ -9,151 +9,91 @@ import com.microsoft.azure.servicebus.ServiceBusException;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
-public class Pump implements Runnable
+public class Pump
 {
     private EventProcessorHost host;
 
-    private HashMap<String, Lease> leases;
-    private HashMap<String, PartitionPump> pumps;
-    private Future<?> pumpFuture;
-    private Boolean keepGoing = true;
+    private ConcurrentHashMap<String, LeaseAndPump> pumpStates;
+    
+    private class LeaseAndPump
+    {
+    	public Lease lease;
+    	public PartitionPump pump;
+    }
 
     public Pump(EventProcessorHost host)
     {
         this.host = host;
 
-        this.leases = new HashMap<String, Lease>();
-        this.pumps = new HashMap<String, PartitionPump>();
+        this.pumpStates = new ConcurrentHashMap<String, LeaseAndPump>();
     }
 
-    public void doPump()
+    public void addPump(String partitionId, Lease lease) throws Exception
     {
-        this.pumpFuture = EventProcessorHost.getExecutorService().submit(this);
-    }
-
-    public Future<?> requestPumpStop()
-    {
-        this.keepGoing = false;
-        return this.pumpFuture;
-    }
-
-    public void run()
-    {
-        while (keepGoing)
-        {
-        	// Re-get leases
-            try
-            {
-                this.leases = host.getPartitionManager().getSomeLeases();
-            }
-            catch (Exception e)
-            {
-                // DUMMY STARTS
-                this.host.logWithHost("Exception getting leases", e);
-                // DUMMY ENDS
-            }
-
-            // Remove any pumps for which we have lost the lease.
-            ArrayList<String> pumpsToRemove = new ArrayList<String>();
-            Set<String> savedPumpsKeySet = this.pumps.keySet();
-        	// DUMMY STARTS
-        	for (String partitionId : savedPumpsKeySet)
-        	{
-        		this.host.logWithHostAndPartition(partitionId, "has pump");
-        	}
-        	// DUMMY ENDS
-            for (String partitionId : savedPumpsKeySet)
-            {
-            	this.host.logWithHostAndPartition(partitionId, "checking pump"); // DUMMY
-                if (!this.leases.containsKey(partitionId))
-                {
-                    PartitionPump partitionPump = this.pumps.get(partitionId);
-                    if (!partitionPump.isClosing())
-                    {
-                    	this.host.logWithHostAndPartition(partitionId, "closing pump");
-                        partitionPump.forceClose(CloseReason.LeaseLost);
-                    }
-                    // else pump is already shut down
-                    pumpsToRemove.add(partitionId);
-                }
-                else
-                {
-                	this.host.logWithHostAndPartition(partitionId, "pump valid"); // DUMMY
-                }
-            }
-            // Avoid concurrent modification exception by doing the removes as a separate step
-            for (String removee : pumpsToRemove)
-            {
-            	this.host.logWithHostAndPartition(removee, "removing pump"); // DUMMY
-            	this.pumps.remove(removee);
-            }
-
-            // Check status of pumps for leases, start/restart where needed.
-            for (String partitionId : this.leases.keySet())
-            {
-                try
-                {
-                    if (this.pumps.containsKey(partitionId))
-                    {
-                        if (this.pumps.get(partitionId).getPumpStatus() == PartitionPumpStatus.closed)
-                        {
-                        	this.host.logWithHostAndPartition(partitionId, "Restarting pump");
-                            this.pumps.remove(partitionId);
-                            startSinglePump(this.leases.get(partitionId));
-                        }
-                        // else
-                        // we have the lease and we have a working pump, nothing to do
-                    }
-                    else
-                    {
-                        startSinglePump(this.leases.get(partitionId));
-                    }
-                }
-                catch (Exception e)
-                {
-                    // DUMMY STARTS
-                    this.host.logWithHostAndPartition(partitionId, "Failure starting pump", e);
-                    // DUMMY ENDS
-                }
-            }
-
-            // Sleep
-            try
-            {
-                Thread.sleep(10000); // ten seconds for now
-            }
-            catch (InterruptedException e)
-            {
-                // DUMMY STARTS
-                this.host.logWithHost("Sleep was interrupted", e);
-                // DUMMY ENDS
-            }
-        }
-
-        for (String partitionId : this.pumps.keySet())
-        {
-            this.pumps.get(partitionId).shutdown();
-        }
-
-        this.host.logWithHost("Master pump loop exiting"); // DUMMY
-    }
-
-    private void startSinglePump(Lease lease) throws Exception
-    {
-        PartitionPump partitionPump = new PartitionPump(this.host, lease);
-        partitionPump.startPump();
-        this.pumps.put(lease.getPartitionId(), partitionPump); // do the put after start, if the start fails then put doesn't happen
+    	LeaseAndPump capturedState = this.pumpStates.get(partitionId);
+    	if (capturedState != null)
+    	{
+    		// There already is a pump. Just replace the lease.
+    		this.host.logWithHostAndPartition(partitionId, "updating lease for pump");
+    		capturedState.lease = lease;
+    	}
+    	else
+    	{
+    		// Create a new pump.
+    		final LeaseAndPump newPump = new LeaseAndPump(); // final so that the lambda below is happy
+    		newPump.lease = lease;
+    		newPump.pump = new PartitionPump(this.host, lease);
+    		EventProcessorHost.getExecutorService().submit(() -> newPump.pump.startPump());
+            this.pumpStates.put(partitionId, newPump); // do the put after start, if the start fails then put doesn't happen
+    		this.host.logWithHostAndPartition(partitionId, "created new pump");
+    	}
     }
     
+    public Future<?> removePump(String partitionId, final CloseReason reason)
+    {
+    	Future<?> retval = null;
+    	LeaseAndPump capturedState = this.pumpStates.get(partitionId);
+    	if (capturedState != null)
+    	{
+			this.host.logWithHostAndPartition(partitionId, "closing pump for reason " + reason.toString());
+    		if (!capturedState.pump.isClosing())
+    		{
+    			retval = EventProcessorHost.getExecutorService().submit(() -> capturedState.pump.shutdown(reason));
+    		}
+    		// else, pump is already closing/closed, don't need to try to shut it down again
+    		
+    		this.host.logWithHostAndPartition(partitionId, "removing pump");
+    		this.pumpStates.remove(partitionId);
+    	}
+    	else
+    	{
+    		this.host.logWithHostAndPartition(partitionId, "no pump found to remove for partition " + partitionId);
+    	}
+    	return retval;
+    }
+    
+    public Iterable<Future<?>> removeAllPumps(CloseReason reason)
+    {
+    	ArrayList<Future<?>> futures = new ArrayList<Future<?>>();
+    	for (String partitionId : this.pumpStates.keySet())
+    	{
+    		futures.add(removePump(partitionId, reason));
+    	}
+    	return futures;
+    }
+    
+    public boolean hasPump(String partitionId)
+    {
+    	return this.pumpStates.containsKey(partitionId);
+    }
+
+
     public enum PartitionPumpStatus { uninitialized, opening, openfailed, running, closing, closed };
 
     private class PartitionPump
@@ -165,7 +105,6 @@ public class Pump implements Runnable
         private CompletableFuture<?> internalOperationFuture = null;
         private Lease lease;
         private PartitionPumpStatus pumpStatus = PartitionPumpStatus.uninitialized;
-        private CloseReason reason = CloseReason.Shutdown; // default to shutdown
         
     	private EventHubClient eventHubClient = null;
     	private PartitionReceiver partitionReceiver = null;
@@ -178,7 +117,7 @@ public class Pump implements Runnable
             this.lease = lease;
         }
 
-        public void startPump() throws Exception
+        public void startPump()
         {
         	this.pumpStatus = PartitionPumpStatus.opening;
         	
@@ -186,59 +125,62 @@ public class Pump implements Runnable
             this.partitionContext.setEventHubPath(this.host.getEventHubPath());
             this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
             this.partitionContext.setLease(this.lease);
-            this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
 
-            try
+            if (this.pumpStatus == PartitionPumpStatus.opening)
             {
-				openClients();
-			}
-            catch (ServiceBusException | IOException | InterruptedException e)
-            {
-				// DUMMY figure out the retry policy here
-				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
-				this.pumpStatus = PartitionPumpStatus.openfailed;
-				throw e;
-				// DUMMY ENDS
-			}
-            catch (ExecutionException e)
-            {
-				this.pumpStatus = PartitionPumpStatus.openfailed;
-            	if (e.getCause() instanceof ReceiverDisconnectedException)
-            	{
-            		// DUMMY This is probably due to a receiver with a higher epoch
-            		// Is there a way to be sure without checking the exception text?
-            		this.host.logWithHostAndPartition(this.partitionContext, "Receiver disconnected on create", e);
-            		// DUMMY ENDS
-            	}
-            	else
-            	{
-    				// DUMMY figure out the retry policy here
-    				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
-    				// DUMMY ENDS
-            	}
-        		throw e;
+	            try
+	            {
+					openClients();
+				}
+	            catch (Exception e)
+	            {
+	            	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
+	            	{
+	            		// DUMMY This is probably due to a receiver with a higher epoch
+	            		// Is there a way to be sure without checking the exception text?
+	            		this.host.logWithHostAndPartition(this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
+	            		// DUMMY ENDS
+	            	}
+	            	else
+	            	{
+						// DUMMY figure out the retry policy here
+						this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
+						// DUMMY ENDS
+	            	}
+					this.pumpStatus = PartitionPumpStatus.openfailed;
+				}
             }
 
-        	try
+            if (this.pumpStatus == PartitionPumpStatus.opening)
             {
-                this.processor.onOpen(this.partitionContext);
-            }
-            catch (Exception e)
-            {
-            	// If the processor won't open, only thing we can do here is pass the buck.
-            	// Null it out so we don't try to operate on it further.
-            	this.host.logWithHostAndPartition(this.partitionContext, "Failed opening processor", e);
-            	this.processor = null;
-            	this.pumpStatus = PartitionPumpStatus.openfailed;
-                // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
-                EventProcessorHost.getExecutorService().submit(() -> cleanUpClients());
-            	throw e;
+	        	try
+	            {
+					this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
+	                this.processor.onOpen(this.partitionContext);
+	                this.internalReceiveHandler = new InternalReceiveHandler();
+	                // Handler is set after onOpen completes, meaning onEvents will never fire while onOpen is still executing.
+	                this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
+	                this.pumpStatus = PartitionPumpStatus.running;
+	            }
+	            catch (Exception e)
+	            {
+	            	// If the processor won't create or open, only thing we can do here is pass the buck.
+	            	// Null it out so we don't try to operate on it further.
+	            	this.host.logWithHostAndPartition(this.partitionContext, "Failed creating or opening processor", e);
+	            	this.processor = null;
+	            	
+	                // Close the EH clients. If they fail, there's nothing we could do about that anyway.
+	                cleanUpClients();
+	                
+	            	this.pumpStatus = PartitionPumpStatus.openfailed;
+	            }
             }
             
-            this.internalReceiveHandler = new InternalReceiveHandler();
-            this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
-            
-            this.pumpStatus = PartitionPumpStatus.running;
+            if (this.pumpStatus == PartitionPumpStatus.openfailed)
+            {
+            	this.pumpStatus = PartitionPumpStatus.closed; // all cleanup is already done
+            	Pump.this.removePump(this.partitionContext.getPartitionId(), CloseReason.Shutdown);
+            }
         }
         
         private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
@@ -305,17 +247,10 @@ public class Pump implements Runnable
         	return ((this.pumpStatus == PartitionPumpStatus.closing) || (this.pumpStatus == PartitionPumpStatus.closed));
         }
 
-        public void forceClose(CloseReason reason)
+        public void shutdown(CloseReason reason)
         {
         	this.pumpStatus = PartitionPumpStatus.closing;
-            this.host.logWithHostAndPartition(this.partitionContext, "Forcing close"); // DUMMY
-            this.reason = reason;
-            shutdown();
-        }
-
-        public void shutdown()
-        {
-        	this.pumpStatus = PartitionPumpStatus.closing;
+            this.host.logWithHostAndPartition(this.partitionContext, "pump shutdown for reason " + reason.toString()); // DUMMY
 
         	// If an open operation is stuck, this lets us shut down anyway.
         	CompletableFuture<?> captured = this.internalOperationFuture;
@@ -323,31 +258,36 @@ public class Pump implements Runnable
         	{
         		captured.cancel(true);
         	}
+        	
+        	if (this.partitionReceiver != null)
+        	{
+        		// Disconnect any processor from the receiver so the processor won't get
+        		// any more calls. But a call could be in progress right now. 
+        		this.partitionReceiver.setReceiveHandler(null);
+        		
+                // Close the EH clients. Errors are swallowed, nothing we could do about them anyway.
+                cleanUpClients();
+        	}
 
             if (this.processor != null)
             {
                 try
                 {
-            		// Taking the lock means that there is no onEvents call in progress.
                 	synchronized(this.internalReceiveHandler)
                 	{
-                		// Disconnect the processor from the receiver so the processor won't get
-                		// called unexpectedly after it is closed.
-                		this.partitionReceiver.setReceiveHandler(null);
-                		// Close the processor.
-                		this.processor.onClose(this.partitionContext, this.reason);
+                		// When we take the lock, any existing onEvents call has finished.
+                    	// Because the client has been closed, there will not be any more
+                    	// calls to onEvents in the future. Therefore we can safely call onClose.
+                		this.processor.onClose(this.partitionContext, reason);
                     }
                 }
                 catch (Exception e)
                 {
                     // DUMMY STARTS Is there anything we should do here except log it?
-                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing processor", e);
+                	this.host.logWithHostAndPartition(this.partitionContext, "Failure closing processor", e);
                     // DUMMY ENDS
                 }
             }
-
-            // Fire and forget the close operations. If they hang, there's nothing we could do about that anyway.
-            EventProcessorHost.getExecutorService().submit(() -> cleanUpClients());
             
             this.pumpStatus = PartitionPumpStatus.closed;
         }
@@ -360,6 +300,16 @@ public class Pump implements Runnable
 			{
                 try
                 {
+                	// This method is called on the thread that the Java EH client uses to run the pump.
+                	// There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
+                	// using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
+                	// get control back each time onEvents returns, and be able to receive a new batch of messages
+                	// with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
+                	
+                	// Synchronize on the handler object to serialize calls to the processor.
+                	// The handler is not installed until after onOpen returns, so there is no conflict there.
+                	// There could be a conflict between this and onClose, however. All calls to onClose are
+                	// protected by synchronizing on the handler object too.
                 	synchronized(this)
                 	{
                 		PartitionPump.this.processor.onEvents(PartitionPump.this.partitionContext, events);
