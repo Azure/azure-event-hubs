@@ -5,7 +5,7 @@ several different programming languages.
 
 At present, there are clients available in [C (C99)](./C), [Node.js](./Node), and [Java](./Java). 
 
-> The client library for the .NET Framwork (C#/F#/VB) is [available from NuGet](https://www.nuget.org/packages/WindowsAzure.ServiceBus/). 
+> The client library for the .NET Framework (C#/F#/VB) is [available from NuGet](https://www.nuget.org/packages/WindowsAzure.ServiceBus/). 
 > An open source alternative to the officially supported, closed-source client on NuGet is the open-source [AMQP.NET Lite](https://github.com/Azure/amqpnetlite) 
 > library that works on a broad variety on .NET flavors from the .NET Micro Framework to the newest .NET Core platform, and allows 
 > [interaction with Event Hubs](https://github.com/Azure/amqpnetlite/blob/master/Examples/ServiceBus/Scenarios/EventHubsExample.cs). There is no product support service available for this library, but [reported issues](https://github.com/Azure/amqpnetlite/issues) 
