@@ -16,6 +16,8 @@
   ms.date="06/23/2015"
   ms.author="dobett"/>
 
+> This document is known to be outdated
+
 # Create an Event Hub
 
 To create an Event Hub to use with the sample applications, you need an active Azure account. <br/>If you don't have an account, you can create a free trial account in just a couple of minutes. For details, see [Azure Free Trial](http://azure.microsoft.com/pricing/free-trial).

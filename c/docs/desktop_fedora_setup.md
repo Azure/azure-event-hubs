@@ -15,6 +15,8 @@
   ms.topic="article"
   ms.date="05/29/2015"
   ms.author="dobett"/>
+  
+  > This document is known to be outdated
 
 # How to build the samples in Fedora
 
