@@ -20,7 +20,9 @@ var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoun
  */
 function EventHubClient(config) {
   var makeError = function (prop) {
-    return new ArgumentError('config is missing property ' + prop);
+    var err = 'config is missing property ' + prop;
+    console.error(err);
+    return new ArgumentError(err);
   };
 
   ['host', 'path', 'keyName', 'key'].forEach(function (prop) {
@@ -46,10 +48,6 @@ EventHubClient.fromConnectionString = function (connectionString, path) {
   }
 
   var config = new ConnectionConfig(connectionString, path);
-  if (!config.path) {
-    throw new ArgumentError('Connection string doesn\'t have EntityPath, or missing argument path');
-  }
-
   return new EventHubClient(config);
 };
 
@@ -154,8 +152,9 @@ EventHubClient.prototype.getPartitionIds = function () {
         sender.on('errorReceived', reject);
 
         receiver.on('message', function (msg) {
-          var code = msg.applicationProperties.value['status-code'];
-          var desc = msg.applicationProperties.value['status-description'];
+          console.log('Rx: ', msg);
+          var code = msg.applicationProperties['status-code'];
+          var desc = msg.applicationProperties['status-description'];
           if (code === 200) {
             resolve(msg.body.partition_ids);
           }

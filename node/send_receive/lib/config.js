@@ -8,6 +8,7 @@ var aziot = require('azure-iot-common');
 function ConnectionConfig(connectionString, path) {
   var cn = aziot.ConnectionString.parse(connectionString);
 
+  console.log("Connection string: ", connectionString, "Parsed", cn);
   this.isIotHub = !!cn.HostName; // HostName is present in IoTHub connection strings, Endpoint in the case of Event Hubs
   this.keyName = cn.SharedAccessKeyName;
   this.key = cn.SharedAccessKey;

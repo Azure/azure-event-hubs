@@ -62,7 +62,7 @@ function EventData(body, systemProperties) {
 }
 
 EventData.fromAmqpMessage = function (msg) {
-  return new EventData(msg.body, msg.annotations.value);
+  return new EventData(msg.body, msg.messageAnnotations);
 };
 
 module.exports = EventData;
