@@ -1,22 +1,6 @@
 /*
- *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 package com.microsoft.azure.servicebus;
 
@@ -48,10 +32,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 	
+	private final Object connectionLock = new Object();
+	private final String hostName;
+	
 	private Reactor reactor;
 	private Thread reactorThread;
-	private final Object connectionLock = new Object();
-	
 	private ConnectionHandler connectionHandler;
 	private Connection connection;
 	private boolean waitingConnectionOpen;
@@ -60,8 +45,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private RetryPolicy retryPolicy;
 	private CompletableFuture<MessagingFactory> open;
 	private CompletableFuture<Connection> openConnection;
-	
-	public LinkedList<Link> links;
+	private LinkedList<Link> registeredLinks;
 	
 	/**
 	 * @param reactor parameter reactor is purely for testing purposes and the SDK code should always set it to null
@@ -69,6 +53,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	MessagingFactory(final ConnectionStringBuilder builder) throws IOException
 	{
 		super("MessagingFactory".concat(StringUtil.getRandomString()));
+		this.hostName = builder.getEndpoint().getHost();
 		
 		this.startReactor(new ReactorHandler()
 		{
@@ -76,13 +61,18 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			public void onReactorFinal(Event e)
 		    {
 				super.onReactorFinal(e);
-				MessagingFactory.this.onReactorError(ServiceBusException.create(true, "Reactor finalized."));
+				MessagingFactory.this.onReactorError(new ServiceBusException(true, "Reactor finalized."));
 		    }
 		});
 		
 		this.operationTimeout = builder.getOperationTimeout();
 		this.retryPolicy = builder.getRetryPolicy();
-		this.links = new LinkedList<Link>();
+		this.registeredLinks = new LinkedList<Link>();
+	}
+	
+	String getHostName()
+	{
+		return this.hostName;
 	}
 	
 	private void createConnection(ConnectionStringBuilder builder)
@@ -104,7 +94,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 	
 	@Override
-	public CompletableFuture<Connection> getConnectionAsync()
+	public CompletableFuture<Connection> getConnection()
 	{
 		if (this.connection.getLocalState() == EndpointState.CLOSED)
 		{
@@ -131,13 +121,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 							public void onReactorFinal(Event e)
 						    {
 								super.onReactorFinal(e);
-								MessagingFactory.this.onReactorError(ServiceBusException.create(true, "Reactor finalized."));
+								MessagingFactory.this.onReactorError(new ServiceBusException(true, "Reactor finalized."));
 						    }
 						});
 					}
 					catch (IOException e)
 					{
-						MessagingFactory.this.onReactorError(ServiceBusException.create(true, e));
+						MessagingFactory.this.onReactorError(new ServiceBusException(true, e));
 					}
 					
 					this.openConnection = new CompletableFuture<Connection>();
@@ -199,7 +189,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	{
 		this.connection.close();
 		
-		Iterator<Link> literator = this.links.iterator();
+		Iterator<Link> literator = this.registeredLinks.iterator();
 		while (literator.hasNext())
 		{
 			Link link = literator.next();
@@ -225,7 +215,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			this.connection.close();
 		}
 		
-		Iterator<Link> literator = this.links.iterator();
+		Iterator<Link> literator = this.registeredLinks.iterator();
 		while (literator.hasNext())
 		{
 			Link link = literator.next();
@@ -240,10 +230,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	
 	void resetConnection()
 	{
-		this.onReactorError(ServiceBusException.create(true, "reset connection"));
+		this.onReactorError(new ServiceBusException(false, "Client invoked connection reset."));
 	}
 	
-	public void close()
+	public void closeSync()
 	{
 		if (this.connection != null)
 		{
@@ -257,7 +247,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public CompletableFuture<Void> closeAsync()
+	public CompletableFuture<Void> close()
 	{
 		this.close();
 		
@@ -308,12 +298,12 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public void registerForConnectionError(Link link)
 	{
-		this.links.add(link);	
+		this.registeredLinks.add(link);	
 	}
 
 	@Override
 	public void deregisterForConnectionError(Link link)
 	{
-		this.links.remove(link);	
+		this.registeredLinks.remove(link);	
 	}
 }

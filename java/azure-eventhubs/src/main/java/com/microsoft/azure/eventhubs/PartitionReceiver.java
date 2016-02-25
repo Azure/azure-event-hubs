@@ -1,22 +1,6 @@
 /*
- *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 package com.microsoft.azure.eventhubs;
 
@@ -28,7 +12,7 @@ import java.util.function.*;
 import org.apache.qpid.proton.message.Message;
 import com.microsoft.azure.servicebus.*;
 
-public final class PartitionReceiver
+public final class PartitionReceiver extends ClientEntity
 {
 	private static final int MINIMUM_PREFETCH_COUNT = 10;
 	private static final int MAXIMUM_PREFETCH_COUNT = 999;
@@ -58,9 +42,10 @@ public final class PartitionReceiver
 			final boolean offsetInclusive,
 			final Instant dateTime,
 			final Long epoch,
-			final boolean isEpochReceiver) 
+			final boolean isEpochReceiver)
 					throws ServiceBusException
 	{
+		super(null);
 		this.underlyingFactory = factory;
 		this.eventHubName = eventHubName;
 		this.consumerGroupName = consumerGroupName;
@@ -163,8 +148,7 @@ public final class PartitionReceiver
 	 * @throws AuthorizationFailedException
 	 * @throws InternalServerException
 	 */
-	public CompletableFuture<Iterable<EventData>> receive() 
-			throws ServiceBusException
+	public CompletableFuture<Iterable<EventData>> receive()
 	{
 		return this.internalReceiver.receive().thenApply(new Function<Collection<Message>, Iterable<EventData>>()
 		{
@@ -176,16 +160,20 @@ public final class PartitionReceiver
 		});
 	}
 
-	public void setReceiveHandler(PartitionReceiveHandler receiveHandler)
+	void setReceiveHandler(PartitionReceiveHandler receiveHandler)
 	{
 		this.internalReceiver.setReceiveHandler(receiveHandler);
 	}
 
-	public void close() throws ServiceBusException
+	public CompletableFuture<Void> close()
 	{
 		if (this.internalReceiver != null)
 		{
-			this.internalReceiver.close();
+			return this.internalReceiver.close();
+		}
+		else
+		{
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }
