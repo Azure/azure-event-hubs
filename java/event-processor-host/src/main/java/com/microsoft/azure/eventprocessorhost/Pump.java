@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
-public class Pump
+class Pump
 {
     private EventProcessorHost host;
 
