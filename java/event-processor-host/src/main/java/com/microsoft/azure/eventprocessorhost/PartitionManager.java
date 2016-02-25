@@ -7,7 +7,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
-public class PartitionManager implements Runnable
+class PartitionManager implements Runnable
 {
     private EventProcessorHost host;
     private Pump pump;
