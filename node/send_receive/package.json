@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "./lib",
   "dependencies": {
-    "amqp10": "noodlefrenzy/node-amqp10#master",
+    "amqp10": "^3.0.0",
     "azure-iot-common": "^1.0.1",
     "bluebird": "^3.0.6",
     "uuid": "^2.0.1"
