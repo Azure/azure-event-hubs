@@ -165,7 +165,6 @@ EventHubClient.prototype.getPartitionIds = function () {
         sender.on('errorReceived', reject);
 
         receiver.on('message', function (msg) {
-          console.log('Rx: ', msg);
           var code = msg.applicationProperties['status-code'];
           var desc = msg.applicationProperties['status-description'];
           if (code === 200) {
