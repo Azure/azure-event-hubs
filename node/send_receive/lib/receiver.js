@@ -33,7 +33,7 @@ function EventHubReceiver(amqpReceiverLink) {
   };
 
   var onMessage = function (message) {
-    var evData = EventData.fromAmqpMessage(message);
+    var evData = EventData.fromAmqpMessage(self._receiverLink, message);
     self.emit('message', evData);
   };
 

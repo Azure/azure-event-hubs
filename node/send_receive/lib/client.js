@@ -16,9 +16,10 @@ var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoun
  * Instantiate a client pointing to the Event Hub given by this configuration.
  *
  * @param {ConnectionConfig} config
+ * @param {object} [policyOverrides] Optional overrides for node-amqp10 policy fields, see https://github.com/noodlefrenzy/node-amqp10 for details.
  * @constructor
  */
-function EventHubClient(config) {
+function EventHubClient(config, policyOverrides) {
   var makeError = function (prop) {
     var err = 'config is missing property ' + prop;
     console.error(err);
@@ -30,7 +31,8 @@ function EventHubClient(config) {
   });
 
   this._config = config;
-  this._amqp = new amqp10.Client(amqp10.Policy.EventHub);
+  this._policy = !!policyOverrides ? amqp10.Policy.merge(policyOverrides, amqp10.Policy.EventHub) : amqp10.Policy.EventHub;
+  this._amqp = new amqp10.Client(this._policy);
   this._connectPromise = null;
 }
 
@@ -40,15 +42,26 @@ function EventHubClient(config) {
  * @method fromConnectionString
  * @param {string} connectionString - Connection string of the form 'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key'
  * @param {string} path - Event Hub path of the form 'my-event-hub-name'
+ * @param {object} [policyOverrides] Optional overrides for node-amqp10 policy fields, see https://github.com/noodlefrenzy/node-amqp10 for details.
  * @returns {EventHubClient}
  */
-EventHubClient.fromConnectionString = function (connectionString, path) {
+EventHubClient.fromConnectionString = function (connectionString, path, policyOverrides) {
   if (!connectionString) {
     throw new ArgumentError('Missing argument connectionString');
   }
 
   var config = new ConnectionConfig(connectionString, path);
-  return new EventHubClient(config);
+  return new EventHubClient(config, policyOverrides);
+};
+
+/**
+ * Helper function for defining custom policy for throttling your receiver links to only renew credits on messages they've "settled". See EventData settlement methods (e.g. accept) for details.
+ *
+ * @param {Number} initialCapacity Capacity of receiver links once they initially connect or re-connect.
+ * @param {Number} threshold Once the capacity of the link goes below this value, we'll tell the server they can send us more messages for each one we've "settled".
+ */
+EventHubClient.RenewOnSettle = function(initialCapacity, threshold) {
+  return amqp10.Policy.Utils.RenewOnSettle(initialCapacity, threshold, amqp10.Policy.EventHub);
 };
 
 /**
@@ -81,7 +94,7 @@ EventHubClient.prototype.open = function () {
                             rx_err.errorInfo.hostname;
                 self._amqp.disconnect()
                   .then(function () {
-                    self._amqp = new amqp10.Client(amqp10.Policy.EventHub);
+                    self._amqp = new amqp10.Client(self._policy);
                     return self._amqp.connect(self._config.saslPlainUri);
                   })
                   .then(function () {

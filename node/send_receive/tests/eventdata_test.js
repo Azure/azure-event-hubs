@@ -8,91 +8,79 @@ var chai = require('chai');
 chai.should();
 
 var testAnnotations = {
-  descriptor: null,
-  value: {
-    "x-opt-enqueued-time": Date.now(),
-    "x-opt-offset": "42",
-    "x-opt-sequence-number": 1337,
-    "x-opt-partition-key": 'key'
-  }
+  "x-opt-enqueued-time": Date.now(),
+  "x-opt-offset": "42",
+  "x-opt-sequence-number": 1337,
+  "x-opt-partition-key": 'key'
 };
 
 var testBody = '{ "foo": "bar" }';
 
 var testMessage = {
   body: testBody,
-  annotations: testAnnotations
+  messageAnnotations: testAnnotations
 };
+
+var link = {};
 
 describe('EventData', function(){
   describe('.fromAmqpMessage', function () {
     it('returns an instance of EventData', function() {
-      var testEventData = EventData.fromAmqpMessage(testMessage);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
       testEventData.should.be.instanceOf(EventData);
     });
 
     it('populates systemProperties with the message properties', function () {
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.systemProperties.should.equal(testAnnotations.value);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
+      console.log('Test: ', JSON.stringify(testEventData));
+      testEventData.systemProperties.should.equal(testAnnotations);
     });
 
     it('populates body with the message body', function () {
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.body.should.equal(testBody);
-    });
-  });
-
-  describe('#constructor', function () {
-    it('populates systemProperties with the message properties', function () {
-      var testEventData = new EventData(testBody, testAnnotations.value);
-      testEventData.systemProperties.should.equal(testAnnotations.value);
-    });
-
-    it('populates body with the message body', function () {
-      var testEventData = new EventData(testBody, testAnnotations.value);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
       testEventData.body.should.equal(testBody);
     });
   });
 
   describe('#properties', function() {
     it('enqueuedTimeUtc gets the enqueued time from system properties', function(){
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.enqueuedTimeUtc.should.equal(testAnnotations.value['x-opt-enqueued-time']);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
+      testEventData.enqueuedTimeUtc.should.equal(testAnnotations['x-opt-enqueued-time']);
     });
 
     it('offset gets the offset from system properties', function(){
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.offset.should.equal(testAnnotations.value['x-opt-offset']);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
+      testEventData.offset.should.equal(testAnnotations['x-opt-offset']);
     });
 
     it('sequenceNumber gets the sequence number from system properties', function(){
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.sequenceNumber.should.equal(testAnnotations.value['x-opt-sequence-number']);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
+      testEventData.sequenceNumber.should.equal(testAnnotations['x-opt-sequence-number']);
     });
 
     it('partitionKey gets the sequence number from system properties', function(){
-      var testEventData = EventData.fromAmqpMessage(testMessage);
-      testEventData.partitionKey.should.equal(testAnnotations.value['x-opt-partition-key']);
+      var testEventData = EventData.fromAmqpMessage(link, testMessage);
+      testEventData.partitionKey.should.equal(testAnnotations['x-opt-partition-key']);
     });
 
     [null, undefined].forEach(function(systemProp) {
       it('enqueuedTimeUtc returns \'null\' if systemProperties are falsy', function(){
-        var testEventData = new EventData(testBody, systemProp);
+        var testEventData = new EventData(link, testBody, systemProp);
         chai.expect(testEventData.enqueuedTimeUtc).to.equal(null);
       });
 
       it('offset returns \'\' if systemProperties are falsy', function(){
-        var testEventData = new EventData(testBody, systemProp);
+        var testEventData = new EventData(link, testBody, systemProp);
         testEventData.offset.should.equal("");
       });
 
       it('sequenceNumber returns \'0\' if systemProperties are falsy', function(){
-        var testEventData = new EventData(testBody, systemProp);
+        var testEventData = new EventData(link, testBody, systemProp);
         testEventData.sequenceNumber.should.equal(0);
       });
 
       it('partitionKey returns \'null\' if systemProperties are falsy', function(){
-        var testEventData = new EventData(testBody, systemProp);
+        var testEventData = new EventData(link, testBody, systemProp);
         chai.expect(testEventData.partitionKey).to.equal(null);
       });
     });

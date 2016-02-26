@@ -8,12 +8,12 @@ chai.should();
 
 var uuid = require('uuid');
 var amqp10 = require('amqp10');
-var ConnectionConfig = require('../lib/config.js');
+var ConnectionConfig = require('../../lib/config.js');
 
-var EventData = require('../lib/eventdata.js');
-var EventHubClient = require('../lib/client.js');
-var MessagingEntityNotFoundError = require('../lib/errors.js').MessagingEntityNotFoundError;
-var ArgumentOutOfRangeError = require('../lib/errors.js').ArgumentOutOfRangeError;
+var EventData = require('../../lib/eventdata.js');
+var EventHubClient = require('../../lib/client.js');
+var MessagingEntityNotFoundError = require('../../lib/errors.js').MessagingEntityNotFoundError;
+var ArgumentOutOfRangeError = require('../../lib/errors.js').ArgumentOutOfRangeError;
 
 function sendAnEvent(partitionId, msgId, cbErr) {
   var config = new ConnectionConfig(process.env.EVENTHUB_CONNECTION_STRING, process.env.EVENTHUB_PATH);
