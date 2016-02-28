@@ -16,6 +16,8 @@
   ms.date="05/29/2015"
   ms.author="dobett"/>
 
+> This document is known to be outdated
+
 # How to build the samples in Ubuntu
 
 The following procedure describes the process of building and running the Event Hubs SDK samples (**send** and **send_batch**) in an Ubuntu desktop environment. The samples enable your Ubuntu machine to act as a device that can connect to an Azure Event Hub.

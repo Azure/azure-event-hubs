@@ -1,3 +1,5 @@
+> This document is known to be outdated
+
 # How to create an Azure EventHub client application from scratch
 
 This document describes how to create a client application that uses the *Microsoft Azure Event Hub Client for C* to communicate with the Azure Event Hub service. It uses a garage door opener as the example device to implement and shows you how to create a Visual Studio project to build a client to run on Windows and an Eclipse project to build a client to run on Ubuntu.

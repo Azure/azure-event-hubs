@@ -1,42 +1,25 @@
 ﻿#Microsoft Azure Event Hubs Clients
 
-This project provides client-side libraries to enable easy interaction with Microsoft Azure Event Hubs.
+This repository contains open-source, client-side libraries for interacting with Microsoft Azure Event Hubs from 
+several different programming languages. 
 
+At present, there are clients available in [C (C99)](./C), [Node.js](./Node), and [Java](./Java). 
 
-C Version 
-====================
+> The client library for the .NET Framework (C#/F#/VB) is [available from NuGet](https://www.nuget.org/packages/WindowsAzure.ServiceBus/). 
+> An open source alternative to the officially supported, closed-source client on NuGet is the open-source [AMQP.NET Lite](https://github.com/Azure/amqpnetlite) 
+> library that works on a broad variety on .NET flavors from the .NET Micro Framework to the newest .NET Core platform, and allows 
+> [interaction with Event Hubs](https://github.com/Azure/amqpnetlite/blob/master/Examples/ServiceBus/Scenarios/EventHubsExample.cs). There is no product support service available for this library, but [reported issues](https://github.com/Azure/amqpnetlite/issues) 
+> will be enthusiastically addressed.  
 
-The C Version of this Azure Event Hub Client SDK is located under the folder [root]/c/.
+## Projects 
+The clients in this repository are distinct projects and optimized for the respective language; they differ in terms of 
+API shape and capabilities.   
 
-The EventHubClient “C” library provides developers a means of connecting to an already created Event Hub and the ability to send data to it. 
+Details about how to build and use the clients and how to explore and run the samples can be found in the respective READMEs
 
-The library includes the following features:
-* The library communicates to an existing Event Hub over AMQP protocol (using uAMQP).
-* Buffers data when network connection is down.
-* Supports batching.
+* The *Azure Event Hub Client for Java* is **production-ready with full Microsoft product support**. You can learn about its
+  capabilities and also about how to contribute extensions and fixes in the  [README for the Java client](./java/README.md)
+* The *Azure Event Hub Client for C* is currently in "preview" state, meaning that there is ongoing work to bring it 
+  to a state where Microsoft can provide full product support. Learn more in the [README for the C client](./c/README.md)
+* The *Azure Event Hub Client for Node* is likewise in "preview" state. Learn more in the [README for the Node client](./node/README.md)
 
-
-The library code:
-* Is written in ANSI C (C99) to maximize code portability.
-* Avoids compiler extensions.
-* Its output is a static lib.
-
-The library has a dependency on azure-uamqp-c and azure-c-shared-utility. They are used as submodules.
-When switching branches remember to update the submodules by:
-
-```
-git submodule update --init --recursive
-```
-
-#Building it
-
-* Create a folder named build under the c directory
-* Run cmake ..
-* Build
-
-Node.js Version 
-====================
-
-The Node version is split into two pieces, both under the `[root]/node` directory. The `send_receive` directory contains the `azure-event-hubs` npm, with the ability to create an `EventHubClient` and `Sender` and `Receiver` from that. The `event_processor_host` directory (TBD) contains code to mimic and interoperate with the .NET `EventProcessorHost` class, managing receivers for each partition via blob leases and allowing checkpointing of offsets for easy restarts.
-
-Please see the `README.md` in each directory for usage and additional details - they are managed there to ensure appropriate documentation in the npm releases. 
