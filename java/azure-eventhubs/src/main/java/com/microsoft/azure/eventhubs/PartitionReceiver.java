@@ -40,13 +40,17 @@ public final class PartitionReceiver extends ClientEntity
 	private final MessagingFactory underlyingFactory;
 	private final String eventHubName;
 	private final String consumerGroupName;
-	
+	private final Object receiveHandlerSync;
+
 	private String startingOffset;
 	private boolean offsetInclusive;
 	private Instant startingDateTime;
 	private MessageReceiver internalReceiver; 
 	private Long epoch;
 	private boolean isEpochReceiver;
+	private PartitionReceiveHandler onReceiveHandler;
+	private boolean isOnReceivePumpRunning;
+	private Thread onReceivePumpThread;
 	
 	private PartitionReceiver(MessagingFactory factory, 
 			final String eventHubName, 
@@ -69,6 +73,8 @@ public final class PartitionReceiver extends ClientEntity
 		this.startingDateTime = dateTime;
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
+		this.receiveHandlerSync = new Object();
+		this.isOnReceivePumpRunning = false;
 	}
 	
 	static CompletableFuture<PartitionReceiver> create(MessagingFactory factory, 
@@ -243,7 +249,6 @@ public final class PartitionReceiver extends ClientEntity
 	 * @throws InternalServerException
 	 */
 	public CompletableFuture<Iterable<EventData>> receive()
-			throws ServiceBusException
 	{
 		return this.internalReceiver.receive().thenApply(new Function<Collection<Message>, Iterable<EventData>>()
 		{
@@ -255,13 +260,34 @@ public final class PartitionReceiver extends ClientEntity
 		});
 	}
 
-	void setReceiveHandler(PartitionReceiveHandler receiveHandler)
+	public void setReceiveHandler(final PartitionReceiveHandler receiveHandler)
 	{
-		this.internalReceiver.setReceiveHandler(receiveHandler);
+		synchronized (this.receiveHandlerSync)
+		{
+			if (receiveHandler == null)
+			{
+				if (this.onReceiveHandler != null)
+				{
+					this.isOnReceivePumpRunning = false;
+					this.onReceivePumpThread.interrupt();
+				}
+			}
+			else
+			{
+				this.onReceiveHandler = receiveHandler;
+				this.startOnReceivePump();
+			}
+		}
 	}
 
 	public CompletableFuture<Void> close()
 	{
+		this.isOnReceivePumpRunning = false;
+		if (!this.onReceivePumpThread.isInterrupted())
+		{
+			this.onReceivePumpThread.interrupt();
+		}
+		
 		if (this.internalReceiver != null)
 		{
 			return this.internalReceiver.close();
@@ -270,5 +296,100 @@ public final class PartitionReceiver extends ClientEntity
 		{
 			return CompletableFuture.completedFuture(null);
 		}
+	}
+	
+	private void startOnReceivePump()
+	{
+		this.onReceivePumpThread = new Thread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				synchronized (PartitionReceiver.this.receiveHandlerSync)
+				{
+					PartitionReceiver.this.isOnReceivePumpRunning = true;
+				}
+				
+				while(PartitionReceiver.this.isOnReceivePumpRunning)
+				{
+					Iterable<EventData> receivedEvents = null;
+
+					try
+					{
+						receivedEvents = PartitionReceiver.this.receive().get(PartitionReceiver.this.underlyingFactory.getOperationTimeout().getSeconds(), TimeUnit.SECONDS);
+					}
+					catch (InterruptedException|ExecutionException|TimeoutException clientException)
+					{
+						if (clientException instanceof TimeoutException)
+						{
+							continue;
+						}
+						
+						Throwable cause = clientException.getCause();
+						if (cause != null && 
+								((cause instanceof ServiceBusException && ((ServiceBusException) cause).getIsTransient()) ||
+										!(cause instanceof RuntimeException)))
+						{
+							try
+							{
+								PartitionReceiver.this.onReceiveHandler.onError(clientException.getCause());
+								continue;
+							}
+							catch (Throwable userCodeError)
+							{
+								synchronized (PartitionReceiver.this.receiveHandlerSync)
+								{
+									PartitionReceiver.this.isOnReceivePumpRunning = false;
+								}
+								
+								PartitionReceiver.this.onReceiveHandler.onClose(userCodeError);
+							}
+						}
+						else
+						{
+							synchronized (PartitionReceiver.this.receiveHandlerSync)
+							{
+								PartitionReceiver.this.isOnReceivePumpRunning = false;
+							}
+							
+							PartitionReceiver.this.onReceiveHandler.onClose(cause);
+						}
+						
+						if (clientException instanceof InterruptedException)
+						{
+							Thread.currentThread().interrupt();
+						}
+						
+						return;
+					}
+					
+					if (receivedEvents != null && receivedEvents.iterator().hasNext())
+					{
+						try
+						{
+							PartitionReceiver.this.onReceiveHandler.onReceive(receivedEvents);
+						}
+						catch (Throwable userCodeError)
+						{
+							synchronized (PartitionReceiver.this.receiveHandlerSync)
+							{
+								PartitionReceiver.this.isOnReceivePumpRunning = false;
+							}
+							
+							PartitionReceiver.this.onReceiveHandler.onClose(userCodeError);
+							
+							if (userCodeError instanceof InterruptedException)
+							{
+								Thread.currentThread().interrupt();
+							}
+							
+							return;
+						}
+					}
+				}						
+			}
+		});
+			
+		this.onReceivePumpThread.start();
 	}
 }

@@ -39,7 +39,7 @@ public class EventHubClient extends ClientEntity
 	 * Synchronous version of {@link #createFromConnectionString(String)}. 
 	 */
 	public static EventHubClient createFromConnectionStringSync(final String connectionString)
-			throws ServiceBusException, IOException, IllegalArgumentException
+			throws ServiceBusException, IOException
 	{
         try
         {
@@ -84,7 +84,7 @@ public class EventHubClient extends ClientEntity
      * @throws IOException  If the underlying Proton-J layer encounter network errors.
 	 */
 	public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString)
-			throws ServiceBusException, IOException, IllegalArgumentException
+			throws ServiceBusException, IOException
 	{
 		ConnectionStringBuilder connStr = new ConnectionStringBuilder(connectionString);
 		final EventHubClient eventHubClient = new EventHubClient(connStr);
