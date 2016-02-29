@@ -303,7 +303,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	@Override
 	public void onClose(ErrorCondition condition)
 	{
-		Exception completionException = ExceptionUtil.toException(condition);
+		// TODO: code-refactor pending - refer to issue: https://github.com/Azure/azure-event-hubs/issues/73
+		Exception completionException = condition != null ? ExceptionUtil.toException(condition) 
+				: new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT,
+						"The entity has been close due to transient failures (underlying link closed), please retry the operation.");
 		this.onError(completionException);
 	}
 	
@@ -470,7 +473,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 		catch (TimeoutException exception)
         {
-        	this.onError(new ServiceBusException(true, "Connection creation timed out.", exception));
+        	this.onError(new ServiceBusException(false, "Connection creation timed out.", exception));
         	return null;
         }
 		
