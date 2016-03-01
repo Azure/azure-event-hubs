@@ -19,6 +19,7 @@
 x64/
 [Bb]in/
 [Oo]bj/
+!/build/release/
 target/
 
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
@@ -187,3 +188,5 @@ Buildx86retail.dat
 
 #version file
 **/build/**/version.txt
+**/node_modules/
+**/.vscode/

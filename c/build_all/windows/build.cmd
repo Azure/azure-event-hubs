@@ -1,3 +1,6 @@
+@REM Copyright (c) Microsoft. All rights reserved.
+@REM Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 @setlocal EnableExtensions EnableDelayedExpansion
 @echo off
 
@@ -13,17 +16,20 @@ rem ----------------------------------------------------------------------------
 rem -- check prerequisites
 rem -----------------------------------------------------------------------------
 
-rem // some of our projects expect PROTON_PATH to be defined
-if not defined PROTON_PATH (
-    set PROTON_PATH=%~d0\proton
+rem ensure nuget.exe exists
+where /q nuget.exe
+if not !errorlevel! == 0 (
+@Echo Azure EventHubs SDK needs to download nuget.exe from https://www.nuget.org/nuget.exe 
+@Echo https://www.nuget.org 
+choice /C yn /M "Do you want to download and run nuget.exe?" 
+if not !errorlevel!==1 goto :eof
+rem if nuget.exe is not found, then ask user
+Powershell.exe wget -outf nuget.exe https://nuget.org/nuget.exe
+	if not exist .\nuget.exe (
+		echo nuget does not exist
+		exit /b 1
+	)
 )
-
-if not exist %PROTON_PATH% (
-    echo ERROR: PROTON_PATH must point to the root of your QPID Proton installation, but
-    echo "%PROTON_PATH%" does not exist. Exiting...
-    exit /b 1
-)
-
 rem -----------------------------------------------------------------------------
 rem -- parse script arguments
 rem -----------------------------------------------------------------------------
@@ -32,8 +38,9 @@ rem // default build options
 set build-clean=0
 set build-config=Debug
 set build-platform=Win32
-set skip-tests=0
-set skip-e2e-tests=0
+set CMAKE_run_e2e_tests=OFF
+set CMAKE_run_longhaul_tests=OFF
+set CMAKE_skip_unittests=OFF
 
 :args-loop
 if "%1" equ "" goto args-done
@@ -41,8 +48,9 @@ if "%1" equ "-c" goto arg-build-clean
 if "%1" equ "--clean" goto arg-build-clean
 if "%1" equ "--config" goto arg-build-config
 if "%1" equ "--platform" goto arg-build-platform
-if "%1" equ "--skip-tests" goto arg-skip-tests
-if "%1" equ "--skip-e2e-tests" goto arg-skip-e2e-tests
+if "%1" equ "--run-e2e-tests" goto arg-run-e2e-tests
+if "%1" equ "--run-longhaul-tests" goto arg-longhaul-tests
+if "%1" equ "--skip-unittests" goto arg-skip-unittests
 call :usage && exit /b 1
 
 :arg-build-clean
@@ -61,12 +69,16 @@ if "%1" equ "" call :usage && exit /b 1
 set build-platform=%1
 goto args-continue
 
-:arg-skip-tests
-set skip-tests=1
+:arg-run-e2e-tests
+set CMAKE_run_e2e_tests=ON
 goto args-continue
 
-:arg-skip-e2e-tests
-set skip-e2e-tests=1
+:arg-longhaul-tests
+set CMAKE_run_longhaul_tests=ON
+goto args-continue
+
+:arg-skip-unittests
+set CMAKE_skip_unittests=ON
 goto args-continue
 
 :args-continue
@@ -76,58 +88,38 @@ goto args-loop
 :args-done
 
 rem -----------------------------------------------------------------------------
-rem -- clean solutions
+rem -- restore packages for solutions
 rem -----------------------------------------------------------------------------
 
-if %build-clean%==1 (
-    call :clean-a-solution "%build-root%\common\build\windows\common.sln"
-    if not %errorlevel%==0 exit /b %errorlevel%
-    
-    call :clean-a-solution "%build-root%\eventhub_client\build\windows\eventhubclient.sln"
-    if not %errorlevel%==0 exit /b %errorlevel%
-)
+rem -----------------------------------------------------------------------------
+rem -- clean solutions
+rem -----------------------------------------------------------------------------
 
 rem -----------------------------------------------------------------------------
 rem -- build solutions
 rem -----------------------------------------------------------------------------
 
-call :build-a-solution "%build-root%\common\build\windows\common.sln"
+rem -----------------------------------------------------------------------------
+rem -- build with CMAKE and run tests
+rem -----------------------------------------------------------------------------
+
+rmdir /s/q %USERPROFILE%\cmake
+rem no error checking
+
+mkdir %USERPROFILE%\cmake
+rem no error checking
+
+pushd %USERPROFILE%\cmake
+cmake -Drun_longhaul_tests:BOOL=%CMAKE_run_longhaul_tests% -Drun_e2e_tests:BOOL=%CMAKE_run_e2e_tests% %build-root% -Dskip_unittests:BOOL=%CMAKE_skip_unittests% %build-root%
 if not %errorlevel%==0 exit /b %errorlevel%
 
-call :build-a-solution "%build-root%\eventhub_client\build\windows\eventhubclient.sln"
+msbuild /m eventhub_client.sln
 if not %errorlevel%==0 exit /b %errorlevel%
 
-rem -----------------------------------------------------------------------------
-rem -- run unit tests
-rem -----------------------------------------------------------------------------
+ctest -C "debug" -V
+if not %errorlevel%==0 exit /b %errorlevel%
 
-if %skip-tests%==1 (
-    echo Skipping unit tests...
-) else (
-    call :run-unit-tests "common"
-    if not %errorlevel%==0 exit /b %errorlevel%
-
-    call :run-unit-tests "eventhub_client"
-    if not %errorlevel%==0 exit /b %errorlevel%
-)
-rem -----------------------------------------------------------------------------
-rem -- run end-to-end tests
-rem -----------------------------------------------------------------------------
-
-set __skip=1
-if %skip-tests%==0 if %skip-e2e-tests%==0 set __skip=0
-
-if %__skip%==1 (
-    echo Skipping end-to-end tests...
-) else (
-    call :run-e2e-tests "eventhub_client"
-    if not %errorlevel%==0 exit /b %errorlevel%
-)
-
-rem -----------------------------------------------------------------------------
-rem -- done
-rem -----------------------------------------------------------------------------
-
+popd
 goto :eof
 
 
@@ -144,25 +136,14 @@ goto :eof
 call :_run-msbuild "Build" %1 %2 %3
 goto :eof
 
-
-:run-unit-tests
-call :_run-tests %1 "UnitTests"
-goto :eof
-
-
-:run-e2e-tests
-call :_run-tests %1 "e2eTests"
-goto :eof
-
-
 :usage
 echo build.cmd [options]
 echo options:
 echo  -c, --clean           delete artifacts from previous build before building
 echo  --config ^<value^>      [Debug] build configuration (e.g. Debug, Release)
 echo  --platform ^<value^>    [Win32] build platform (e.g. Win32, x64, ...)
-echo  --skip-tests          build only, do not run any tests
-echo  --skip-e2e-tests      do not run end-to-end tests
+echo  --run-e2e-tests       run end-to-end tests
+echo  --run-longhaul-tests  run long-haul tests
 goto :eof
 
 
@@ -179,24 +160,5 @@ if "%~3" neq "" set build-config=%~3
 if "%~4" neq "" set build-platform=%~4
 
 msbuild /m %build-target% "/p:Configuration=%build-config%;Platform=%build-platform%" %2
-if not %errorlevel%==0 exit /b %errorlevel%
-goto :eof
-
-
-:_run-tests
-rem // discover tests
-set test-dlls-list=
-set test-dlls-path=%build-root%\%~1\build\windows\%build-platform%\%build-config%
-for /f %%i in ('dir /b %test-dlls-path%\*%~2*.dll') do set test-dlls-list="%test-dlls-path%\%%i" !test-dlls-list!
-
-if "%test-dlls-list%" equ "" (
-    echo No unit tests found in %test-dlls-path%
-    exit /b 1
-)
-
-rem // run tests
-echo Test DLLs: %test-dlls-list%
-echo.
-vstest.console.exe %test-dlls-list%
 if not %errorlevel%==0 exit /b %errorlevel%
 goto :eof

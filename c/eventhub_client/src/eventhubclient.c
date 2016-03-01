@@ -1,34 +1,19 @@
-/*
-Microsoft Azure IoT Device Libraries
-Copyright (c) Microsoft Corporation
-All rights reserved.
-MIT License
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-documentation files (the Software), to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
-*/
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
 #ifdef _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
-#include "gballoc.h"
+#include <gballoc.h>
 
-#include "eventhubclient.h"
-#include "iot_logging.h"
-#include "version.h"
-#include "threadapi.h"
-#include "crt_abstractions.h"
-#include "lock.h"
+#include <eventhubclient.h>
+#include <iot_logging.h>
+#include <version.h>
+#include <threadapi.h>
+#include <condition.h>
+#include <crt_abstractions.h>
+#include <lock.h>
 #include <signal.h>
 
 
@@ -49,10 +34,13 @@ typedef struct EVENTHUBCLIENT_STRUCT_TAG
 } EVENTHUBCLIENT_STRUCT;
 
 typedef struct EVENTHUB_CALLBACK_STRUCT_TAG
-{
-    volatile sig_atomic_t callbackStatus;
-    EVENTHUBCLIENT_CONFIRMATION_RESULT confirmationResult;
-} EVENTHUB_CALLBACK_STRUCT;
+ {
+     volatile sig_atomic_t callbackStatus;
+     EVENTHUBCLIENT_CONFIRMATION_RESULT confirmationResult;
+     LOCK_HANDLE completionLock;
+     COND_HANDLE completionCondition;
+ } EVENTHUB_CALLBACK_STRUCT;
+ 
 
 static int EventhubClientThread(void* userContextCallback)
 {
@@ -79,7 +67,31 @@ static void EventhubClientLLCallback(EVENTHUBCLIENT_CONFIRMATION_RESULT result, 
         EVENTHUB_CALLBACK_STRUCT* callbackInfo = (EVENTHUB_CALLBACK_STRUCT*)userContextCallback;
         callbackInfo->callbackStatus = CALLBACK_NOTIFIED;
         callbackInfo->confirmationResult = result;
+        Condition_Post(callbackInfo->completionCondition);
     }
+}
+
+EVENTHUB_CALLBACK_STRUCT * EventHubClient_InitUserContext(void)
+{
+    EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = malloc(sizeof(EVENTHUB_CALLBACK_STRUCT) );
+    if ( eventhubUserContext != NULL)
+    {
+        eventhubUserContext->callbackStatus = CALLBACK_WAITING;
+        eventhubUserContext->confirmationResult = -1;
+        // init and set the lock. completion unlocks
+        eventhubUserContext->completionLock = Lock_Init();
+       Lock(eventhubUserContext->completionLock);
+        eventhubUserContext->completionCondition = Condition_Init();
+    }
+    return eventhubUserContext;
+}
+
+void EventHub_DestroyUserContext(EVENTHUB_CALLBACK_STRUCT * eventhubUserContext)
+{
+	Unlock(eventhubUserContext->completionLock);
+    Lock_Deinit(eventhubUserContext->completionLock);
+    Condition_Deinit(eventhubUserContext->completionCondition);
+    free(eventhubUserContext);
 }
 
 static int Create_DoWorkThreadIfNeccesary(EVENTHUBCLIENT_STRUCT* eventhubClientInfo)
@@ -113,8 +125,8 @@ static int Execute_LowerLayerSendAsync(EVENTHUBCLIENT_STRUCT* eventhubClientInfo
     int result;
 
     /* Codes_SRS_EVENTHUBCLIENT_07_029: [Execute_LowerLayerSendAsync shall Lock on the EVENTHUBCLIENT_STRUCT lockInfo to protect calls to Lower Layer and Thread function calls.] */
-        if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
-        {
+    if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
+    {
         /* Codes_SRS_EVENTHUBCLIENT_07_031: [Execute_LowerLayerSendAsync shall call into the Create_DoWorkThreadIfNeccesary function to create the DoWork thread.]*/
         if (Create_DoWorkThreadIfNeccesary(eventhubClientInfo) == 0)
         {
@@ -242,7 +254,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubHandle, 
     else
     {
         EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
-        EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = malloc(sizeof(EVENTHUB_CALLBACK_STRUCT) );
+        EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = EventHubClient_InitUserContext();
         if (eventhubUserContext == NULL)
         {
             /* Codes_SRS_EVENTHUBCLIENT_03_009: [EventHubClient_Send shall return EVENTHUBCLIENT_ERROR on any failure that is encountered..] */
@@ -255,11 +267,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubHandle, 
             /* Codes_SRS_EVENTHUBCLIENT_03_008: [EventHubClient_Send shall call into the Execute_LowerLayerSendAsync function to send the eventDataHandle parameter to the EventHub.] */
             if (Execute_LowerLayerSendAsync(eventhubClientInfo, eventDataHandle, EventhubClientLLCallback, eventhubUserContext) == 0)
             {
-                /* Codes_SRS_EVENTHUBCLIENT_03_010: [Upon success of Execute_LowerLayerSendAsync, then EventHubClient_Send wait until the EVENTHUB_CALLBACK_STRUCT callbackStatus variable is set to CALLBACK_NOTIFIED.] */
-                while (eventhubUserContext->callbackStatus == CALLBACK_WAITING)
-                {
-                    ThreadAPI_Sleep(EVENTHUB_SEND_SLEEP_TIME);
-                }
+                Condition_Wait(eventhubUserContext->completionCondition, eventhubUserContext->completionLock, 0);
 
                 /* Codes_SRS_EVENTHUBCLIENT_07_012: [EventHubClient_Send shall return EVENTHUBCLIENT_ERROR.] */
                 if (eventhubUserContext->confirmationResult == EVENTHUBCLIENT_CONFIRMATION_OK)
@@ -280,7 +288,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubHandle, 
                 result = EVENTHUBCLIENT_ERROR;
                 LOG_ERROR(result);
             }
-            free(eventhubUserContext);
+            EventHub_DestroyUserContext(eventhubUserContext);
         }
     }
     return result;
@@ -313,7 +321,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_SendAsync(EVENTHUBCLIENT_HANDLE eventHubHan
     return result;
 }
 
-EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_LL_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataList, size_t count)
+EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataList, size_t count)
 {
     EVENTHUBCLIENT_RESULT result;
 
@@ -325,7 +333,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_LL_HANDLE eventHub
     else
     {
         EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
-        EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = malloc(sizeof(EVENTHUB_CALLBACK_STRUCT) );
+        EVENTHUB_CALLBACK_STRUCT* eventhubUserContext = EventHubClient_InitUserContext();
         if (eventhubUserContext == NULL)
         {
             /* Codes_SRS_EVENTHUBCLIENT_07_050: [EventHubClient_SendBatch shall return EVENTHUBCLIENT_INVALID_ARG if eventHubHandle or eventDataHandle is NULL.] */
@@ -338,11 +346,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_LL_HANDLE eventHub
             /* Codes_SRS_EVENTHUBCLIENT_07_051: [EventHubClient_SendBatch shall call into the Execute_LowerLayerSendBatchAsync function to send the eventDataHandle parameter to the EventHub.] */
             if (Execute_LowerLayerSendBatchAsync(eventhubClientInfo, eventDataList, count, EventhubClientLLCallback, eventhubUserContext) == 0)
             {
-                /* Codes_SRS_EVENTHUBCLIENT_07_053: [Upon success of Execute_LowerLayerSendBatchAsync, then EventHubClient_SendBatch shall wait until the EVENTHUB_CALLBACK_STRUCT callbackStatus variable is set to CALLBACK_NOTIFIED.] */
-                while (eventhubUserContext->callbackStatus == CALLBACK_WAITING)
-                {
-                    ThreadAPI_Sleep(EVENTHUB_SEND_SLEEP_TIME);
-                }
+                Condition_Wait(eventhubUserContext->completionCondition, eventhubUserContext->completionLock, 0);
 
                 if (eventhubUserContext->confirmationResult == EVENTHUBCLIENT_CONFIRMATION_OK)
                 {
@@ -362,7 +366,7 @@ EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_LL_HANDLE eventHub
                 result = EVENTHUBCLIENT_ERROR;
                 LOG_ERROR(result);
             }
-            free(eventhubUserContext);
+            EventHub_DestroyUserContext(eventhubUserContext);
         }
     }
     return result;
