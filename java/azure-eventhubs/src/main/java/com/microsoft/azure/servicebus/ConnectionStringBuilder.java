@@ -8,13 +8,14 @@ import java.net.*;
 import java.time.*;
 import java.util.*;
 import java.util.regex.*;
+import com.microsoft.azure.eventhubs.*;
 
 /**
  * {@link ConnectionStringBuilder} can be used to construct a connection string which can establish communication with ServiceBus entities.
  * It can also be used to perform basic validation on an existing connection string.
  * <p> Sample Code:
  * <pre>{@code
- * ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(
+ * 	ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(
  *     "ServiceBusNamespaceName", 
  *     "ServiceBusEntityName", // eventHubName or QueueName or TopicName 
  *     "SharedAccessSignatureKeyName", 
@@ -24,7 +25,7 @@ import java.util.regex.*;
  * }</pre>
  * <p>
  * A connection string is basically a string consisted of key-value pair separated by ";". 
- * Basic format is {'<'key'>'='<'value'>'[;'<'key'>'='<'value'>']} where supported key name are as follow:
+ * Basic format is {{@literal <}key{@literal >}={@literal <}value{@literal >}[;{@literal <}key{@literal >}={@literal <}value{@literal >}]} where supported key name are as follow:
  * <ul>
  * <li> Endpoint - the URL that contains the servicebus namespace
  * <li> EntityPath - the path to the service bus entity (queue/topic/eventhub/subscription/consumergroup/partition)
@@ -94,6 +95,7 @@ public class ConnectionStringBuilder
 	/**
 	 * ConnectionString format:
 	 * 		Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
+	 * @param connectionString ServiceBus ConnectionString
 	 * @throws IllegalConnectionStringFormatException when the format of the ConnectionString is not valid
 	 */
 	public ConnectionStringBuilder(String connectionString)
@@ -109,6 +111,7 @@ public class ConnectionStringBuilder
 
 	/**
 	 * Get the shared access policy key value from the connection string
+	 * @return Shared Access Signature key
 	 */
 	String getSasKey()
 	{
@@ -117,6 +120,7 @@ public class ConnectionStringBuilder
 
 	/**
 	 * Get the shared access policy owner name from the connection string
+	 * @return Shared Access Signature key name.
 	 */
 	public String getSasKeyName()
 	{
@@ -125,6 +129,7 @@ public class ConnectionStringBuilder
 	
 	/**
 	 * Get the entity path value from the connection string
+	 * @return Entity Path
 	 */
 	public String getEntityPath()
 	{
@@ -133,6 +138,7 @@ public class ConnectionStringBuilder
 	
 	/**
 	 * OperationTimeout is applied in erroneous situations to notify the caller about the relevant {@link ServiceBusException}
+	 * @return operationTimeout
 	 */
 	public Duration getOperationTimeout()
 	{
@@ -141,6 +147,7 @@ public class ConnectionStringBuilder
 	
 	/**
 	 * Get the retry policy instance that was created as part of this builder's creation.
+	 * @return RetryPolicy applied for any operation performed using this ConnectionString
 	 */
 	public RetryPolicy getRetryPolicy()
 	{
@@ -148,7 +155,8 @@ public class ConnectionStringBuilder
 	}
 
 	/**
-	 * Return a connection string from this builder.
+	 * Returns an inter-operable connection string that can be used to connect to ServiceBus Namespace
+	 * @return connection string
 	 */
 	@Override
 	public String toString()
