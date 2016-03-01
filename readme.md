@@ -18,8 +18,8 @@ API shape and capabilities.
 Details about how to build and use the clients and how to explore and run the samples can be found in the respective READMEs
 
 * The *Azure Event Hub Client for Java* is **production-ready with full Microsoft product support**. You can learn about its
-  capabilities and also about how to contribute extensions and fixes in the  [README for the Java client](./java/README.md)
+  capabilities and also about how to contribute extensions and fixes in the  [README for the Java client](./java/readme.md)
 * The *Azure Event Hub Client for C* is currently in "preview" state, meaning that there is ongoing work to bring it 
-  to a state where Microsoft can provide full product support. Learn more in the [README for the C client](./c/README.md)
+  to a state where Microsoft can provide full product support. Learn more in the [README for the C client](./c/readme.md)
 * The *Azure Event Hub Client for Node* is likewise in "preview" state. Learn more in the [README for the Node client](./node/README.md)
 
