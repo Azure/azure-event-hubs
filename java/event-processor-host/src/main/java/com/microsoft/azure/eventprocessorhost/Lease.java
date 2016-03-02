@@ -1,3 +1,7 @@
+/*
+ * LICENSE GOES HERE
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 public class Lease
