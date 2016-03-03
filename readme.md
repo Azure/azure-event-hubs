@@ -3,7 +3,7 @@
 This repository contains open-source, client-side libraries for interacting with Microsoft Azure Event Hubs from 
 several different programming languages. 
 
-At present, there are clients available in [C (C99)](./C), [Node.js](./Node), and [Java](./Java). 
+At present, there are clients available in [C (C99)](./c), [Node.js](./node), and [Java](./java). 
 
 > The client library for the .NET Framework (C#/F#/VB) is [available from NuGet](https://www.nuget.org/packages/WindowsAzure.ServiceBus/). 
 > An open source alternative to the officially supported, closed-source client on NuGet is the open-source [AMQP.NET Lite](https://github.com/Azure/amqpnetlite) 
