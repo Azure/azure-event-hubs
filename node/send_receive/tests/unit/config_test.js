@@ -6,7 +6,7 @@
 var chai = require('chai');
 chai.should();
 
-var ConnectionConfig = require('../lib/config.js');
+var ConnectionConfig = require('../../lib/config.js');
 
 describe('ConnectionConfig', function () {
   it('populates config properties from an Event Hubs connection string', function () {

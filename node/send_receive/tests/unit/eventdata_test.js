@@ -3,7 +3,7 @@
 
 'use strict';
 
-var EventData = require('../lib/eventdata.js');
+var EventData = require('../../lib/eventdata.js');
 var chai = require('chai');
 chai.should();
 

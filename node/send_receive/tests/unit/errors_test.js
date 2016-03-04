@@ -6,7 +6,7 @@
 var chai = require('chai');
 chai.should();
 
-var errors = require('../lib/errors.js');
+var errors = require('../../lib/errors.js');
 
 function AMQPError(conditionStr) {
   this.condition = { contents: conditionStr };

@@ -30,9 +30,9 @@
   "homepage": "https://github.com/Azure/azure-event-hubs#readme",
   "scripts": {
     "lint": "jshint --show-non-errors .",
-    "unittest-min": "mocha --reporter dot tests/*.js",
+    "unittest-min": "mocha --reporter dot tests/unit/**/*.js",
     "alltest-min": "mocha --reporter dot tests/**/*.js",
-    "unittest": "mocha --reporter spec tests/*.js",
+    "unittest": "mocha --reporter spec tests/unit/**/*.js",
     "alltest": "mocha --reporter spec tests/**/*.js",
     "ci": "npm -s run lint && npm -s run alltest-min",
     "test": "npm -s run lint && npm -s run unittest"
