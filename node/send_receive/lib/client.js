@@ -13,13 +13,13 @@ var ArgumentError = require('azure-iot-common').errors.ArgumentError;
 var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoundError;
 
 /**
- * Instantiate a client pointing to the Event Hub given by this configuration.
+ * @class module:azure-event-hubs.EventHubClient
+ * @classdesc Client pointing to the Event Hub given by this configuration.
  *
  * @param {ConnectionConfig} config
- * @param {object} [policyOverrides] Optional overrides for node-amqp10 policy fields, see https://github.com/noodlefrenzy/node-amqp10 for details.
- * @constructor
+ * @param {object} [transportFactory] Optional transport implementation factory. If not provided, will use node-amqp10 client instantiated with EventHub Policy. Note: Factory is needed because client may be torn down and rebuilt if server redirect is requested.
  */
-function EventHubClient(config, policyOverrides) {
+function EventHubClient(config, transportFactory) {
   var makeError = function (prop) {
     var err = 'config is missing property ' + prop;
     console.error(err);
@@ -31,43 +31,33 @@ function EventHubClient(config, policyOverrides) {
   });
 
   this._config = config;
-  this._policy = !!policyOverrides ? amqp10.Policy.merge(policyOverrides, amqp10.Policy.EventHub) : amqp10.Policy.EventHub;
-  this._amqp = new amqp10.Client(this._policy);
+  this._transportFactory = transportFactory || function() { return new amqp10.Client(amqp10.Policy.EventHub); };
+  this._amqp = this._transportFactory();
   this._connectPromise = null;
 }
 
 /**
  * Static factory method for convenience.
  *
- * @method fromConnectionString
+ * @method module:azure-event-hubs.EventHubClient#fromConnectionString
  * @param {string} connectionString - Connection string of the form 'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key'
  * @param {string} path - Event Hub path of the form 'my-event-hub-name'
- * @param {object} [policyOverrides] Optional overrides for node-amqp10 policy fields, see https://github.com/noodlefrenzy/node-amqp10 for details.
+ * @param {object} [transportFactory] Optional transport implementation factory. If not provided, will use node-amqp10 client instantiated with EventHub Policy. Note: Factory is needed because client may be torn down and rebuilt if server redirect is requested.
  * @returns {EventHubClient}
  */
-EventHubClient.fromConnectionString = function (connectionString, path, policyOverrides) {
+EventHubClient.fromConnectionString = function (connectionString, path, transportFactory) {
   if (!connectionString) {
     throw new ArgumentError('Missing argument connectionString');
   }
 
   var config = new ConnectionConfig(connectionString, path);
-  return new EventHubClient(config, policyOverrides);
+  return new EventHubClient(config, transportFactory);
 };
 
 /**
- * Helper function for defining custom policy for throttling your receiver links to only renew credits on messages they've "settled". See EventData settlement methods (e.g. accept) for details.
+ * Opens the connection to the Event Hub for this client, returning a promise that will be resolved when the connection is completed.
  *
- * @param {Number} initialCapacity Capacity of receiver links once they initially connect or re-connect.
- * @param {Number} threshold Once the capacity of the link goes below this value, we'll tell the server they can send us more messages for each one we've "settled".
- */
-EventHubClient.RenewOnSettle = function(initialCapacity, threshold) {
-  return amqp10.Policy.Utils.RenewOnSettle(initialCapacity, threshold, amqp10.Policy.EventHub);
-};
-
-/**
- * Opens the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when the connection is completed.
- *
- * @method open
+ * @method module:azure-event-hubs.EventHubClient#open
  *
  * @returns {Promise}
  */
@@ -94,7 +84,7 @@ EventHubClient.prototype.open = function () {
                             rx_err.errorInfo.hostname;
                 self._amqp.disconnect()
                   .then(function () {
-                    self._amqp = new amqp10.Client(self._policy);
+                    self._amqp = self._transportFactory();
                     return self._amqp.connect(self._config.saslPlainUri);
                   })
                   .then(function () {
@@ -115,9 +105,9 @@ EventHubClient.prototype.open = function () {
 };
 
 /**
- * Closes the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when disconnection is completed.
+ * Closes the connection to the Event Hub for this client, returning a promise that will be resolved when disconnection is completed.
  *
- * @method close
+ * @method module:azure-event-hubs.EventHubClient#close
  *
  * @returns {Promise}
  */
@@ -129,7 +119,7 @@ EventHubClient.prototype.close = function () {
 /**
  * Gets the partition IDs for the Event Hub for this client.
  *
- * @method getPartitionIds
+ * @method module:azure-event-hubs.EventHubClient#getPartitionIds
  *
  * @returns {Promise} with array of partition IDs.
  */
@@ -184,7 +174,7 @@ EventHubClient.prototype.getPartitionIds = function () {
  * Creates a receiver for the given event hub, consumer group, and partition.
  * Receivers are event emitters, watch for 'message' and 'errorReceived' events.
  *
- * @method createReceiver
+ * @method module:azure-event-hubs.EventHubClient#createReceiver
  * @param {string} consumerGroup                      Consumer group from which to receive.
  * @param {(string|Number)} partitionId               Partition ID from which to receive.
  * @param {*} [options]                               Options for how you'd like to connect. Only one can be specified.
@@ -235,7 +225,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
  * Creates a sender to the given event hub, and optionally to a given partition.
  * Senders are event emitters, watch for 'errorReceived' events.
  *
- * @method createSender
+ * @method module:azure-event-hubs.EventHubClient#createSender
  * @param {(string|Number)} [partitionId]                 Partition ID to which it will send (optional).
  *
  * @return {Promise}

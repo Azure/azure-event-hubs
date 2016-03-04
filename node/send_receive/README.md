@@ -98,11 +98,15 @@ Creates a receiver for a given partition ID, with a custom policy that throttles
  
 ```js
 var EventHubClient = require('azure-event-hubs').Client;
+var amqp10 = require('amqp10');
+
+// Custom AMQP transport factory with the policy we want.
+var transportFactory = function() { return new amqp10.Client(amqp10.Policy.Utils.RenewOnSettle(10, 5, Policy.EventHub)); };
 
 var client = EventHubClient.fromConnectionString(
     'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key', 
     'myeventhub',
-    EventHubClient.RenewOnSettle(10,5));
+    transportFactory);
 client.createReceiver('$Default', '10', { startAfterTime: Date.now() })
     .then(function (rx) {
         rx.on('errorReceived', function (err) { console.log(err); }); 
