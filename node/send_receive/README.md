@@ -33,8 +33,8 @@ client.createReceiver('$Default', '10', { startAfterTime: Date.now() })
         rx.on('errorReceived', function (err) { console.log(err); }); 
         rx.on('message', function (message) {
             var body = message.body;
-            // See https://github.com/Azure/amqpnetlite/wiki/Azure-Service-Bus-Event-Hubs for details on message annotation properties from EH.
-            var enqueuedTime = Date.parse(message.annotations.value['x-opt-enqueued-time']);
+            // @see eventdata.js
+            var enqueuedTime = Date.parse(message.enqueuedTimeUtc);
         });
     });
 
@@ -68,4 +68,55 @@ client.createSender('10')
         tx.on('errorReceived', function (err) { console.log(err); });
         tx.send({ contents: 'Here is some text sent to partition 10.' }); 
     });
+```
+
+## Example 5 - Create a receiver with a custom policy ##
+
+Creates a receiver for a given partition ID, with a larger max message size than the default (10000 bytes).
+
+```js
+var EventHubClient = require('azure-event-hubs').Client;
+
+var client = EventHubClient.fromConnectionString(
+    'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key', 
+    'myeventhub',
+    { receiverLink: { attach: { maxMessageSize: 100000 }}});
+client.createReceiver('$Default', '10', { startAfterTime: Date.now() })
+    .then(function (rx) {
+        rx.on('errorReceived', function (err) { console.log(err); }); 
+        rx.on('message', function (message) {
+            var body = message.body;
+            var enqueuedTime = Date.parse(message.enqueuedTimeUtc);
+        });
+    });
+
+```
+
+## Example 6 - Create a throttled receiver ##
+
+Creates a receiver for a given partition ID, with a custom policy that throttles messages. Initially the client can deliver 10 messages, and after the "credit" goes below 5, the receiver will start allowing more messages only for those that have been "settled". Settling can be done via the settlement methods on EventData, such as `accept` or `reject`.
+ 
+```js
+var EventHubClient = require('azure-event-hubs').Client;
+var amqp10 = require('amqp10');
+
+// Custom AMQP transport factory with the policy we want.
+var transportFactory = function() { return new amqp10.Client(amqp10.Policy.Utils.RenewOnSettle(10, 5, Policy.EventHub)); };
+
+var client = EventHubClient.fromConnectionString(
+    'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key', 
+    'myeventhub',
+    transportFactory);
+client.createReceiver('$Default', '10', { startAfterTime: Date.now() })
+    .then(function (rx) {
+        rx.on('errorReceived', function (err) { console.log(err); }); 
+        rx.on('message', function (message) {
+            var body = message.body;
+            var enqueuedTime = Date.parse(message.enqueuedTimeUtc);
+            // ... do some processing ...
+            message.accept();
+        });
+    });
+
+
 ```

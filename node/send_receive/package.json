@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "./lib",
   "dependencies": {
-    "amqp10": "2.1.2",
+    "amqp10": "^3.0.0",
     "azure-iot-common": "^1.0.1",
     "bluebird": "^3.0.6",
     "uuid": "^2.0.1"
@@ -30,9 +30,9 @@
   "homepage": "https://github.com/Azure/azure-event-hubs#readme",
   "scripts": {
     "lint": "jshint --show-non-errors .",
-    "unittest-min": "mocha --reporter dot tests/*.js",
+    "unittest-min": "mocha --reporter dot tests/unit/**/*.js",
     "alltest-min": "mocha --reporter dot tests/**/*.js",
-    "unittest": "mocha --reporter spec tests/*.js",
+    "unittest": "mocha --reporter spec tests/unit/**/*.js",
     "alltest": "mocha --reporter spec tests/**/*.js",
     "ci": "npm -s run lint && npm -s run alltest-min",
     "test": "npm -s run lint && npm -s run unittest"

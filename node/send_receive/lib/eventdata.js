@@ -6,9 +6,10 @@
 /**
  * @class EventData
  * @classdesc Constructs a {@linkcode EventData} object.
- * @param {String}  body   The event payload as a byte array.
+ * @param {object} link The receiver link for providing settlment methods.
+ * @param {object}  message The message object containing body and messageAnnotations.
  */
-function EventData(body, systemProperties) {
+function EventData(link, message) {
   Object.defineProperties(this, {
     'partitionKey': {
       get: function () {
@@ -20,7 +21,7 @@ function EventData(body, systemProperties) {
       }
     },
     'body': {
-      value: body,
+      value: message.body,
       writable: false
     },
     'enqueuedTimeUtc': {
@@ -55,14 +56,55 @@ function EventData(body, systemProperties) {
       }
     },
     'systemProperties': {
-      value: systemProperties,
+      value: message.messageAnnotations,
+      writable: false
+    },
+    '_link': {
+      value: link,
+      writable: false
+    },
+    '_message': {
+      value: message,
       writable: false
     }
   });
 }
 
-EventData.fromAmqpMessage = function (msg) {
-  return new EventData(msg.body, msg.annotations.value);
+/**
+ * Accept the message - only needed when you're using a custom policy that doesn't auto-settle messages. Tells server you have processed the message.
+ */
+EventData.prototype.accept = function() {
+  this._link.accept(this._message);
+};
+
+/**
+ * Reject the message - only needed when you're using a custom policy that doesn't auto-settle messages. Tells server you cannot process the message. Error must be a valid AMQP error, see README.
+ */
+EventData.prototype.reject = function(error) {
+  this._link.reject(this._message, error);
+};
+
+/**
+ * Release the message - only needed when you're using a custom policy that doesn't auto-settle messages. Tells server you did not processed the message and it can be redelivered.
+ */
+EventData.prototype.release = function() {
+  this._link.release(this._message);
+};
+
+/**
+ * Modify the message - only needed when you're using a custom policy that doesn't auto-settle messages. Tells server you want the message modified and redelivered.
+ *
+ * @param {Object}        [options] options used for a Modified outcome
+ * @param {Boolean}       [options.deliveryFailed] count the transfer as an unsuccessful delivery attempt
+ * @param {Boolean}       [options.undeliverableHere] prevent redelivery
+ * @param {Object}        [options.messageAnnotations] message attributes to combine with existing annotations
+ */
+EventData.prototype.modify = function(options) {
+  this._link.modify(this._message, options);
+};
+
+EventData.fromAmqpMessage = function (link, msg) {
+  return new EventData(link, msg);
 };
 
 module.exports = EventData;

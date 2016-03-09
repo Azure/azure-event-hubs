@@ -13,14 +13,17 @@ var ArgumentError = require('azure-iot-common').errors.ArgumentError;
 var MessagingEntityNotFoundError = require('./errors.js').MessagingEntityNotFoundError;
 
 /**
- * Instantiate a client pointing to the Event Hub given by this configuration.
+ * @class module:azure-event-hubs.EventHubClient
+ * @classdesc Client pointing to the Event Hub given by this configuration.
  *
  * @param {ConnectionConfig} config
- * @constructor
+ * @param {object} [transportFactory] Optional transport implementation factory. If not provided, will use node-amqp10 client instantiated with EventHub Policy. Note: Factory is needed because client may be torn down and rebuilt if server redirect is requested.
  */
-function EventHubClient(config) {
+function EventHubClient(config, transportFactory) {
   var makeError = function (prop) {
-    return new ArgumentError('config is missing property ' + prop);
+    var err = 'config is missing property ' + prop;
+    console.error(err);
+    return new ArgumentError(err);
   };
 
   ['host', 'path', 'keyName', 'key'].forEach(function (prop) {
@@ -28,35 +31,33 @@ function EventHubClient(config) {
   });
 
   this._config = config;
-  this._amqp = new amqp10.Client(amqp10.Policy.EventHub);
+  this._transportFactory = transportFactory || function() { return new amqp10.Client(amqp10.Policy.EventHub); };
+  this._amqp = this._transportFactory();
   this._connectPromise = null;
 }
 
 /**
  * Static factory method for convenience.
  *
- * @method fromConnectionString
+ * @method module:azure-event-hubs.EventHubClient#fromConnectionString
  * @param {string} connectionString - Connection string of the form 'Endpoint=sb://my-servicebus-namespace.servicebus.windows.net/;SharedAccessKeyName=my-SA-name;SharedAccessKey=my-SA-key'
  * @param {string} path - Event Hub path of the form 'my-event-hub-name'
+ * @param {object} [transportFactory] Optional transport implementation factory. If not provided, will use node-amqp10 client instantiated with EventHub Policy. Note: Factory is needed because client may be torn down and rebuilt if server redirect is requested.
  * @returns {EventHubClient}
  */
-EventHubClient.fromConnectionString = function (connectionString, path) {
+EventHubClient.fromConnectionString = function (connectionString, path, transportFactory) {
   if (!connectionString) {
     throw new ArgumentError('Missing argument connectionString');
   }
 
   var config = new ConnectionConfig(connectionString, path);
-  if (!config.path) {
-    throw new ArgumentError('Connection string doesn\'t have EntityPath, or missing argument path');
-  }
-
-  return new EventHubClient(config);
+  return new EventHubClient(config, transportFactory);
 };
 
 /**
- * Opens the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when the connection is completed.
+ * Opens the connection to the Event Hub for this client, returning a promise that will be resolved when the connection is completed.
  *
- * @method open
+ * @method module:azure-event-hubs.EventHubClient#open
  *
  * @returns {Promise}
  */
@@ -83,7 +84,7 @@ EventHubClient.prototype.open = function () {
                             rx_err.errorInfo.hostname;
                 self._amqp.disconnect()
                   .then(function () {
-                    self._amqp = new amqp10.Client(amqp10.Policy.EventHub);
+                    self._amqp = self._transportFactory();
                     return self._amqp.connect(self._config.saslPlainUri);
                   })
                   .then(function () {
@@ -104,9 +105,9 @@ EventHubClient.prototype.open = function () {
 };
 
 /**
- * Closes the AMQP connection to the Event Hub for this client, returning a promise that will be resolved when disconnection is completed.
+ * Closes the connection to the Event Hub for this client, returning a promise that will be resolved when disconnection is completed.
  *
- * @method close
+ * @method module:azure-event-hubs.EventHubClient#close
  *
  * @returns {Promise}
  */
@@ -118,7 +119,7 @@ EventHubClient.prototype.close = function () {
 /**
  * Gets the partition IDs for the Event Hub for this client.
  *
- * @method getPartitionIds
+ * @method module:azure-event-hubs.EventHubClient#getPartitionIds
  *
  * @returns {Promise} with array of partition IDs.
  */
@@ -154,8 +155,8 @@ EventHubClient.prototype.getPartitionIds = function () {
         sender.on('errorReceived', reject);
 
         receiver.on('message', function (msg) {
-          var code = msg.applicationProperties.value['status-code'];
-          var desc = msg.applicationProperties.value['status-description'];
+          var code = msg.applicationProperties['status-code'];
+          var desc = msg.applicationProperties['status-description'];
           if (code === 200) {
             resolve(msg.body.partition_ids);
           }
@@ -173,7 +174,7 @@ EventHubClient.prototype.getPartitionIds = function () {
  * Creates a receiver for the given event hub, consumer group, and partition.
  * Receivers are event emitters, watch for 'message' and 'errorReceived' events.
  *
- * @method createReceiver
+ * @method module:azure-event-hubs.EventHubClient#createReceiver
  * @param {string} consumerGroup                      Consumer group from which to receive.
  * @param {(string|Number)} partitionId               Partition ID from which to receive.
  * @param {*} [options]                               Options for how you'd like to connect. Only one can be specified.
@@ -224,7 +225,7 @@ EventHubClient.prototype.createReceiver = function createReceiver(consumerGroup,
  * Creates a sender to the given event hub, and optionally to a given partition.
  * Senders are event emitters, watch for 'errorReceived' events.
  *
- * @method createSender
+ * @method module:azure-event-hubs.EventHubClient#createSender
  * @param {(string|Number)} [partitionId]                 Partition ID to which it will send (optional).
  *
  * @return {Promise}
