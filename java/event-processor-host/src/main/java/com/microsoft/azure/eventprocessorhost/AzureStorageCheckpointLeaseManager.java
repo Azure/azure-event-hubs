@@ -15,7 +15,9 @@ import java.util.concurrent.*;
 import com.google.gson.Gson;
 import com.microsoft.azure.storage.AccessCondition;
 import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.StorageErrorCodeStrings;
 import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.StorageExtendedErrorInformation;
 import com.microsoft.azure.storage.blob.BlobRequestOptions;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
@@ -116,21 +118,16 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
     }
     
-    private Lease getLeaseSync(String partitionId) throws URISyntaxException, IOException
+    private Lease getLeaseSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease retval = null;
-    	try
-    	{
-			CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
-			if (leaseBlob.exists())
-			{
-				retval = downloadLease(leaseBlob);
-			}
+    	
+		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
+		if (leaseBlob.exists())
+		{
+			retval = downloadLease(leaseBlob);
 		}
-    	catch (StorageException se)
-    	{
-    		handleStorageException(retval, se);
-    	}
+
     	return retval;
     }
 
@@ -190,7 +187,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync((AzureBlobLease)lease));
     }
     
-    private Boolean acquireLeaseSync(AzureBlobLease lease) throws IOException
+    private Boolean acquireLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	String newLeaseId = UUID.randomUUID().toString();
@@ -213,7 +210,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		handleStorageException(lease, se);
+    		throw handleStorageException(lease, se, false);
     	}
     	
     	return true;
@@ -224,7 +221,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> renewLeaseSync((AzureBlobLease)lease));
     }
     
-    private Boolean renewLeaseSync(AzureBlobLease lease)
+    private Boolean renewLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	
@@ -234,7 +231,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		handleStorageException(lease, se);
+    		throw handleStorageException(lease, se, false);
     	}
     	
     	return true;
@@ -245,7 +242,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync((AzureBlobLease)lease));
     }
     
-    private Boolean releaseLeaseSync(AzureBlobLease lease) throws IOException
+    private Boolean releaseLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	try
@@ -259,7 +256,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		handleStorageException(lease, se);
+    		throw handleStorageException(lease, se, false);
     	}
     	
     	return true;
@@ -270,7 +267,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync((AzureBlobLease)lease));
     }
     
-    public Boolean updateLeaseSync(AzureBlobLease lease) throws IOException
+    public Boolean updateLeaseSync(AzureBlobLease lease) throws Exception
     {
     	if (lease == null)
     	{
@@ -292,7 +289,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		handleStorageException(lease, se);
+    		throw handleStorageException(lease, se, true);
     	}
     	
     	return true;
@@ -305,9 +302,27 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return blobLease;
     }
     
-    private void handleStorageException(AzureBlobLease lease, StorageException storageException)
+    private Exception handleStorageException(AzureBlobLease lease, StorageException storageException, boolean ignoreLeaseLost)
     {
-    	// TODO
+    	Exception retval = storageException;
+    	
+    	if ((storageException.getHttpStatusCode() == 409) || // conflict
+    			(storageException.getHttpStatusCode() == 412)) // precondition failed
+    	{
+    		// From .NET
+    		// Don't throw LeaseLostException if caller chooses to ignore it.
+    		// This is mainly needed in Checkpoint scenario where Checkpoint could fail due to lease expiration
+    		// but later attempts to renew could still succeed.
+    		// REALITY: if ignoreLeaseLost is false, any 409 or 412 will become a LeaseLostException. But if it's true, a limited
+    		// subset will still become LeaseLostException.
+    		StorageExtendedErrorInformation extendedErrorInfo = storageException.getExtendedErrorInformation();
+    		if (!ignoreLeaseLost || (extendedErrorInfo == null) || (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.LEASE_LOST) == 0))
+    		{
+    			retval = new LeaseLostException(lease, storageException);
+    		}
+    	}
+
+    	return retval;
     }
 
     
