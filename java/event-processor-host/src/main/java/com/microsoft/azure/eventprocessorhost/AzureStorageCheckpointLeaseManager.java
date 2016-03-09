@@ -4,15 +4,42 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.*;
+
+import com.google.gson.Gson;
+import com.microsoft.azure.storage.AccessCondition;
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.BlobRequestOptions;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.azure.storage.blob.CloudBlobDirectory;
+import com.microsoft.azure.storage.blob.CloudBlockBlob;
+import com.microsoft.azure.storage.blob.LeaseState;
 
 
 public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
     private String storageConnectionString;
+    
+    private CloudBlobClient storageClient;
+    private CloudBlobContainer eventHubContainer;
+    private CloudBlobDirectory consumerGroupDirectory;
+    private CloudBlockBlob eventHubInfoBlob;
+    
+    private Gson gson;
+    
+    private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
+    private final static int leaseIntervalInSeconds = 30;
+    private final static String eventHubInfoBlobName = "eventhub.info";
+    private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
@@ -21,9 +48,24 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
     // because it is still being constructed.
-    public void setHost(EventProcessorHost host)
+    public void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
     {
         this.host = host;
+        
+        this.storageClient = CloudStorageAccount.parse(this.storageConnectionString).createCloudBlobClient();
+        BlobRequestOptions options = new BlobRequestOptions();
+        options.setMaximumExecutionTimeInMs(AzureStorageCheckpointLeaseManager.storageMaximumExecutionTimeInMs);
+        this.storageClient.setDefaultRequestOptions(options);
+        
+        this.eventHubContainer = this.storageClient.getContainerReference(this.host.getEventHubPath());
+        
+        this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
+        
+        this.eventHubInfoBlob = this.eventHubContainer.getBlockBlobReference(AzureStorageCheckpointLeaseManager.eventHubInfoBlobName);
+        
+        this.gson = new Gson();
+
+        // The only option that .NET sets on renewRequestOptions is ServerTimeout, which doesn't exist in Java equivalent
     }
 
     public Future<Boolean> checkpointStoreExists()
@@ -61,61 +103,215 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     public Future<Boolean> leaseStoreExists()
     {
-        return EventProcessorHost.getExecutorService().submit(new LeaseStoreExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.exists());
     }
 
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
-        return EventProcessorHost.getExecutorService().submit(new CreateLeaseStoreIfNotExistsCallable());
+        return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists());
     }
 
     public Future<Lease> getLease(String partitionId)
     {
-        return EventProcessorHost.getExecutorService().submit(new GetLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
+    }
+    
+    private Lease getLeaseSync(String partitionId) throws URISyntaxException, IOException
+    {
+    	AzureBlobLease retval = null;
+    	try
+    	{
+			CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
+			if (leaseBlob.exists())
+			{
+				retval = downloadLease(leaseBlob);
+			}
+		}
+    	catch (StorageException se)
+    	{
+    		handleStorageException(retval, se);
+    	}
+    	return retval;
     }
 
     public Iterable<Future<Lease>> getAllLeases()
     {
-        ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
-        // DUMMY START
-        Iterable<String> partitionIds = this.host.getPartitionManager().getPartitionIds();
+        ArrayList<Future<Lease>> leaseFutures = new ArrayList<Future<Lease>>();
+        Iterable<String> partitionIds = this.host.getPartitionManager().getPartitionIds(); 
         for (String id : partitionIds)
         {
-            leases.add(getLease(id));
+            leaseFutures.add(getLease(id));
         }
-        // DUMMY END
-        return leases;
+        return leaseFutures;
     }
 
     public Future<Void> createLeaseIfNotExists(String partitionId)
     {
-        return EventProcessorHost.getExecutorService().submit(new CreateLeaseIfNotExistsCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
+    }
+    
+    private Void createLeaseIfNotExistsSync(String partitionId) throws URISyntaxException, IOException
+    {
+    	try
+    	{
+    		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
+    		Lease lease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
+    		String jsonLease = this.gson.toJson(lease);
+    		this.host.logWithHostAndPartition(partitionId,
+    				"CreateLeaseIfNotExist - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName());
+    		leaseBlob.uploadText(jsonLease, null, AccessCondition.generateIfNoneMatchCondition("*"), null, null);
+    	}
+    	catch (StorageException se)
+    	{
+    		// From .NET: 
+    		// Eat any storage exception related to conflict.
+    		// This means the blob already exists.
+    		this.host.logWithHostAndPartition(partitionId,
+    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
+    				se);
+    	}
+    	
+    	return null;
     }
 
-    public Future<Void> deleteLease(String partitionId)
+    public Future<Void> deleteLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(new DeleteLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseSync((AzureBlobLease)lease));
+    }
+    
+    private Void deleteLeaseSync(AzureBlobLease lease) throws StorageException
+    {
+    	lease.getBlob().deleteIfExists();
+    	return null;
     }
 
-    public Future<Lease> acquireLease(String partitionId)
+    public Future<Boolean> acquireLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(new AcquireLeaseCallable(partitionId));
+        return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync((AzureBlobLease)lease));
+    }
+    
+    private Boolean acquireLeaseSync(AzureBlobLease lease) throws IOException
+    {
+    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	String newLeaseId = UUID.randomUUID().toString();
+    	try
+    	{
+    		String newToken = null;
+	    	if (leaseBlob.getProperties().getLeaseState() == LeaseState.LEASED)
+	    	{
+	    		newToken = leaseBlob.changeLease(newLeaseId, AccessCondition.generateLeaseCondition(lease.getToken()));
+	    	}
+	    	else
+	    	{
+	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseIntervalInSeconds, newLeaseId);
+	    	}
+	    	lease.setToken(newToken);
+	    	lease.setOwner(this.host.getHostName());
+	    	// Increment epoch each time lease is acquired or stolen by a new host
+	    	lease.incrementEpoch();
+	    	leaseBlob.uploadText(this.gson.toJson(lease), null, AccessCondition.generateLeaseCondition(lease.getToken()), null, null);
+    	}
+    	catch (StorageException se)
+    	{
+    		handleStorageException(lease, se);
+    	}
+    	
+    	return true;
     }
 
     public Future<Boolean> renewLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(new RenewLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> renewLeaseSync((AzureBlobLease)lease));
+    }
+    
+    private Boolean renewLeaseSync(AzureBlobLease lease)
+    {
+    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	
+    	try
+    	{
+    		leaseBlob.renewLease(AccessCondition.generateLeaseCondition(lease.getToken()), this.renewRequestOptions, null);
+    	}
+    	catch (StorageException se)
+    	{
+    		handleStorageException(lease, se);
+    	}
+    	
+    	return true;
     }
 
     public Future<Boolean> releaseLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(new ReleaseLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync((AzureBlobLease)lease));
+    }
+    
+    private Boolean releaseLeaseSync(AzureBlobLease lease) throws IOException
+    {
+    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	try
+    	{
+    		String leaseId = lease.getToken();
+    		AzureBlobLease releasedCopy = new AzureBlobLease(lease);
+    		releasedCopy.setToken("");
+    		releasedCopy.setOwner("");
+    		leaseBlob.uploadText(this.gson.toJson(releasedCopy), null, AccessCondition.generateLeaseCondition(leaseId), null, null);
+    		leaseBlob.releaseLease(AccessCondition.generateLeaseCondition(leaseId));
+    	}
+    	catch (StorageException se)
+    	{
+    		handleStorageException(lease, se);
+    	}
+    	
+    	return true;
     }
 
     public Future<Boolean> updateLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(new UpdateLeaseCallable(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync((AzureBlobLease)lease));
     }
+    
+    public Boolean updateLeaseSync(AzureBlobLease lease) throws IOException
+    {
+    	if (lease == null)
+    	{
+    		return false;
+    	}
+    	String token = lease.getToken();
+    	if ((token == null) || (token.length() == 0))
+    	{
+    		return false;
+    	}
+    	
+    	// First, renew the lease to make sure the update will go through.
+    	renewLeaseSync(lease);
+    	
+    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	try
+    	{
+    		leaseBlob.uploadText(this.gson.toJson(lease), null, AccessCondition.generateLeaseCondition(token), null, null);
+    	}
+    	catch (StorageException se)
+    	{
+    		handleStorageException(lease, se);
+    	}
+    	
+    	return true;
+    }
+
+    private AzureBlobLease downloadLease(CloudBlockBlob blob) throws StorageException, IOException
+    {
+    	String jsonLease = blob.downloadText();
+    	AzureBlobLease blobLease = new AzureBlobLease(this.gson.fromJson(jsonLease, Lease.class), blob);
+    	return blobLease;
+    }
+    
+    private void handleStorageException(AzureBlobLease lease, StorageException storageException)
+    {
+    	// TODO
+    }
+
+    
+    
 
 
     private class CheckpointStoreExistsCallable implements Callable<Boolean>
@@ -180,203 +376,4 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
             return null;
         }
     }
-
-
-    private class LeaseStoreExistsCallable implements Callable<Boolean>
-    {
-        public Boolean call()
-        {
-            // DUMMY STARTS
-            Boolean retval = (InMemoryLeaseStore.getSingleton().inMemoryLeases != null);
-            return retval;
-            // DUMMY ENDS
-        }
-    }
-
-    private class CreateLeaseStoreIfNotExistsCallable implements Callable<Boolean>
-    {
-        public Boolean call()
-        {
-            // DUMMY STARTS
-            if (InMemoryLeaseStore.getSingleton().inMemoryLeases == null)
-            {
-            	AzureStorageCheckpointLeaseManager.this.host.logWithHost("createLeaseStoreIfNotExists() creating in memory hashmap");
-                InMemoryLeaseStore.getSingleton().inMemoryLeases = new HashMap<String, Lease>();
-            }
-            return true;
-            // DUMMY ENDS
-        }
-    }
-
-    private class GetLeaseCallable implements Callable<Lease>
-    {
-        private String partitionId;
-
-        public GetLeaseCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public Lease call()
-        {
-            // DUMMY STARTS
-            Lease returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
-            if (returnLease == null)
-            {
-            	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "getLease() no existing lease");
-            }
-            return returnLease;
-            // DUMMY ENDS
-        }
-    }
-
-    private class CreateLeaseIfNotExistsCallable implements Callable<Void>
-    {
-        private String partitionId;
-
-        public CreateLeaseIfNotExistsCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public Void call()
-        {
-            // DUMMY STARTS
-            if (InMemoryLeaseStore.getSingleton().inMemoryLeases.containsKey(this.partitionId))
-            {
-            	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "createLeaseIfNotExists() found existing lease");
-            }
-            else
-            {
-            	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "createLeaseIfNotExists() creating new lease");
-                Lease lease = new Lease(AzureStorageCheckpointLeaseManager.this.host.getEventHubPath(),
-                        AzureStorageCheckpointLeaseManager.this.host.getConsumerGroupName(), this.partitionId);
-                lease.setEpoch(0L);
-                lease.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
-                InMemoryLeaseStore.getSingleton().inMemoryLeases.put(this.partitionId, lease);
-            }
-            return null;
-            // DUMMY ENDS
-        }
-    }
-
-    private class DeleteLeaseCallable implements Callable<Void>
-    {
-        private String partitionId;
-
-        public DeleteLeaseCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public Void call()
-        {
-            return null;
-        }
-    }
-
-    private class AcquireLeaseCallable implements Callable<Lease>
-    {
-        private String partitionId;
-
-        public AcquireLeaseCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public Lease call()
-        {
-            // DUMMY STARTS
-            Lease leaseToReturn = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(this.partitionId);
-            if (leaseToReturn != null)
-            {
-                if (leaseToReturn.getOwner().length() == 0)
-                {
-                    leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
-                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() acquired lease");
-                }
-                else if (leaseToReturn.getOwner().compareTo(AzureStorageCheckpointLeaseManager.this.host.getHostName()) == 0)
-                {
-                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() already hold lease");
-                }
-                else
-                {
-                	String oldOwner = leaseToReturn.getOwner();
-                	leaseToReturn.setOwner(AzureStorageCheckpointLeaseManager.this.host.getHostName());
-                	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() stole lease from " + oldOwner);
-                }
-            }
-            else
-            {
-            	AzureStorageCheckpointLeaseManager.this.host.logWithHostAndPartition(this.partitionId, "acquireLease() can't find lease");
-            }
-            return leaseToReturn;
-            // DUMMY ENDS
-        }
-    }
-
-    private class RenewLeaseCallable implements Callable<Boolean>
-    {
-        private Lease lease;
-
-        public RenewLeaseCallable(Lease lease)
-        {
-            this.lease = lease;
-        }
-
-        public Boolean call()
-        {
-            return false;
-        }
-    }
-
-    private class ReleaseLeaseCallable implements Callable<Boolean>
-    {
-        private Lease lease;
-
-        public ReleaseLeaseCallable(Lease lease)
-        {
-            this.lease = lease;
-        }
-
-        public Boolean call()
-        {
-            return false;
-        }
-    }
-
-    private class UpdateLeaseCallable implements Callable<Boolean>
-    {
-        private Lease lease;
-
-        public UpdateLeaseCallable(Lease lease)
-        {
-            this.lease = lease;
-        }
-
-        public Boolean call()
-        {
-            return false;
-        }
-    }
-
-
-
-    // DUMMY STARTS
-    private static class InMemoryLeaseStore
-    {
-        private static InMemoryLeaseStore singleton = null;
-
-        public static InMemoryLeaseStore getSingleton()
-        {
-            if (InMemoryLeaseStore.singleton == null)
-            {
-                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
-            }
-            return InMemoryLeaseStore.singleton;
-        }
-
-        public HashMap<String, Lease> inMemoryLeases = null;
-    }
-    // DUMMY ENDS
 }

@@ -23,7 +23,7 @@ public class Lease
         this.partitionId = partitionId;
 
         this.epoch = 0;
-        this.offset = "-1"; // magic number
+        this.offset = ""; // empty string
         this.owner = "";
         this.sequenceNumber = 0;
         this.token = "";
@@ -50,6 +50,12 @@ public class Lease
     public void setEpoch(long epoch)
     {
         this.epoch = epoch;
+    }
+    
+    public long incrementEpoch()
+    {
+    	this.epoch++;
+    	return this.epoch;
     }
 
     public String getOffset()
@@ -107,9 +113,9 @@ public class Lease
         this.token = token;
     }
 
-    private Boolean isExpired()
+    public boolean isExpired()
     {
-    	// .NET always returns false
+    	// this function is meaningless in the base class
     	return false;
     }
 }

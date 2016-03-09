@@ -142,7 +142,7 @@ public final class EventProcessorHost
 
         if (leaseManager instanceof AzureStorageCheckpointLeaseManager)
         {
-            ((AzureStorageCheckpointLeaseManager)leaseManager).setHost(this);
+            ((AzureStorageCheckpointLeaseManager)leaseManager).initialize(this);
         }
     }
 
