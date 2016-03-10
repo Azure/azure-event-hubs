@@ -72,34 +72,41 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     public Future<Boolean> checkpointStoreExists()
     {
-        return EventProcessorHost.getExecutorService().submit(new CheckpointStoreExistsCallable());
+        return leaseStoreExists();
     }
 
     public Future<Boolean> createCheckpointStoreIfNotExists()
     {
-        return EventProcessorHost.getExecutorService().submit(new CreateCheckpointStoreIfNotExistsCallable());
+        return createLeaseStoreIfNotExists();
     }
 
-    public Future<String> getCheckpoint(String partitionId)
+    public Future<CheckPoint> getCheckpoint(String partitionId)
     {
-        return EventProcessorHost.getExecutorService().submit(new GetCheckpointCallable(partitionId));
+    	
+        return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
+    }
+    
+    private CheckPoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    {
+    	AzureBlobLease lease = (AzureBlobLease)getLeaseSync(partitionId);
+    	return lease.getCheckpoint();
     }
 
-    public Iterable<Future<String>> getAllCheckpoints()
+    public Future<Void> updateCheckpoint(CheckPoint checkpoint)
     {
-        ArrayList<Future<String>> checkpoints = new ArrayList<Future<String>>();
-        // TODO for each partition call getCheckpoint()
-        return checkpoints;
+        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint));
     }
-
-    public Future<Void> updateCheckpoint(String partitionId, String offset)
+    
+    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint)
     {
-        return EventProcessorHost.getExecutorService().submit(new UpdateCheckpointCallable(partitionId, offset));
+    	// TODO
+    	return null;
     }
 
     public Future<Void> deleteCheckpoint(String partitionId)
     {
-        return EventProcessorHost.getExecutorService().submit(new DeleteCheckpointCallable(partitionId));
+    	// Make this a no-op to avoid deleting leases by accident.
+        return null;
     }
 
 
@@ -323,72 +330,5 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
 
     	return retval;
-    }
-
-    
-    
-
-
-    private class CheckpointStoreExistsCallable implements Callable<Boolean>
-    {
-        public Boolean call()
-        {
-            return false;
-        }
-    }
-
-    private class CreateCheckpointStoreIfNotExistsCallable implements Callable<Boolean>
-    {
-        public Boolean call()
-        {
-            return false;
-        }
-    }
-
-    private class GetCheckpointCallable implements Callable<String>
-    {
-        private String partitionId;
-
-        public GetCheckpointCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public String call()
-        {
-            return "";
-        }
-    }
-
-    private class UpdateCheckpointCallable implements Callable<Void>
-    {
-        private String partitionId;
-        private String offset;
-
-        public UpdateCheckpointCallable(String partitionId, String offset)
-        {
-            this.partitionId = partitionId;
-            this.offset = offset;
-        }
-
-        public Void call()
-        {
-            return null;
-        }
-    }
-
-    private class DeleteCheckpointCallable implements Callable<Void>
-    {
-        private String partitionId;
-
-        public DeleteCheckpointCallable(String partitionId)
-        {
-            this.partitionId = partitionId;
-        }
-
-        public Void call()
-        {
-            return null;
-        }
     }
 }

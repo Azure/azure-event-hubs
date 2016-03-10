@@ -30,6 +30,12 @@ public class AzureBlobLease extends Lease
 	}
 	
 	public CloudBlockBlob getBlob() { return this.blob; }
+	
+	@Override
+	public CheckPoint getCheckpoint()
+	{
+		return new AzureBlobCheckPoint(this.checkpoint, this);
+	}
 
 	@Override
 	public boolean isExpired()
