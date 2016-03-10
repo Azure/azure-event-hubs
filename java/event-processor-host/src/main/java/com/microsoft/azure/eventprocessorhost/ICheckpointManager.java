@@ -16,6 +16,7 @@ public interface ICheckpointManager
     public Future<CheckPoint> getCheckpoint(String partitionId);
 
     public Future<Void> updateCheckpoint(CheckPoint checkpoint);
+    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber);
 
     public Future<Void> deleteCheckpoint(String partitionId);
 

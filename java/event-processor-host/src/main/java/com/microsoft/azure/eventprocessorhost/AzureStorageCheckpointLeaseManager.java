@@ -94,10 +94,15 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 
     public Future<Void> updateCheckpoint(CheckPoint checkpoint)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint));
+    	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
     }
     
-    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint)
+    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
+    {
+        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint, offset, sequenceNumber));
+    }
+    
+    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint, String offset, long sequenceNumber)
     {
     	// TODO
     	return null;

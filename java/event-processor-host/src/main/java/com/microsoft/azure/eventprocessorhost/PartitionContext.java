@@ -61,13 +61,13 @@ public class PartitionContext
     	return this.partitionId;
     }
 
-    public Future<Void> Checkpoint()
+    public Future<Void> checkpoint()
     {
-        return this.checkpointManager.updateCheckpoint(this.partitionId, this.lease.getOffset());
+        return this.checkpointManager.updateCheckpoint(this.lease.getCheckpoint());
     }
 
-    public Future<Void> Checkpoint(EventData data)
+    public Future<Void> checkpoint(EventData data)
     {
-        return checkpointManager.updateCheckpoint(this.partitionId, data.getSystemProperties().getOffset());
+        return checkpointManager.updateCheckpoint(this.lease.getCheckpoint(), data.getSystemProperties().getOffset(), data.getSystemProperties().getSequenceNumber());
     }
 }

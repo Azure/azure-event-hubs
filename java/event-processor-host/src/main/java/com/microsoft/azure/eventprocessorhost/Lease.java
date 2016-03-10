@@ -4,6 +4,8 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+
 public class Lease
 {
     private String eventHubPath;
@@ -23,7 +25,7 @@ public class Lease
 
         this.epoch = 0;
         this.checkpoint = new CheckPoint(this.partitionId);
-        this.checkpoint.setOffset(""); // empty string is magic
+        this.checkpoint.setOffset(PartitionReceiver.StartOfStream);
         this.checkpoint.setSequenceNumber(0);
         this.owner = "";
         this.token = "";
