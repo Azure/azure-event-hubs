@@ -1,4 +1,10 @@
+/*
+ * LICENSE GOES HERE
+ */
+
 package com.microsoft.azure.eventprocessorhost;
+
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class Lease
 {
@@ -7,9 +13,8 @@ public class Lease
     private String partitionId;
 
     private long epoch;
-    private String offset;
+    protected CheckPoint checkpoint;
     private String owner;
-    private long sequenceNumber;
     private String token;
 
     public Lease(String eventHub, String consumerGroup, String partitionId)
@@ -19,9 +24,10 @@ public class Lease
         this.partitionId = partitionId;
 
         this.epoch = 0;
-        this.offset = "-1"; // magic number
+        this.checkpoint = new CheckPoint(this.partitionId);
+        this.checkpoint.setOffset(PartitionReceiver.StartOfStream);
+        this.checkpoint.setSequenceNumber(0);
         this.owner = "";
-        this.sequenceNumber = 0;
         this.token = "";
     }
 
@@ -32,9 +38,8 @@ public class Lease
         this.partitionId = source.partitionId;
 
         this.epoch = source.epoch;
-        this.offset = source.offset;
+        this.checkpoint = new CheckPoint(source.getCheckpoint());
         this.owner = source.owner;
-        this.sequenceNumber = source.sequenceNumber;
         this.token = source.token;
     }
 
@@ -47,15 +52,21 @@ public class Lease
     {
         this.epoch = epoch;
     }
-
-    public String getOffset()
+    
+    public long incrementEpoch()
     {
-        return this.offset;
+    	this.epoch++;
+    	return this.epoch;
+    }
+    
+    public CheckPoint getCheckpoint()
+    {
+    	return new CheckPoint(this.checkpoint);
     }
 
     public void setOffset(String offset)
     {
-        this.offset = offset;
+        this.checkpoint.setOffset(offset);
     }
 
     public String getOwner()
@@ -83,14 +94,9 @@ public class Lease
         return this.consumerGroup;
     }
 
-    public long getSequenceNumber()
-    {
-        return this.sequenceNumber;
-    }
-
     public void setSequenceNumber(long sequenceNumber)
     {
-        this.sequenceNumber = sequenceNumber;
+        this.checkpoint.setSequenceNumber(sequenceNumber);
     }
 
     public String getToken()
@@ -103,9 +109,9 @@ public class Lease
         this.token = token;
     }
 
-    private Boolean isExpired()
+    public boolean isExpired()
     {
-    	// .NET always returns false
+    	// this function is meaningless in the base class
     	return false;
     }
 }

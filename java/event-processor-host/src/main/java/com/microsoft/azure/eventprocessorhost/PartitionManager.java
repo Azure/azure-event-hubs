@@ -1,3 +1,7 @@
+/*
+ * LICENSE GOES HERE
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.ArrayList;
@@ -77,8 +81,15 @@ class PartitionManager implements Runnable
 			}
     		catch (InterruptedException | ExecutionException e)
     		{
-    			// Log but otherwise ignore.
     			this.host.logWithHost("Failure during shutdown", e);
+    			// By convention, bail immediately on interrupt, even though we're just cleaning
+    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
+    			// free to bail without serious side effects.
+    			if (e instanceof InterruptedException)
+    			{
+    				Thread.currentThread().interrupt();
+    				throw new RuntimeException(e);
+    			}
 			}
     	}
     	
@@ -100,16 +111,15 @@ class PartitionManager implements Runnable
                     throw new Exception("couldn't create lease store");
                     // DUMMY ENDS
                 }
-
+                
                 // Determine how many partitions there are, create leases for them, and acquire those leases
                 // DUMMY STARTS
                 for (String id : getPartitionIds())
                 {
-                    leaseManager.createLeaseIfNotExists(id).get();
-                    Lease gotLease = leaseManager.acquireLease(id).get();
-                    if (gotLease != null)
+                    Lease createdLease = leaseManager.createLeaseIfNotExists(id).get();
+                    if (leaseManager.acquireLease(createdLease).get())
                     {
-                        allLeases.put(gotLease.getPartitionId(), gotLease);
+                        allLeases.put(createdLease.getPartitionId(), createdLease);
                     }
                 }
                 // DUMMY ENDS
@@ -117,8 +127,8 @@ class PartitionManager implements Runnable
             else
             {
                 // Inspect all leases.
-                // Take any leases that currently belong to us.
-                // If any are expired, take those.
+                // Renew any leases that currently belong to us.
+                // Acquire any expired leases.
                 Iterable<Future<Lease>> gettingAllLeases = leaseManager.getAllLeases();
                 ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
                 int ourLeasesCount = 0;
@@ -127,12 +137,18 @@ class PartitionManager implements Runnable
                     Lease possibleLease = future.get();
                     if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
                     {
-                        Lease gotLease = leaseManager.acquireLease(possibleLease.getPartitionId()).get();
-                        if (gotLease != null)
+                        if (leaseManager.renewLease(possibleLease).get())
                         {
-                            allLeases.put(gotLease.getPartitionId(), gotLease);
+                            allLeases.put(possibleLease.getPartitionId(), possibleLease);
                             ourLeasesCount++;
                         }
+                    }
+                    else if (possibleLease.isExpired())
+                    {
+                    	if (leaseManager.acquireLease(possibleLease).get())
+                    	{
+                    		allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                    	}
                     }
                     else
                     {
@@ -149,11 +165,10 @@ class PartitionManager implements Runnable
     	            {
     	            	for (Lease stealee : stealTheseLeases)
     	            	{
-    	            		Lease takenLease = leaseManager.acquireLease(stealee.getPartitionId()).get();
-    	                	if (takenLease != null)
+    	                	if (leaseManager.acquireLease(stealee).get())
     	                	{
-    	                		this.host.logWithHostAndPartition(takenLease.getPartitionId(), "Stole lease");
-    	                		allLeases.put(takenLease.getPartitionId(), takenLease);
+    	                		this.host.logWithHostAndPartition(stealee.getPartitionId(), "Stole lease");
+    	                		allLeases.put(stealee.getPartitionId(), stealee);
     	                		ourLeasesCount++;
     	                	}
     	                	else
@@ -188,9 +203,11 @@ class PartitionManager implements Runnable
             }
             catch (InterruptedException e)
             {
-            	// Log if sleep was interrupted so we can tell if it happens a lot.
-            	// Beyond that, we don't care.
+            	// Bail on the thread if we are interrupted.
                 this.host.logWithHost("Sleep was interrupted", e);
+                this.keepGoing = false;
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
             }
     	}
     }
