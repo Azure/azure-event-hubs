@@ -102,9 +102,12 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint, offset, sequenceNumber));
     }
     
-    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint, String offset, long sequenceNumber)
+    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint, String offset, long sequenceNumber) throws Exception
     {
-    	// TODO
+    	AzureBlobLease lease = checkpoint.getLease();
+    	lease.setOffset(offset);
+    	lease.setSequenceNumber(sequenceNumber);
+    	updateLeaseSync(lease);
     	return null;
     }
 
@@ -130,7 +133,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
     }
     
-    private Lease getLeaseSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    private AzureBlobLease getLeaseSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease retval = null;
     	
@@ -154,13 +157,14 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return leaseFutures;
     }
 
-    public Future<Void> createLeaseIfNotExists(String partitionId)
+    public Future<Lease> createLeaseIfNotExists(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
     }
     
-    private Void createLeaseIfNotExistsSync(String partitionId) throws URISyntaxException, IOException
+    private AzureBlobLease createLeaseIfNotExistsSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
+    	AzureBlobLease returnLease = null;
     	try
     	{
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
@@ -169,6 +173,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     		this.host.logWithHostAndPartition(partitionId,
     				"CreateLeaseIfNotExist - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName());
     		leaseBlob.uploadText(jsonLease, null, AccessCondition.generateIfNoneMatchCondition("*"), null, null);
+    		returnLease = new AzureBlobLease(lease, leaseBlob);
     	}
     	catch (StorageException se)
     	{
@@ -178,9 +183,11 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     		this.host.logWithHostAndPartition(partitionId,
     				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
     				se);
+    		
+    		returnLease = getLeaseSync(partitionId);
     	}
     	
-    	return null;
+    	return returnLease;
     }
 
     public Future<Void> deleteLease(Lease lease)

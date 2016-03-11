@@ -4,15 +4,13 @@ package com.microsoft.azure.eventhubs.samples;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
 
-import java.io.IOException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
 public class EventProcessorSample {
     public static void main(String args[])
     {
     	int hostCount = 2;
-    	PartitionManager.dummyPartitionCount = 4;
+    	EventProcessorHost.setDummyPartitionCount(4);
     	
     	EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     	

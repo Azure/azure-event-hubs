@@ -17,7 +17,7 @@ public interface ILeaseManager
     public Future<Lease> getLease(String partitionId);
     public Iterable<Future<Lease>> getAllLeases();
 
-    public Future<Void> createLeaseIfNotExists(String partitionId);
+    public Future<Lease> createLeaseIfNotExists(String partitionId);
 
     public Future<Void> deleteLease(Lease lease);
 

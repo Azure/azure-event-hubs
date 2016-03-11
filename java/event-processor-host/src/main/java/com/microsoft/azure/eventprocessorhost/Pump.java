@@ -185,8 +185,9 @@ class Pump
 	                this.processor.onOpen(this.partitionContext);
 	                this.internalReceiveHandler = new InternalReceiveHandler();
 	                // Handler is set after onOpen completes, meaning onEvents will never fire while onOpen is still executing.
-	                this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
+	                // Set the status to running before setting the handler, so the handler can never race and see the status != running.
 	                this.pumpStatus = PartitionPumpStatus.running;
+	                this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
 	            }
 	            catch (Exception e)
 	            {
