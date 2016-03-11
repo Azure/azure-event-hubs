@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 import java.util.Iterator;
@@ -8,20 +12,36 @@ public final class IteratorUtil
 	{
 	}
 
-	public static boolean sizeEquals(Iterator iterator, int expectedSize)
+	public static <T> boolean sizeEquals(Iterable<T> iterable, int expectedSize)
 	{
-		if (expectedSize == 0)
+		Iterator<T> iterator = iterable.iterator();
+		
+		int currentSize = 0;
+		while(iterator.hasNext())
 		{
-			return !iterator.hasNext();
+			if (expectedSize > currentSize)
+			{
+				currentSize++;
+				iterator.next();
+				continue;
+			}
+			else
+			{
+				return false;
+			}
 		}
-		else if (!iterator.hasNext())
+		
+		return true;		
+	}
+	
+	public static <T> T getLast(Iterator<T> iterator)
+	{
+		T last = null;
+		while(iterator.hasNext())
 		{
-			return false;
+			last = iterator.next();
 		}
-		else 
-		{
-			iterator.next();
-			return sizeEquals(iterator, expectedSize - 1);
-		}
+		
+		return last;
 	}
 }

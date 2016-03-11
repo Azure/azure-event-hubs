@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus.amqp;
 
 import java.util.*;
@@ -10,31 +14,38 @@ import org.apache.qpid.proton.reactor.*;
 
 import com.microsoft.azure.servicebus.*;
 
-/**
- * ServiceBus <-> ProtonReactor interaction handles all
- * amqp_connection/transport related events from reactor
- */
+
+// ServiceBus <-> ProtonReactor interaction handles all
+// amqp_connection/transport related events from reactor
 public final class ConnectionHandler extends BaseHandler
 {
 
-	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.ServiceBusClientTrace);
+	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 
 	private final String hostname;
 	private final String username;
 	private final String password;
-	private final MessagingFactory messagingFactory;
+	private final IAmqpConnection messagingFactory;
 
-	// TODO: sasl mechanism should be passed - since currently it only supports
-	// sasKey/Value - simplified & directly passing username/password
-	public ConnectionHandler(final MessagingFactory messagingFactory, final String hostname, final String username, final String password)
+	public ConnectionHandler(final IAmqpConnection messagingFactory, final String hostname, final String username, final String password)
 	{
 		add(new Handshaker());
+		
 		this.hostname = hostname;
 		this.username = username;
 		this.password = password;
 		this.messagingFactory = messagingFactory;
 	}
 
+	@Override
+	public void onConnectionInit(Event event)
+	{
+		Connection connection = event.getConnection();
+		connection.setHostname(this.hostname + ":" + ClientConstants.AMQPS_PORT);
+		connection.setContainer(UUID.randomUUID().toString());
+		connection.open();
+	}
+	
 	@Override
 	public void onConnectionBound(Event event)
 	{
@@ -46,6 +57,15 @@ public final class ConnectionHandler extends BaseHandler
 		Sasl sasl = transport.sasl();
 		sasl.plain(this.username, this.password);
 	}
+	
+	@Override
+	public void onConnectionUnbound(Event event)
+	{
+		if (TRACE_LOGGER.isLoggable(Level.FINE))
+		{
+			TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + event.getConnection().getHostname() + "]");
+		}
+	}
 
 	@Override
 	public void onTransportError(Event event)
@@ -55,33 +75,46 @@ public final class ConnectionHandler extends BaseHandler
 		{
 			if (TRACE_LOGGER.isLoggable(Level.WARNING))
 			{
-				TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "Error: " + condition.getDescription());
+				TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "], error[" + condition.getDescription() + "]");
 			}
 		}
 		else
 		{
 			if (TRACE_LOGGER.isLoggable(Level.WARNING))
 			{
-				System.err.println("");
-				TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "Error (no description returned).");
+				TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "], error[no description returned]");
 			}
 		}
-	}
-
-	@Override
-	public void onConnectionInit(Event event)
-	{
-		Connection connection = event.getConnection();
-		connection.setHostname(this.hostname + ":" + ClientConstants.AmqpsPort);
-		connection.setContainer(UUID.randomUUID().toString());
-		connection.open();
+		
+		this.messagingFactory.onConnectionError(condition);
 	}
 	
 	@Override
 	public void onConnectionRemoteOpen(Event event)
 	{
+		if (TRACE_LOGGER.isLoggable(Level.FINE))
+		{
+			TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionRemoteOpen: hostname[" + event.getConnection().getHostname() + "]");
+		}
+		
+		this.messagingFactory.onOpenComplete(null);
+	}
+	
+	@Override
+	public void onConnectionRemoteClose(Event event)
+	{
 		Connection connection = event.getConnection();
-		this.messagingFactory.onOpenComplete();
+		ErrorCondition error = connection.getRemoteCondition();
+		
+		if (TRACE_LOGGER.isLoggable(Level.FINE))
+		{
+			TRACE_LOGGER.log(Level.FINE, "hostname[" + connection.getHostname() + 
+					(error != null
+							 ? "], errorCondition[" + error.getCondition() + ", " + error.getDescription() + "]"
+									 : "]"));
+		}
+		
+		this.messagingFactory.onConnectionError(error);
 	}
 
 	private static SslDomain makeDomain(SslDomain.Mode mode)

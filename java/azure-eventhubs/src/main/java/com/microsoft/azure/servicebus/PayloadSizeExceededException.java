@@ -1,22 +1,28 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 public class PayloadSizeExceededException extends ServiceBusException
 {
-	
-	public PayloadSizeExceededException(String message)
+	PayloadSizeExceededException()
 	{
-		super(message);
-	}
-	
-	public PayloadSizeExceededException(String message, Throwable cause)
-	{
-		super(message, cause);
-	}
-	
-	@Override
-	public boolean getIsTransient()
-	{
-		return false;
+		super(false);
 	}
 
+	PayloadSizeExceededException(final String message)
+	{
+		super(false, message);
+	}
+
+	PayloadSizeExceededException(final Throwable cause)
+	{
+		super(false, cause);
+	}
+
+	PayloadSizeExceededException(final String message, final Throwable cause)
+	{
+		super(false, message, cause);
+	}
 }

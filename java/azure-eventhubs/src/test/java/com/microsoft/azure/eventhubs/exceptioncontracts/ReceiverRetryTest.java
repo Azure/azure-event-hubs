@@ -17,7 +17,6 @@ import org.apache.qpid.proton.reactor.*;
 
 import org.junit.*;
 
-import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.eventhubs.lib.*;
 import com.microsoft.azure.servicebus.*;
 import com.microsoft.azure.servicebus.amqp.AmqpErrorCode;
@@ -76,7 +75,7 @@ public class ReceiverRetryTest extends TestBase
 					Link link = event.getLink();
 					if (link.getLocalState()== EndpointState.ACTIVE)
 					{
-						link.setCondition(new ErrorCondition(ClientConstants.ServerBusyError, "SimulateInternalError"));
+						link.setCondition(new ErrorCondition(ClientConstants.SERVER_BUSY_ERROR, "SimulateInternalError"));
 						data.retryCount++;
 						link.detach();
 						link.close();
@@ -88,11 +87,11 @@ public class ReceiverRetryTest extends TestBase
 		server = MockServer.Create(recvFlowHandler);
 	}
 	
-	// TODO: @Test
+	@Test
 	public void testRetryWhenReceiveFails() throws Exception
 	{
 		factory = MessagingFactory.createFromConnectionString(
-				new ConnectionStringBuilder("Endpoint=amqps://localhost;SharedAccessKeyName=somename;EntityPath=eventhub1;SharedAccessKey=somekey").toString());
+				new ConnectionStringBuilder("Endpoint=amqps://localhost;SharedAccessKeyName=somename;EntityPath=eventhub1;SharedAccessKey=somekey").toString()).get();
 		
 		MessageReceiver receiver = MessageReceiver.create(factory, 
 					"receiver1", "eventhub1/consumergroups/$default/partitions/0", "-1", false, null, 100, 0, false).get();
@@ -109,11 +108,11 @@ public class ReceiverRetryTest extends TestBase
 	@After
 	public void cleanup() throws IOException
 	{
-		if (server != null)
-			server.close();
-		
 		if (factory != null)
 			factory.close();
+	
+		if (server != null)
+			server.close();
 	}
 
 	public class TestData

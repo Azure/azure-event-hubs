@@ -82,7 +82,7 @@ information to set up a connection with an Event Hub. The format is a simple pro
 | EntityPath            | Relative path of the Event Hub in the namespace. Commonly this is just the Event Hub name                   |  
 | SharedAccessKeyName   | Name of a Shared Access Signature rule configured for the Event Hub or the Event Hub name. For publishers, the rule must include "Send" permissions. |
 | SharedAccessKey       | Base64-encoded value of the Shared Access Key for the rule |
-| SharedAccessSignature | A previously issued Shared Access Signature token          |
+| SharedAccessSignature | A previously issued Shared Access Signature token  (not yet supported; will be soon)        |
  
 A connection string will therefore have the following form:
 
@@ -90,55 +90,11 @@ A connection string will therefore have the following form:
   Endpoint=sb://clemensveu.servicebus.windows.net&EntityPath=myeventhub&SharedAccessSignature=....
 ```
 
-###Tokens
-The preferred model for event publishers is to generate a token from the SAS rule key and give that to the publisher instead
-of giving the direct access to the signing key. Tokens can be extremely short lived, for a few minutes, when a sender shall 
-only obtain temporary send access to the Event Hub. They can also be very long-lived, for several months, when a sender needs
-permanent send access to the Event Hub. When the key on which the token is based in invalidated, all tokens become invalid and
-must be reissued. 
-
-The generated token will be configured into the connection string with the *SharedAccessSignature* property.   
- 
-More information about Shared Access Signature in Service Bus and Event Hubs about about how to generate the required tokens 
-in a range of languages [can be found on the Azure site.](https://azure.microsoft.com/en-us/documentation/articles/service-bus-sas-overview/) 
-
-The easiest way to obtain a token for development purposes is to copy the connection string from the Azure portal. These tokens
-do include key name and key value outright. The portal does not issue tokens.
-
 ##Advanced Operations
 
 The publisher example shown in the overview above sends an event into the Event Hub without further qualification. This is 
 the preferred and most flexible and reliable option. For specific needs, Event Hubs offers two extra options to 
 qualify send operations: Publisher policies and partion addressing.     
-
-###Publisher Policies
-
-To a publisher, a publisher policy is largely just a suffix appended to the Event Hub path, which has the form 
-
-```
-<event-hub-name>/publishers/<policyname>
-```  
-
-The name of of the policy is commonly chosen by the Event Hub owner, and might be the name of the publisher's account
-or the identifier of a publishing device, or some randomly chosen string uniquely assigned to the sender. 
-
-With publisher policies, the Event Hub owner will generally hold on to the signing key of a SAS rule conferring only "Send" 
-permission, and issue a send-only token to the publisher as described in the [Tokens](#tokens) section above. This token is
-scoped to the path shown above and can only be used to publish to this particular policy. 
-
-The special functionality of the publisher policy is twofold:
-
-* The Event Hub owner can issue a very long-lived token to the publisher whose expiration may be several months or even years 
-  into the future. Should the owner suspect that the publisher has been compromised or acts maliciously, the Event Hub owner 
-  can revoke access for this particular publisher instead of having to invalidate the signing key and thus revoking all tokens.
-  The revocation gesture is an HTTPS management operation that is documented [here].
-* Each event that is sent via a publisher policy has its PartitionKey property set, on the Event Hub side, to the publisher 
-  name to prevent publisher spoofing. The publisher has no control over the value of this field when sending via a publisher
-  policy. The property therefore serves as proof to the event consumer that the publisher was indeed in possesion of a valid 
-  token for the publisher policy. The alternative to this mechanism is some form of digital signature applied to the payload. 
-  
- There are some potential availability and reliability caveats associated with using punblisher policies that are discussed 
- in the following section about partition addressing.
 
 ###Partition Addressing
 
@@ -181,6 +137,10 @@ option. To send to a partition you explicitly need to create a client object tha
     EventData sendEvent = new EventData(payloadBytes);
     sender.send(sendEvent).get();
 ```
+
+#### Publisher Policies
+
+Event Hub Publisher Policies are not yet supported by this client and will be supported in a future release.
  
 ####Special considerations for partitions and publisher policies
 

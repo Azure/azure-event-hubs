@@ -4,8 +4,7 @@
  */
 package com.microsoft.azure.servicebus;
 
-public enum TimerType
+interface IErrorContextProvider
 {
-	OneTimeRun,
-	RepeatRun
+	ErrorContext getContext();
 }

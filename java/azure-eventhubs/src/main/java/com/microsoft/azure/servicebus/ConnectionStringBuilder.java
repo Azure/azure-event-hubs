@@ -1,21 +1,37 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 import java.net.*;
 import java.time.*;
 import java.util.*;
 import java.util.regex.*;
+import com.microsoft.azure.eventhubs.*;
 
 /**
  * {@link ConnectionStringBuilder} can be used to construct a connection string which can establish communication with ServiceBus entities.
  * It can also be used to perform basic validation on an existing connection string.
- *  <p> Illustration:
- *  <pre>
- *  	ConnectionStringBuilder connStr = new ConnectionStringBuilder(
- *  		"namespaceName", 
- *  		"ServiceBusEntityName", // eventHubName or QueueName or TopicName 
- *  		"sayKeyName", 
- *  		"SasKey");
- *  </pre>
+ * <p> Sample Code:
+ * <pre>{@code
+ * 	ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(
+ *     "ServiceBusNamespaceName", 
+ *     "ServiceBusEntityName", // eventHubName or QueueName or TopicName 
+ *     "SharedAccessSignatureKeyName", 
+ *     "SharedAccessSignatureKey");
+ *  
+ * String connectionString = connectionStringBuilder.toString();
+ * }</pre>
+ * <p>
+ * A connection string is basically a string consisted of key-value pair separated by ";". 
+ * Basic format is {{@literal <}key{@literal >}={@literal <}value{@literal >}[;{@literal <}key{@literal >}={@literal <}value{@literal >}]} where supported key name are as follow:
+ * <ul>
+ * <li> Endpoint - the URL that contains the servicebus namespace
+ * <li> EntityPath - the path to the service bus entity (queue/topic/eventhub/subscription/consumergroup/partition)
+ * <li> SharedAccessKeyName - the key name to the corresponding shared access policy rule for the namespace, or entity.
+ * <li> SharedAccessKey - the key for the corresponding shared access policy rule of the namespace or entity.
+ * </ul>
  */
 public class ConnectionStringBuilder
 {
@@ -79,6 +95,7 @@ public class ConnectionStringBuilder
 	/**
 	 * ConnectionString format:
 	 * 		Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
+	 * @param connectionString ServiceBus ConnectionString
 	 * @throws IllegalConnectionStringFormatException when the format of the ConnectionString is not valid
 	 */
 	public ConnectionStringBuilder(String connectionString)
@@ -92,16 +109,28 @@ public class ConnectionStringBuilder
 		return this.endpoint;
 	}
 
+	/**
+	 * Get the shared access policy key value from the connection string
+	 * @return Shared Access Signature key
+	 */
 	String getSasKey()
 	{
 		return this.sharedAccessKey;
 	}
 
+	/**
+	 * Get the shared access policy owner name from the connection string
+	 * @return Shared Access Signature key name.
+	 */
 	public String getSasKeyName()
 	{
 		return this.sharedAccessKeyName;
 	}
 	
+	/**
+	 * Get the entity path value from the connection string
+	 * @return Entity Path
+	 */
 	public String getEntityPath()
 	{
 		return this.entityPath;
@@ -109,17 +138,26 @@ public class ConnectionStringBuilder
 	
 	/**
 	 * OperationTimeout is applied in erroneous situations to notify the caller about the relevant {@link ServiceBusException}
+	 * @return operationTimeout
 	 */
 	public Duration getOperationTimeout()
 	{
 		return (this.operationTimeout == null ? MessagingFactory.DefaultOperationTimeout : this.operationTimeout);
 	}
 	
+	/**
+	 * Get the retry policy instance that was created as part of this builder's creation.
+	 * @return RetryPolicy applied for any operation performed using this ConnectionString
+	 */
 	public RetryPolicy getRetryPolicy()
 	{
 		return (this.retryPolicy == null ? RetryPolicy.getDefault() : this.retryPolicy);
 	}
 
+	/**
+	 * Returns an inter-operable connection string that can be used to connect to ServiceBus Namespace
+	 * @return connection string
+	 */
 	@Override
 	public String toString()
 	{

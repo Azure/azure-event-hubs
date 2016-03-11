@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 import java.time.Duration;
@@ -10,6 +14,8 @@ public class ReplayableWorkItem<T> extends WorkItem<T>
 	final private byte[] amqpMessage;
 	final private int messageFormat;
 	final private int encodedMessageSize;
+	
+	private Exception lastKnownException;
 	
 	public ReplayableWorkItem(final byte[] amqpMessage, final int encodedMessageSize, final int messageFormat, final CompletableFuture<T> completableFuture, final Duration timeout)
 	{
@@ -32,5 +38,15 @@ public class ReplayableWorkItem<T> extends WorkItem<T>
 	public int getMessageFormat()
 	{
 		return this.messageFormat;
+	}
+	
+	public Exception getLastKnownException()
+	{
+		return this.lastKnownException;
+	}
+	
+	public void setLastKnownException(Exception exception)
+	{
+		this.lastKnownException = exception;
 	}
 }

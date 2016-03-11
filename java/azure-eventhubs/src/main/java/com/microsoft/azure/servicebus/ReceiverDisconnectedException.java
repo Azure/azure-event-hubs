@@ -1,17 +1,28 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 public class ReceiverDisconnectedException extends ServiceBusException
 {
-
-	public ReceiverDisconnectedException(final String description)
+	ReceiverDisconnectedException()
 	{
-		super(description);
+		super(false);
 	}
 
-	@Override
-	public boolean getIsTransient()
+	ReceiverDisconnectedException(final String message)
 	{
-		return false;
+		super(false, message);
 	}
 
+	ReceiverDisconnectedException(final Throwable cause)
+	{
+		super(false, cause);
+	}
+
+	ReceiverDisconnectedException(final String message, final Throwable cause)
+	{
+		super(false, message, cause);
+	}
 }

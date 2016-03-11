@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.eventhubs;
 
 import java.nio.*;
@@ -20,7 +24,6 @@ public class EventData
 	private String offset;
 	private long sequenceNumber;
 	private Instant enqueuedTime;
-	private boolean closed;
 	private Binary bodyData;
 	private boolean isReceivedEvent;
 	private Map<String, String> properties;
@@ -29,7 +32,6 @@ public class EventData
 	
 	EventData()
 	{
-		this.closed = false;
 	}
 	
 	/**
@@ -45,17 +47,19 @@ public class EventData
 		
 		Map<Symbol, Object> messageAnnotations = amqpMessage.getMessageAnnotations().getValue();
 		
-		Object partitionKeyObj = messageAnnotations.get(AmqpConstants.PartitionKey);
-		if (partitionKeyObj != null) 
+		Object partitionKeyObj = messageAnnotations.get(AmqpConstants.PARTITION_KEY);
+		if (partitionKeyObj != null)
+		{
 			this.partitionKey = partitionKeyObj.toString();
+		}
 		
-		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SequenceNumber);
+		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SEQUENCE_NUMBER);
 		this.sequenceNumber = (Long) sequenceNumberObj;
 		
-		Object enqueuedTimeUtcObj = messageAnnotations.get(AmqpConstants.EnqueuedTimeUtc);
+		Object enqueuedTimeUtcObj = messageAnnotations.get(AmqpConstants.ENQUEUED_TIME_UTC);
 		this.enqueuedTime = ((Date) enqueuedTimeUtcObj).toInstant();
 		
-		this.offset = messageAnnotations.get(AmqpConstants.Offset).toString();
+		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
 		
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, String>)(amqpMessage.getApplicationProperties().getValue()));
@@ -74,17 +78,17 @@ public class EventData
 	 * <pre>
 	 * i.	Serialize the sending ApplicationEvent to be sent to EventHubs into bytes.
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
-	 *  </pre> 
-	 *  <p> Illustration:
-	 *  <pre>
-	 *  	EventData eventData = new EventData(telemetryEventBytes);
-	 *  	HashMap<String, String> applicationProperties = new HashMap<String, String>();
-	 *  	applicationProperties.put("eventType", "com.microsoft.azure.monitoring.EtlEvent");
-	 *		eventData.setProperties(applicationProperties);
-	 *  	partitionSender.Send(eventData);
-	 *  </pre>
+	 * </pre> 
+	 * <p> Sample Code:
+	 * <pre>
+	 * EventData eventData = new EventData(telemetryEventBytes);
+	 * HashMap{@literal <}String, String{@literal >} applicationProperties = new HashMap{@literal <}String, String{@literal >}();
+	 * applicationProperties.put("eventType", "com.microsoft.azure.monitoring.EtlEvent");
+	 * eventData.setProperties(applicationProperties);
+	 * partitionSender.Send(eventData);
+	 * </pre>
 	 * @param data the actual payload of data in bytes to be Sent to EventHubs.
-	 * @see To start sending to EventHubs refer to {@link EventHubClient#createFromConnectionString(String)}
+	 * @see EventHubClient#createFromConnectionString(String)
 	 */
 	public EventData(byte[] data)
 	{
@@ -106,17 +110,17 @@ public class EventData
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
 	 *  </pre> 
 	 *  <p> Illustration:
-	 *  <pre>
-	 *  	EventData eventData = new EventData(telemetryEventBytes, offset, length);
-	 *  	HashMap<String, String> applicationProperties = new HashMap<String, String>();
-	 *  	applicationProperties.put("eventType", "com.microsoft.azure.monitoring.EtlEvent");
-	 *		eventData.setProperties(applicationProperties);
-	 *  	partitionSender.Send(eventData);
-	 *  </pre>
+	 *  <pre> {@code
+	 *  EventData eventData = new EventData(telemetryEventBytes, offset, length);
+	 *  HashMap{@literal <}String, String{@literal >} applicationProperties = new HashMap{@literal <}String, String{@literal >}();
+	 *  applicationProperties.put("eventType", "com.microsoft.azure.monitoring.EtlEvent");
+	 *	eventData.setProperties(applicationProperties);
+	 *  partitionSender.Send(eventData);
+	 *  }</pre>
 	 * @param data the byte[] where the payload of the Event to be sent to EventHubs is present
 	 * @param offset Offset in the byte[] to read from ; inclusive index
 	 * @param length length of the byte[] to be read, starting from offset
-	 * @see To start sending to EventHubs refer to {@link EventHubClient#createFromConnectionString(String)}
+	 * @see EventHubClient#createFromConnectionString(String)
 	 */
 	public EventData(byte[] data, final int offset, final int length)
 	{
@@ -138,15 +142,15 @@ public class EventData
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
 	 *  </pre> 
 	 *  <p> Illustration:
-	 *  <pre>
+	 *  <code>
 	 *  	EventData eventData = new EventData(telemetryEventByteBuffer);
-	 *  	HashMap<String, String> applicationProperties = new HashMap<String, String>();
+	 *  	HashMap{@literal <}String, String{@literal >} applicationProperties = new HashMap{@literal <}String, String{@literal >}();
 	 *  	applicationProperties.put("eventType", "com.microsoft.azure.monitoring.EtlEvent");
 	 *		eventData.setProperties(applicationProperties);
 	 *  	partitionSender.Send(eventData);
-	 *  </pre>
+	 *  </code>
 	 * @param buffer ByteBuffer which references the payload of the Event to be sent to EventHubs
-	 * @see To start sending to EventHubs refer to {@link EventHubClient#createFromConnectionString(String)}
+	 * @see EventHubClient#createFromConnectionString(String)
 	 */
 	public EventData(ByteBuffer buffer)
 	{
@@ -173,6 +177,7 @@ public class EventData
 	
 	/**
 	 * Application property bag
+	 * @return returns Application properties
 	 */
 	public Map<String, String> getProperties()
 	{
@@ -186,7 +191,7 @@ public class EventData
 	
 	/**
 	 * SystemProperties that are populated by EventHubService.
-	 * <pr>As these are populated by Service, they are only present on a Received EventData.
+	 * <p>As these are populated by Service, they are only present on a Received EventData.
 	 * @return an encapsulation of all SystemProperties appended by EventHubs service into EventData
 	 */
 	public SystemProperties getSystemProperties()
@@ -199,19 +204,8 @@ public class EventData
 		return this.systemProperties;
 	}
 	
-	private void throwIfAutoClosed()
-	{
-		if (this.closed)
-		{
-			// TODO: TRACE
-			throw new IllegalStateException("EventData is already disposed");
-		}
-	}
-	
 	Message toAmqpMessage()
 	{
-		this.throwIfAutoClosed();
-		
 		Message amqpMessage = Proton.message();
 		
 		if (this.properties != null && !this.properties.isEmpty())
@@ -230,14 +224,12 @@ public class EventData
 	
 	Message toAmqpMessage(String partitionKey)
 	{
-		this.throwIfAutoClosed();
-		
 		Message amqpMessage = this.toAmqpMessage();
 		
 		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
 				? new MessageAnnotations(new HashMap<Symbol, Object>()) 
 				: amqpMessage.getMessageAnnotations();		
-		messageAnnotations.getValue().put(AmqpConstants.PartitionKey, partitionKey);
+		messageAnnotations.getValue().put(AmqpConstants.PARTITION_KEY, partitionKey);
 		amqpMessage.setMessageAnnotations(messageAnnotations);
 		
 		return amqpMessage;

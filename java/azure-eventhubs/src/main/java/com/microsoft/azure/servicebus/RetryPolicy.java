@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 import java.time.*;
@@ -6,9 +10,8 @@ import java.util.concurrent.*;
 // TODO: SIMPLIFY retryPolicy - ConcurrentHashMap is not needed
 public abstract class RetryPolicy
 {
+	private static final RetryPolicy NO_RETRY = new RetryExponential(Duration.ofSeconds(0), Duration.ofSeconds(0), 0);
 	private ConcurrentHashMap<String, Integer> retryCounts;
-	
-	public static final RetryPolicy NoRetry = new RetryExponential(Duration.ofSeconds(0), Duration.ofSeconds(0), 0);
 	
 	protected RetryPolicy()
 	{
@@ -17,11 +20,8 @@ public abstract class RetryPolicy
 	
 	public void incrementRetryCount(String clientId)
 	{
-		synchronized (clientId)
-		{
-			Integer retryCount = this.retryCounts.get(clientId);
-			this.retryCounts.put(clientId, retryCount == null ? 1 : retryCount + 1);
-		}
+		Integer retryCount = this.retryCounts.get(clientId);
+		this.retryCounts.put(clientId, retryCount == null ? 1 : retryCount + 1);
 	}
 	
 	public void resetRetryCount(String clientId)
@@ -29,10 +29,7 @@ public abstract class RetryPolicy
 		Integer currentRetryCount = this.retryCounts.get(clientId);
 		if (currentRetryCount != null && currentRetryCount != 0)
 		{
-			synchronized (clientId)
-			{
-				this.retryCounts.put(clientId, 0);
-			}
+			this.retryCounts.put(clientId, 0);
 		}
 	}
 	
@@ -54,22 +51,29 @@ public abstract class RetryPolicy
 	public static RetryPolicy getDefault()
 	{
 		return new RetryExponential(
-			ClientConstants.DefaultRetryMinBackoff, 
-			ClientConstants.DefaultRetryMaxBackoff, 
-			ClientConstants.DefaultMaxRetryCount);
+			ClientConstants.DEFAULT_RERTRY_MIN_BACKOFF, 
+			ClientConstants.DEFAULT_RERTRY_MAX_BACKOFF, 
+			ClientConstants.DEFAULT_MAX_RETRY_COUNT);
+	}
+	
+	public static RetryPolicy getNoRetry()
+	{
+		return RetryPolicy.NO_RETRY;
 	}
 	
 	protected int getRetryCount(String clientId)
 	{
-		synchronized(clientId)
-		{
-			Integer retryCount = this.retryCounts.get(clientId);
-			return retryCount == null ? 0 : retryCount;
-		}
+		Integer retryCount = this.retryCounts.get(clientId);
+		return retryCount == null ? 0 : retryCount;
 	}
-	
+
 	/**
-	 * return returns 'null' Duration when not Allowed
+	 * Gets the Interval after which nextRetry should be done.
+	 * 
+	 * @param clientId clientId
+	 * @param lastException lastException
+	 * @param remainingTime remainingTime to retry
+	 * @return returns 'null' Duration when not Allowed
 	 */
 	public abstract Duration getNextRetryInterval(String clientId, Exception lastException, Duration remainingTime);
 }

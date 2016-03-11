@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.eventhubs.samples;
 
 import java.io.IOException;
@@ -15,12 +19,14 @@ public class SendBatch
 	public static void main(String[] args) 
 			throws ServiceBusException, ExecutionException, InterruptedException, IOException
 	{
-		ConnectionStringBuilder connStr = new ConnectionStringBuilder("----namespaceName-----", "----EventHubName-----", "-----sayKeyName-----", "---SasKey----");
+		final String namespaceName = "----ServiceBusNamespaceName-----";
+		final String eventHubName = "----EventHubName-----";
+		final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
+		final String sasKey = "---SharedAccessSignatureKey----";
+		ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
 		
 		Gson gson = new GsonBuilder().create();
-		
-		EventHubClient ehClient = EventHubClient.createFromConnectionString(connStr.toString()).get();
-		EventHubSender sender = ehClient.createPartitionSender("0").get();
+		EventHubClient sender = EventHubClient.createFromConnectionString(connStr.toString()).get();
 		
 		while (true)
 		{

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus.amqp;
 
 import java.util.logging.Level;
@@ -9,7 +13,7 @@ import com.microsoft.azure.servicebus.ClientConstants;
 
 public class ReactorHandler extends BaseHandler
 {
-	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.ServiceBusClientTrace);
+	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 	
 	@Override
 	public void onReactorInit(Event e)

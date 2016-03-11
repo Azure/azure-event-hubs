@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus;
 
 import java.util.concurrent.*;
@@ -6,7 +10,6 @@ import com.microsoft.azure.servicebus.amqp.*;
 
 final class ExceptionUtil
 {
-
 	static Exception toException(ErrorCondition errorCondition)
 	{
 		if (errorCondition == null)
@@ -14,11 +17,11 @@ final class ExceptionUtil
 			throw new IllegalArgumentException("'null' errorCondition cannot be translated to ServiceBusException");
 		}
 		
-		if (errorCondition.getCondition() == ClientConstants.TimeoutError)
+		if (errorCondition.getCondition() == ClientConstants.TIMEOUT_ERROR)
 		{
-			return new TimeoutException(errorCondition.getDescription());
+			return new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT, new TimeoutException(errorCondition.getDescription()));
 		}
-		else if (errorCondition.getCondition() == ClientConstants.ServerBusyError)
+		else if (errorCondition.getCondition() == ClientConstants.SERVER_BUSY_ERROR)
 		{
 			return new ServerBusyException(errorCondition.getDescription());
 		}
@@ -26,7 +29,7 @@ final class ExceptionUtil
 		{
 			return new IllegalEntityException(errorCondition.getDescription());
 		}
-		else if (errorCondition.getCondition() == ClientConstants.EntityDisabledError)
+		else if (errorCondition.getCondition() == ClientConstants.ENTITY_DISABLED_ERROR)
 		{
 			return new IllegalEntityException(errorCondition.getDescription());
 		}
@@ -44,43 +47,52 @@ final class ExceptionUtil
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.InternalError)
 		{
-			return ServiceBusException.create(false, new AmqpException(errorCondition));
+			return new ServiceBusException(false, new AmqpException(errorCondition));
 		}
-		else if (errorCondition.getCondition() == ClientConstants.ArgumentError)
+		else if (errorCondition.getCondition() == ClientConstants.ARGUMENT_ERROR)
 		{
-			return new IllegalArgumentException(errorCondition.getDescription());
+			return new ServiceBusException(false, errorCondition.getDescription(), new AmqpException(errorCondition));
 		}
-		else if (errorCondition.getCondition() == ClientConstants.ArgumentOutOfRangeError)
+		else if (errorCondition.getCondition() == ClientConstants.ARGUMENT_OUT_OF_RANGE_ERROR)
 		{
-			// TODO: Is there a need to translate this back to errorcode? if so, add errorCode to error msg ?
-			return new IllegalArgumentException(errorCondition.getDescription());
+			return new ServiceBusException(false, errorCondition.getDescription(), new AmqpException(errorCondition));
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.NotImplemented)
 		{
-			// TODO: ideally this should have been ToBeImplementedException
 			return new UnsupportedOperationException(errorCondition.getDescription());
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.NotAllowed)
 		{
 			return new UnsupportedOperationException(errorCondition.getDescription());
 		}
-		else if (errorCondition.getCondition() == ClientConstants.PartitionNotOwnedError)
+		else if (errorCondition.getCondition() == ClientConstants.PARTITION_NOT_OWNED_ERROR)
 		{
-			return ServiceBusException.create(false, errorCondition.getDescription());
+			return new ServiceBusException(false, errorCondition.getDescription());
 		}
-		else if (errorCondition.getCondition() == ClientConstants.StoreLockLostError)
+		else if (errorCondition.getCondition() == ClientConstants.STORE_LOCK_LOST_ERROR)
 		{
-			return ServiceBusException.create(false, errorCondition.getDescription());
+			return new ServiceBusException(false, errorCondition.getDescription());
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.AmqpLinkDetachForced)
 		{
-			return ServiceBusException.create(false, new AmqpException(errorCondition));
+			return new ServiceBusException(false, new AmqpException(errorCondition));
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.ResourceLimitExceeded)
 		{
-			return ServiceBusException.create(false, new AmqpException(errorCondition));
+			return new ServiceBusException(false, new AmqpException(errorCondition));
 		}
 		
-		return ServiceBusException.create(true, errorCondition.getDescription());
+		return new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT, errorCondition.getDescription());
+	}
+	
+	static <T> void completeExceptionally(CompletableFuture<T> future, Exception exception, IErrorContextProvider contextProvider)
+	{
+		if (exception != null && exception instanceof ServiceBusException)
+		{
+			ErrorContext errorContext = contextProvider.getContext();
+			((ServiceBusException) exception).setContext(errorContext);
+		}
+		
+		future.completeExceptionally(exception);
 	}
 }

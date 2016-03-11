@@ -4,8 +4,10 @@
  */
 package com.microsoft.azure.servicebus;
 
-public enum TimerType
+import java.util.concurrent.CompletableFuture;
+import org.apache.qpid.proton.engine.Connection;
+
+interface IConnectionFactory
 {
-	OneTimeRun,
-	RepeatRun
+	CompletableFuture<Connection> getConnection();
 }

@@ -1,42 +1,81 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.servicebus.amqp;
 
+import java.util.Locale;
 import java.util.logging.*;
 
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.*;
 
-import com.microsoft.azure.servicebus.ClientConstants;
-import com.microsoft.azure.servicebus.MessageSender;
+import com.microsoft.azure.servicebus.*;
 
 public class SendLinkHandler extends BaseLinkHandler
 {
-	private final String name;
-	private final MessageSender msgSender;
+	private final IAmqpSender msgSender;
 	private final Object firstFlow;
 	private boolean isFirstFlow;
 	
-	public SendLinkHandler(final String name, final MessageSender sender)
+	public SendLinkHandler(final IAmqpSender sender)
 	{
-		this.name = name;
+		super(sender);
+		
 		this.msgSender = sender;
 		this.firstFlow = new Object();
 		this.isFirstFlow = true;
+	}
+	
+	@Override
+	public void onLinkRemoteOpen(Event event)
+	{
+		Link link = event.getLink();
+        if (link != null && link instanceof Sender)
+        {
+        	Sender sender = (Sender) link;
+        	if (link.getRemoteTarget() != null)
+        	{
+        		if(TRACE_LOGGER.isLoggable(Level.FINE))
+                {
+                	TRACE_LOGGER.log(Level.FINE, String.format(Locale.US, "linkName[%s], remoteTarget[%s]", sender.getName(), link.getRemoteTarget()));
+                }
+        		
+        		synchronized (this.firstFlow)
+        		{
+					this.isFirstFlow = false;
+	        		this.msgSender.onOpenComplete(null);
+        		}
+        	}
+        	else
+        	{
+        		if(TRACE_LOGGER.isLoggable(Level.FINE))
+                {
+                	TRACE_LOGGER.log(Level.FINE,
+                			String.format(Locale.US, "linkName[%s], remoteTarget[null], remoteSource[null], action[waitingForError]", sender.getName()));
+                }
+        	}
+        }
 	}
 
 	@Override
     public void onDelivery(Event event)
 	{		
-		Sender sender = (Sender) event.getLink();
-		if(TRACE_LOGGER.isLoggable(Level.FINE))
+		Delivery delivery = event.getDelivery();
+		Sender sender = (Sender) delivery.getLink();
+		if(TRACE_LOGGER.isLoggable(Level.FINEST))
         {
-            TRACE_LOGGER.log(Level.FINE, "sendLink.onDelivery: name["+sender.getName()+"] : unsettled[" + sender.getUnsettled() + "] : credit[" + sender.getCredit()+ "]");
+            TRACE_LOGGER.log(Level.FINEST, 
+            		"linkName[" + sender.getName() + 
+            		"], unsettled[" + sender.getUnsettled() + "], credit[" + sender.getCredit()+ "], deliveryState[" + delivery.getRemoteState() + 
+            		"], delivery.isBuffered[" + delivery.isBuffered() +"], delivery.id[" + delivery.getTag() + "]");
         }
 		
-		Delivery delivery = event.getDelivery();
-		if (delivery != null)
+		while (delivery != null)
 		{
 			msgSender.onSendComplete(delivery.getTag(), delivery.getRemoteState());
 			delivery.settle();
+			delivery = sender.current();
 		}
 	}
 
@@ -58,7 +97,7 @@ public class SendLinkHandler extends BaseLinkHandler
 		if(TRACE_LOGGER.isLoggable(Level.FINE))
         {
 			Sender sender = (Sender) event.getLink();
-			TRACE_LOGGER.log(Level.FINE, "sendLink.onFlow: name[" + sender.getName() + "] : unsettled[" + sender.getUnsettled() + "] : credit[" + sender.getCredit()+ "]");
+			TRACE_LOGGER.log(Level.FINE, "linkName[" + sender.getName() + "], unsettled[" + sender.getUnsettled() + "], credit[" + sender.getCredit()+ "]");
         }
 	}
 	
@@ -69,15 +108,13 @@ public class SendLinkHandler extends BaseLinkHandler
         if (link instanceof Sender)
         {
         	ErrorCondition condition = link.getRemoteCondition();
-    		if (condition != null)
-    		{
-    			if(TRACE_LOGGER.isLoggable(Level.WARNING))
-    	        {
-    				TRACE_LOGGER.log(Level.WARNING, "sendLink.onLinkRemoteClose: name[" + link.getName() + "] : ErrorCondition[" + condition.getDescription() + "]");
-    	        }
-            } 
-    		
-    		this.msgSender.onError(condition);
+    		this.processOnClose(link, condition);
         }
+	}
+	
+	@Override
+	public void onLinkRemoteDetach(Event event)
+	{
+		this.onLinkRemoteClose(event);
 	}
 }

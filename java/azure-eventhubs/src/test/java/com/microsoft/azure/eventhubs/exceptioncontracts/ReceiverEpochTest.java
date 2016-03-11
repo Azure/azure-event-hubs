@@ -29,13 +29,13 @@ public class ReceiverEpochTest extends TestBase
 				String cgName = eventHubInfo.getRandomConsumerGroup();
 				String partitionId = "0";
 				long epoch = 345632;
-				PartitionReceiver receiver = ehClient.createEpochReceiver(cgName, partitionId, PartitionReceiver.StartOfStream, false, epoch).get();
+				PartitionReceiver receiver = ehClient.createEpochReceiver(cgName, partitionId, PartitionReceiver.START_OF_STREAM, false, epoch).get();
 				EventCounter counter = new EventCounter();
 				receiver.setReceiveHandler(counter);
 				
 				try
 				{
-					ehClient.createEpochReceiver(cgName, partitionId, epoch - 10).get();
+					ehClient.createEpochReceiver(cgName, partitionId, PartitionReceiver.START_OF_STREAM, false, epoch - 10).get();
 				}
 				catch(ExecutionException exp)
 				{
@@ -71,8 +71,13 @@ public class ReceiverEpochTest extends TestBase
 		}
 
 		@Override
-		public void onError(Exception exception)
-		{	
+		public void onError(Throwable error)
+		{
+		}
+
+		@Override
+		public void onClose(Throwable error)
+		{			
 		}
 		
 	}
