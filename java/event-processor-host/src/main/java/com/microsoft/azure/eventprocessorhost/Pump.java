@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
 
 
 class Pump
@@ -25,10 +26,33 @@ class Pump
 
     private ConcurrentHashMap<String, LeaseAndPump> pumpStates;
     
-    private class LeaseAndPump
+    private class LeaseAndPump implements Callable<Void>
     {
-    	public Lease lease;
-    	public PartitionPump pump;
+    	private Lease lease;
+    	private PartitionPump pump;
+    	
+    	public LeaseAndPump(Lease lease, PartitionPump pump)
+    	{
+    		this.lease = lease;
+    		this.pump = pump;
+    	}
+    	
+    	public void setLease(Lease newLease)
+    	{
+    		this.lease = newLease;
+    	}
+    	
+    	public PartitionPump getPump()
+    	{
+    		return this.pump;
+    	}
+    	
+		@Override
+		public Void call() throws Exception
+		{
+			this.pump.startPump();
+			return null;
+		}
     }
 
     public Pump(EventProcessorHost host)
@@ -45,15 +69,13 @@ class Pump
     	{
     		// There already is a pump. Just replace the lease.
     		this.host.logWithHostAndPartition(partitionId, "updating lease for pump");
-    		capturedState.lease = lease;
+    		capturedState.setLease(lease);
     	}
     	else
     	{
     		// Create a new pump.
-    		final LeaseAndPump newPump = new LeaseAndPump(); // final so that the lambda below is happy
-    		newPump.lease = lease;
-    		newPump.pump = new PartitionPump(this.host, lease);
-    		EventProcessorHost.getExecutorService().submit(() -> newPump.pump.startPump());
+    		LeaseAndPump newPump = new LeaseAndPump(lease, new PartitionPump(this.host, lease));
+    		EventProcessorHost.getExecutorService().submit(newPump);
             this.pumpStates.put(partitionId, newPump); // do the put after start, if the start fails then put doesn't happen
     		this.host.logWithHostAndPartition(partitionId, "created new pump");
     	}
@@ -66,9 +88,9 @@ class Pump
     	if (capturedState != null)
     	{
 			this.host.logWithHostAndPartition(partitionId, "closing pump for reason " + reason.toString());
-    		if (!capturedState.pump.isClosing())
+    		if (!capturedState.getPump().isClosing())
     		{
-    			retval = EventProcessorHost.getExecutorService().submit(() -> capturedState.pump.shutdown(reason));
+    			retval = EventProcessorHost.getExecutorService().submit(() -> capturedState.getPump().shutdown(reason));
     		}
     		// else, pump is already closing/closed, don't need to try to shut it down again
     		
@@ -163,8 +185,9 @@ class Pump
 	                this.processor.onOpen(this.partitionContext);
 	                this.internalReceiveHandler = new InternalReceiveHandler();
 	                // Handler is set after onOpen completes, meaning onEvents will never fire while onOpen is still executing.
-	                this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
+	                // Set the status to running before setting the handler, so the handler can never race and see the status != running.
 	                this.pumpStatus = PartitionPumpStatus.running;
+	                this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
 	            }
 	            catch (Exception e)
 	            {

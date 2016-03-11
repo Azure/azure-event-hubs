@@ -13,10 +13,10 @@ public interface ICheckpointManager
 
     public Future<Boolean> createCheckpointStoreIfNotExists();
 
-    public Future<String> getCheckpoint(String partitionId);
-    public Iterable<Future<String>> getAllCheckpoints();
+    public Future<CheckPoint> getCheckpoint(String partitionId);
 
-    public Future<Void> updateCheckpoint(String partitionId, String offset);
+    public Future<Void> updateCheckpoint(CheckPoint checkpoint);
+    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber);
 
     public Future<Void> deleteCheckpoint(String partitionId);
 

@@ -5,7 +5,10 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.storage.StorageException;
 
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -20,6 +23,7 @@ public final class EventProcessorHost
 
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
+    private boolean initializeLeaseManager = false; 
     private PartitionManager partitionManager;
     private Future<?> partitionManagerFuture = null;
     private IEventProcessorFactory<?> processorFactory;
@@ -32,6 +36,14 @@ public final class EventProcessorHost
     private static ExecutorService executorService = Executors.newCachedThreadPool();
     private static int executorRefCount = 0;
     private static Boolean weOwnExecutor = true;
+    
+    
+    // DUMMY STARTS
+    public static void setDummyPartitionCount(int count)
+    {
+    	PartitionManager.dummyPartitionCount = count;
+    }
+    // DUMMY ENDS
 
     /**
      * Create a new host to process events from an Event Hub.
@@ -63,10 +75,11 @@ public final class EventProcessorHost
     {
         this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
                 new AzureStorageCheckpointLeaseManager(storageConnectionString));
+        this.initializeLeaseManager = true;
     }
 
     // Because Java won't let you do ANYTHING before calling another constructor. In particular, you can't
-    // new up an object and pass it as two paramaters of the other constructor.
+    // new up an object and pass it as two parameters of the other constructor.
     private EventProcessorHost(
             final String namespaceName,
             final String eventHubPath,
@@ -139,11 +152,6 @@ public final class EventProcessorHost
                 sharedAccessKeyName, sharedAccessKey).toString();
 
         this.partitionManager = new PartitionManager(this);
-
-        if (leaseManager instanceof AzureStorageCheckpointLeaseManager)
-        {
-            ((AzureStorageCheckpointLeaseManager)leaseManager).setHost(this);
-        }
     }
 
     /**
@@ -242,6 +250,19 @@ public final class EventProcessorHost
      */
     public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
+        if (this.initializeLeaseManager)
+        {
+            try
+            {
+				((AzureStorageCheckpointLeaseManager)leaseManager).initialize(this);
+			}
+            catch (InvalidKeyException | URISyntaxException | StorageException e)
+            {
+            	this.logWithHost("Failure initializing Storage lease manager", e);
+            	throw new RuntimeException("Failure initializing Storage lease manager", e);
+			}
+        }
+        
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);

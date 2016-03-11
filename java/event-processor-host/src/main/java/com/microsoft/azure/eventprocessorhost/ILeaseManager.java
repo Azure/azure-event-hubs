@@ -17,11 +17,11 @@ public interface ILeaseManager
     public Future<Lease> getLease(String partitionId);
     public Iterable<Future<Lease>> getAllLeases();
 
-    public Future<Void> createLeaseIfNotExists(String partitionId);
+    public Future<Lease> createLeaseIfNotExists(String partitionId);
 
-    public Future<Void> deleteLease(String partitionId);
+    public Future<Void> deleteLease(Lease lease);
 
-    public Future<Lease> acquireLease(String partitionId);
+    public Future<Boolean> acquireLease(Lease lease);
 
     public Future<Boolean> renewLease(Lease lease);
 
