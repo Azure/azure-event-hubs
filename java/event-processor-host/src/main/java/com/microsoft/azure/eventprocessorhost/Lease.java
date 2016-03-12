@@ -25,7 +25,7 @@ public class Lease
 
         this.epoch = 0;
         this.checkpoint = new CheckPoint(this.partitionId);
-        this.checkpoint.setOffset(PartitionReceiver.StartOfStream);
+        this.checkpoint.setOffset(PartitionReceiver.START_OF_STREAM);
         this.checkpoint.setSequenceNumber(0);
         this.owner = "";
         this.token = "";

@@ -216,7 +216,7 @@ class Pump
 
         	// Create new client/receiver
         	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client");
-			this.internalOperationFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString(), true);
+			this.internalOperationFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString());
 			this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 			this.internalOperationFuture = null;
 			
@@ -244,15 +244,7 @@ class Pump
             	}
             	
             	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH receiver");
-            	try
-            	{
-					this.partitionReceiver.close();
-				}
-            	catch (ServiceBusException e)
-            	{
-            		// Nothing we can do about this except log it.
-                	this.host.logWithHostAndPartition(this.partitionContext, "Failed closing EH receiver", e);
-				}
+            	this.partitionReceiver.close();
             	this.partitionReceiver = null;
             }
             
@@ -352,10 +344,15 @@ class Pump
 			}
 
 			@Override
-			public void onError(Exception exception)
+			public void onError(Throwable error)
 			{
 				// TODO Auto-generated method stub
-				
+			}
+
+			@Override
+			public void onClose(Throwable error)
+			{
+				// TODO Auto-generated method stub
 			}
         }
     }
