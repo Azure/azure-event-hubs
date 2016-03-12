@@ -23,16 +23,19 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         this.host = host;
     }
 
+    @Override
     public Future<Boolean> checkpointStoreExists()
     {
         return leaseStoreExists();
     }
 
+    @Override
     public Future<Boolean> createCheckpointStoreIfNotExists()
     {
         return createLeaseStoreIfNotExists();
     }
 
+    @Override
     public Future<CheckPoint> getCheckpoint(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
@@ -49,11 +52,13 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     	return retval;
     }
 
+    @Override
     public Future<Void> updateCheckpoint(CheckPoint checkpoint)
     {
     	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
     }
 
+    @Override
     public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
     {
         return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), offset, sequenceNumber));
@@ -68,6 +73,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     	return null;
     }
 
+    @Override
     public Future<Void> deleteCheckpoint(String partitionId)
     {
     	// Make this a no-op to avoid deleting leases by accident.
@@ -75,11 +81,13 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     }
 
 
+    @Override
     public Future<Boolean> leaseStoreExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> (InMemoryLeaseStore.getSingleton().inMemoryLeases != null));
     }
 
+    @Override
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseStoreIfNotExistsSync());
@@ -95,6 +103,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return true;
     }
     
+    @Override
     public Future<Lease> getLease(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
@@ -116,6 +125,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return returnLease;
     }
 
+    @Override
     public Iterable<Future<Lease>> getAllLeases()
     {
         ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
@@ -127,6 +137,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return leases;
     }
 
+    @Override
     public Future<Lease> createLeaseIfNotExists(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
@@ -151,6 +162,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return returnLease;
     }
     
+    @Override
     public Future<Void> deleteLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseSync(lease));
@@ -162,6 +174,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     	return null;
     }
 
+    @Override
     public Future<Boolean> acquireLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync(lease));
@@ -198,12 +211,14 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return retval;
     }
     
+    @Override
     public Future<Boolean> renewLease(Lease lease)
     {
     	// No-op at this time
         return EventProcessorHost.getExecutorService().submit(() -> true);
     }
 
+    @Override
     public Future<Boolean> releaseLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync(lease));
@@ -234,6 +249,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     	return retval;
     }
 
+    @Override
     public Future<Boolean> updateLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync(lease));

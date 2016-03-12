@@ -70,16 +70,19 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         // The only option that .NET sets on renewRequestOptions is ServerTimeout, which doesn't exist in Java equivalent
     }
 
+    @Override
     public Future<Boolean> checkpointStoreExists()
     {
         return leaseStoreExists();
     }
 
+    @Override
     public Future<Boolean> createCheckpointStoreIfNotExists()
     {
         return createLeaseStoreIfNotExists();
     }
 
+    @Override
     public Future<CheckPoint> getCheckpoint(String partitionId)
     {
     	
@@ -92,11 +95,13 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return lease.getCheckpoint();
     }
 
+    @Override
     public Future<Void> updateCheckpoint(CheckPoint checkpoint)
     {
     	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
     }
     
+    @Override
     public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
     {
         return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint, offset, sequenceNumber));
@@ -111,6 +116,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return null;
     }
 
+    @Override
     public Future<Void> deleteCheckpoint(String partitionId)
     {
     	// Make this a no-op to avoid deleting leases by accident.
@@ -118,16 +124,19 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     }
 
 
+    @Override
     public Future<Boolean> leaseStoreExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.exists());
     }
 
+    @Override
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists());
     }
 
+    @Override
     public Future<Lease> getLease(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
@@ -146,6 +155,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return retval;
     }
 
+    @Override
     public Iterable<Future<Lease>> getAllLeases()
     {
         ArrayList<Future<Lease>> leaseFutures = new ArrayList<Future<Lease>>();
@@ -157,6 +167,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return leaseFutures;
     }
 
+    @Override
     public Future<Lease> createLeaseIfNotExists(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
@@ -190,6 +201,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return returnLease;
     }
 
+    @Override
     public Future<Void> deleteLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseSync((AzureBlobLease)lease));
@@ -201,6 +213,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return null;
     }
 
+    @Override
     public Future<Boolean> acquireLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync((AzureBlobLease)lease));
@@ -235,6 +248,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return true;
     }
 
+    @Override
     public Future<Boolean> renewLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> renewLeaseSync((AzureBlobLease)lease));
@@ -256,6 +270,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return true;
     }
 
+    @Override
     public Future<Boolean> releaseLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync((AzureBlobLease)lease));
@@ -281,6 +296,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return true;
     }
 
+    @Override
     public Future<Boolean> updateLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync((AzureBlobLease)lease));
