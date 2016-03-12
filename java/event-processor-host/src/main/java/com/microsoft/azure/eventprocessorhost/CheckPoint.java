@@ -1,3 +1,7 @@
+/*
+ * LICENSE GOES HERE TOO
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 public class CheckPoint
