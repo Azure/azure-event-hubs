@@ -18,7 +18,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
 
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
     // because it is still being constructed.
-    public void setHost(EventProcessorHost host)
+    public void initialize(EventProcessorHost host)
     {
         this.host = host;
     }
