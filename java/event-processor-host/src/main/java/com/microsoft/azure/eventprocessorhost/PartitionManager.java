@@ -30,6 +30,11 @@ class PartitionManager implements Runnable
         this.pump = new Pump(this.host);
     }
     
+    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
+    {
+    	this.pump.setPumpClass(pumpClass);
+    }
+    
     public Iterable<String> getPartitionIds()
     {
         // DUMMY BEGINS
