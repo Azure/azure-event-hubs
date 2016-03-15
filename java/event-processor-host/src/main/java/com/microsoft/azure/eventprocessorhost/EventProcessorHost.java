@@ -173,6 +173,16 @@ public final class EventProcessorHost
      * @return	Event Hub connection string.
      */
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
+    
+    /**
+     * FOR TESTING USE ONLY
+     * 
+     * @param pumpClass
+     */
+    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
+    {
+    	this.partitionManager.setPumpClass(pumpClass);
+    }
 
     // All of these accessors are for internal use only.
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
@@ -181,7 +191,7 @@ public final class EventProcessorHost
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
-    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    public static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
     
     /**
      * Register class for event processor and start processing.
