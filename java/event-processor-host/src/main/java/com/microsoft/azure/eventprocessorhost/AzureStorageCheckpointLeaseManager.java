@@ -188,14 +188,18 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		// From .NET: 
-    		// Eat any storage exception related to conflict.
-    		// This means the blob already exists.
-    		this.host.logWithHostAndPartition(partitionId,
+    		StorageExtendedErrorInformation extendedErrorInfo = se.getExtendedErrorInformation();
+    		if ((extendedErrorInfo != null) && (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) != 0))
+    		{
+    			this.host.logWithHostAndPartition(partitionId,
     				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
     				se);
-    		
-    		returnLease = getLeaseSync(partitionId);
+    		}
+    		else
+    		{
+    			// The blob already exists.
+        		returnLease = getLeaseSync(partitionId);
+    		}
     	}
     	
     	return returnLease;
@@ -226,6 +230,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	try
     	{
     		String newToken = null;
+    		leaseBlob.downloadAttributes();
 	    	if (leaseBlob.getProperties().getLeaseState() == LeaseState.LEASED)
 	    	{
 	    		newToken = leaseBlob.changeLease(newLeaseId, AccessCondition.generateLeaseCondition(lease.getToken()));
