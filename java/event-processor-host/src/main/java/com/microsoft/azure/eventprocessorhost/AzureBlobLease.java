@@ -4,6 +4,8 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.BlobProperties;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
 
@@ -36,10 +38,28 @@ public class AzureBlobLease extends Lease
 	{
 		return new AzureBlobCheckPoint(this.checkpoint, this);
 	}
+	
+	public String getStateDebug()
+	{
+		String retval = "uninitialized";
+		try
+		{
+			this.blob.downloadAttributes();
+			BlobProperties props = this.blob.getProperties();
+			retval = props.getLeaseState().toString() + " " + props.getLeaseStatus().toString() + " " + props.getLeaseDuration().toString();
+		}
+		catch (StorageException e)
+		{
+			retval = "downloadAttributes on the blob caught " + e.toString();
+		}
+		return retval; 
+	}
 
 	@Override
-	public boolean isExpired()
+	public boolean isExpired() throws Exception
 	{
-		return (this.blob.getProperties().getLeaseState() != LeaseState.LEASED);
+		this.blob.downloadAttributes(); // Get the latest metadata
+		LeaseState currentState = this.blob.getProperties().getLeaseState();
+		return (currentState != LeaseState.LEASED); 
 	}
 }
