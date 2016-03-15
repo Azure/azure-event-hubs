@@ -109,7 +109,7 @@ public class Lease
         this.token = token;
     }
 
-    public boolean isExpired()
+    public boolean isExpired() throws Exception
     {
     	// this function is meaningless in the base class
     	return false;
