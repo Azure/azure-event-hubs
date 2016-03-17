@@ -288,10 +288,27 @@ public final class EventProcessorHost
      * 
      * @return	Future that does not complete until the processor host shuts down.
      */
-    public Future<?> unregisterEventProcessor()
+    public void unregisterEventProcessor()
     {
         this.partitionManager.stopPartitions();
-        return this.partitionManagerFuture;
+        try
+        {
+			this.partitionManagerFuture.get();
+	        if (EventProcessorHost.weOwnExecutor)
+	        {
+	        	// If there are multiple EventProcessorHosts in one process, only await the shutdown on the last one.
+	        	// Otherwise the first one will block forever here...
+	        	if (EventProcessorHost.executorRefCount <= 0)
+	        	{
+	        		EventProcessorHost.executorService.awaitTermination(10, TimeUnit.MINUTES);
+	        	}
+	        }
+		}
+        catch (InterruptedException | ExecutionException e)
+        {
+        	// Log the failure but nothing really to do about it.
+        	logWithHost("Failure shutting down", e);
+		}
     }
     
     // PartitionManager calls this after all shutdown tasks have been submitted to the ExecutorService.
