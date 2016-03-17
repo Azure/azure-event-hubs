@@ -336,6 +336,17 @@ public final class EventProcessorHost
     	{
     		logWithHost(stack[i].toString());
     	}
+    	Throwable cause = e.getCause();
+    	if ((cause != null) && (cause instanceof Exception))
+    	{
+    		Exception inner = (Exception)cause;
+    		logWithHost("Inner exception " + inner.toString());
+    		stack = inner.getStackTrace();
+        	for (int i = 0; i < stack.length; i++)
+        	{
+        		logWithHost(stack[i].toString());
+        	}
+    	}
     }
     
     void logWithHostAndPartition(String partitionId, String logMessage)
@@ -351,6 +362,17 @@ public final class EventProcessorHost
     	for (int i = 0; i < stack.length; i++)
     	{
     		logWithHostAndPartition(partitionId, stack[i].toString());
+    	}
+    	Throwable cause = e.getCause();
+    	if ((cause != null) && (cause instanceof Exception))
+    	{
+    		Exception inner = (Exception)cause;
+    		logWithHostAndPartition(partitionId, "Inner exception " + inner.toString());
+    		stack = inner.getStackTrace();
+        	for (int i = 0; i < stack.length; i++)
+        	{
+        		logWithHostAndPartition(partitionId, stack[i].toString());
+        	}
     	}
     }
     
