@@ -9,6 +9,8 @@ import java.util.concurrent.Future;
 // WILL NORMALLY BE IMPLEMENTED ON THE SAME OBJECT AS ICheckpointManager
 public interface ILeaseManager
 {
+	public int getLeaseRenewIntervalInMilliseconds();
+	
     public Future<Boolean> leaseStoreExists();
 
     public Future<Boolean> createLeaseStoreIfNotExists();

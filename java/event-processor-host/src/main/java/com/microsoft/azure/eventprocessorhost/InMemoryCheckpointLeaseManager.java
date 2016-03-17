@@ -80,6 +80,12 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return null;
     }
 
+    @Override
+    public int getLeaseRenewIntervalInMilliseconds()
+    {
+    	// Leases don't expire in this manager but we want the partition manager loop to execute reasonably often.
+    	return 10 * 1000;
+    }
 
     @Override
     public Future<Boolean> leaseStoreExists()
