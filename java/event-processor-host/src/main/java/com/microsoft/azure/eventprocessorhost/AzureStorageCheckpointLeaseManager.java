@@ -40,6 +40,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     
     private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
     private final static int leaseIntervalInSeconds = 30;
+    private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
     private final static String eventHubInfoBlobName = "eventhub.info";
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
@@ -124,6 +125,12 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     }
 
 
+    @Override
+    public int getLeaseRenewIntervalInMilliseconds()
+    {
+    	return this.leaseRenewIntervalInMilliseconds;
+    }
+    
     @Override
     public Future<Boolean> leaseStoreExists()
     {
@@ -226,6 +233,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private Boolean acquireLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
+    	boolean retval = true;
     	String newLeaseId = UUID.randomUUID().toString();
     	try
     	{
@@ -233,24 +241,37 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     		leaseBlob.downloadAttributes();
 	    	if (leaseBlob.getProperties().getLeaseState() == LeaseState.LEASED)
 	    	{
+	    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "changeLease");
 	    		newToken = leaseBlob.changeLease(newLeaseId, AccessCondition.generateLeaseCondition(lease.getToken()));
+	    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "changeLease OK");
 	    	}
 	    	else
 	    	{
+	    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease");
 	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseIntervalInSeconds, newLeaseId);
+	    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease OK");
 	    	}
 	    	lease.setToken(newToken);
 	    	lease.setOwner(this.host.getHostName());
 	    	// Increment epoch each time lease is acquired or stolen by a new host
 	    	lease.incrementEpoch();
+    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "uploadText");
 	    	leaseBlob.uploadText(this.gson.toJson(lease), null, AccessCondition.generateLeaseCondition(lease.getToken()), null, null);
+    		//this.host.logWithHostAndPartition(lease.getPartitionId(), "uploadText OK");
     	}
     	catch (StorageException se)
     	{
-    		throw handleStorageException(lease, se, false);
+    		if (wasLeaseLost(se))
+    		{
+    			retval = false;
+    		}
+    		else
+    		{
+    			throw se;
+    		}
     	}
     	
-    	return true;
+    	return retval;
     }
 
     @Override
@@ -262,6 +283,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private Boolean renewLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
+    	boolean retval = true;
     	
     	try
     	{
@@ -269,10 +291,17 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		throw handleStorageException(lease, se, false);
+    		if (wasLeaseLost(se))
+    		{
+    			retval = false;
+    		}
+    		else
+    		{
+    			throw se;
+    		}
     	}
     	
-    	return true;
+    	return retval;
     }
 
     @Override
@@ -284,6 +313,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private Boolean releaseLeaseSync(AzureBlobLease lease) throws Exception
     {
     	CloudBlockBlob leaseBlob = lease.getBlob();
+    	boolean retval = true;
     	try
     	{
     		String leaseId = lease.getToken();
@@ -295,10 +325,17 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		throw handleStorageException(lease, se, false);
+    		if (wasLeaseLost(se))
+    		{
+    			retval = false;
+    		}
+    		else
+    		{
+    			throw se;
+    		}
     	}
     	
-    	return true;
+    	return retval;
     }
 
     @Override
@@ -320,7 +357,10 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	
     	// First, renew the lease to make sure the update will go through.
-    	renewLeaseSync(lease);
+    	if (!renewLeaseSync(lease))
+    	{
+    		return false;
+    	}
     	
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	try
@@ -329,7 +369,14 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	}
     	catch (StorageException se)
     	{
-    		throw handleStorageException(lease, se, true);
+    		if (wasLeaseLost(se))
+    		{
+    			throw new LeaseLostException(lease, se);
+    		}
+    		else
+    		{
+    			throw se;
+    		}
     	}
     	
     	return true;
@@ -342,26 +389,28 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	return blobLease;
     }
     
-    private Exception handleStorageException(AzureBlobLease lease, StorageException storageException, boolean ignoreLeaseLost)
+    private boolean wasLeaseLost(StorageException se)
     {
-    	Exception retval = storageException;
-    	
-    	if ((storageException.getHttpStatusCode() == 409) || // conflict
-    			(storageException.getHttpStatusCode() == 412)) // precondition failed
+    	boolean retval = false;
+		//this.host.logWithHost("WAS LEASE LOST?");
+		//this.host.logWithHost("Http " + se.getHttpStatusCode());
+    	if ((se.getHttpStatusCode() == 409) || // conflict
+    		(se.getHttpStatusCode() == 412)) // precondition failed
     	{
-    		// From .NET
-    		// Don't throw LeaseLostException if caller chooses to ignore it.
-    		// This is mainly needed in Checkpoint scenario where Checkpoint could fail due to lease expiration
-    		// but later attempts to renew could still succeed.
-    		// REALITY: if ignoreLeaseLost is false, any 409 or 412 will become a LeaseLostException. But if it's true, a limited
-    		// subset will still become LeaseLostException.
-    		StorageExtendedErrorInformation extendedErrorInfo = storageException.getExtendedErrorInformation();
-    		if (!ignoreLeaseLost || (extendedErrorInfo == null) || (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.LEASE_LOST) == 0))
+    		StorageExtendedErrorInformation extendedErrorInfo = se.getExtendedErrorInformation();
+    		if (extendedErrorInfo != null)
     		{
-    			retval = new LeaseLostException(lease, storageException);
+    			String errorCode = extendedErrorInfo.getErrorCode();
+				//this.host.logWithHost("Error code: " + errorCode);
+				//this.host.logWithHost("Error message: " + extendedErrorInfo.getErrorMessage());
+    			if ((errorCode.compareTo(StorageErrorCodeStrings.LEASE_LOST) == 0) ||
+    				(errorCode.compareTo(StorageErrorCodeStrings.LEASE_ID_MISMATCH_WITH_LEASE_OPERATION) == 0) ||
+    				(errorCode.compareTo(StorageErrorCodeStrings.LEASE_ID_MISMATCH_WITH_BLOB_OPERATION) == 0))
+    			{
+    				retval = true;
+    			}
     		}
     	}
-
     	return retval;
     }
 }
