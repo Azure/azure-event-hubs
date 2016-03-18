@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -34,14 +33,14 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
     private CloudBlobDirectory consumerGroupDirectory;
-    private CloudBlockBlob eventHubInfoBlob;
+    // private CloudBlockBlob eventHubInfoBlob;  // TODO not used?
     
     private Gson gson;
     
     private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
     private final static int leaseIntervalInSeconds = 30;
     private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
-    private final static String eventHubInfoBlobName = "eventhub.info";
+    // private final static String eventHubInfoBlobName = "eventhub.info";
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
@@ -64,7 +63,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         
         this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
         
-        this.eventHubInfoBlob = this.eventHubContainer.getBlockBlobReference(AzureStorageCheckpointLeaseManager.eventHubInfoBlobName);
+        //this.eventHubInfoBlob = this.eventHubContainer.getBlockBlobReference(AzureStorageCheckpointLeaseManager.eventHubInfoBlobName);
         
         this.gson = new Gson();
 
@@ -128,7 +127,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     @Override
     public int getLeaseRenewIntervalInMilliseconds()
     {
-    	return this.leaseRenewIntervalInMilliseconds;
+    	return AzureStorageCheckpointLeaseManager.leaseRenewIntervalInMilliseconds;
     }
     
     @Override
