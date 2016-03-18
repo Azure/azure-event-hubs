@@ -21,9 +21,14 @@ public class EventProcessorSample {
     	
     	if (false)
     	{
-	    	//InMemoryCheckpointLeaseManager mgr = new InMemoryCheckpointLeaseManager();
+    		ILeaseManager leaseMgr = null;
+    		ICheckpointManager checkpointMgr = null;
+	    	//leaseMgr = new InMemoryLeaseManager();
+    		//checkpointMgr = new InMemoryCheckpointManager();
     		AzureStorageCheckpointLeaseManager mgr = new AzureStorageCheckpointLeaseManager("storage connection string");
-	    	EventProcessorHost blah = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", mgr, mgr);
+    		leaseMgr = mgr;
+    		checkpointMgr = mgr;
+	    	EventProcessorHost blah = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", checkpointMgr, leaseMgr);
 	    	try
 	    	{
 				mgr.initialize(blah);
@@ -61,12 +66,12 @@ public class EventProcessorSample {
     		for (int i = 0; i < hostCount; i++)
     		{
     			hosts[i] = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", "storage connection string");
-    			hosts[i].setPumpClass(SyntheticPump.class);
+    			//hosts[i].setPumpClass(SyntheticPump.class);
     		}
     		processMessages(hosts);
     	}
     	
-        System.out.println("Exiting");
+        System.out.println("End of sample");
     }
     
     private static void stealLeaseTest(ILeaseManager mgr1, ILeaseManager mgr2)
@@ -187,9 +192,7 @@ public class EventProcessorSample {
             for (int i = 0; i < hostCount; i++)
             {
 	            System.out.println("Calling unregister " + i);
-	            Future<?> blah = hosts[i].unregisterEventProcessor();
-	            System.out.println("Waiting for Future to complete");
-	            blah.get();
+	            hosts[i].unregisterEventProcessor();
 	            System.out.println("Completed");
             }
         }
@@ -340,24 +343,28 @@ public class EventProcessorSample {
     {
         public void onOpen(PartitionContext context) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is opening for host " + context.getLease().getOwner());
+            String hostname = context.getLease().getOwner();
+        	System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is opening for host " + hostname.substring(hostname.length() - 4));
         }
 
         public void onClose(PartitionContext context, CloseReason reason) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is closing for reason " + reason.toString() + " for host " + context.getLease().getOwner());
+            String hostname = context.getLease().getOwner();
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is closing for reason " + reason.toString() + " for host " + hostname.substring(hostname.length() - 4));
         }
 
         public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception
         {
-            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " got message batch for host " + context.getLease().getOwner());
+            String hostname = context.getLease().getOwner();
+            hostname = hostname.substring(hostname.length() - 4);
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " got message batch for host " + hostname);
             int messageCount = 0;
             for (EventData data : messages)
             {
-                System.out.println("SAMPLE: " + new String(data.getBody(), "UTF8"));
+                System.out.println("SAMPLE (" + hostname + "," + context.getPartitionId() + "): " + new String(data.getBody(), "UTF8"));
                 messageCount++;
             }
-            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " batch size was " + messageCount + " for host " + context.getLease().getOwner());
+            System.out.println("SAMPLE: Partition " + context.getPartitionId() + " batch size was " + messageCount + " for host " + hostname);
         }
     }
 }

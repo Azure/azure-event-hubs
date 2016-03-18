@@ -8,76 +8,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;
 
-public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpointManager
+public class InMemoryLeaseManager implements ILeaseManager
 {
     private EventProcessorHost host;
 
-    public InMemoryCheckpointLeaseManager()
+    public InMemoryLeaseManager()
     {
     }
 
-    // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
+    // The EventProcessorHost can't pass itself to the constructor
     // because it is still being constructed.
     public void initialize(EventProcessorHost host)
     {
         this.host = host;
-    }
-
-    @Override
-    public Future<Boolean> checkpointStoreExists()
-    {
-        return leaseStoreExists();
-    }
-
-    @Override
-    public Future<Boolean> createCheckpointStoreIfNotExists()
-    {
-        return createLeaseStoreIfNotExists();
-    }
-
-    @Override
-    public Future<CheckPoint> getCheckpoint(String partitionId)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
-    }
-    
-    private CheckPoint getCheckpointSync(String partitionId)
-    {
-    	Lease lease = getLeaseSync(partitionId);
-    	CheckPoint retval = null;
-    	if (lease != null)
-    	{
-    		retval = lease.getCheckpoint();
-    	}
-    	return retval;
-    }
-
-    @Override
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint)
-    {
-    	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
-    }
-
-    @Override
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), offset, sequenceNumber));
-    }
-
-    private Void updateCheckpointSync(String partitionId, String offset, long sequenceNumber)
-    {
-    	Lease lease = getLeaseSync(partitionId);
-    	lease.setOffset(offset);
-    	lease.setSequenceNumber(sequenceNumber);
-    	updateLeaseSync(lease);
-    	return null;
-    }
-
-    @Override
-    public Future<Void> deleteCheckpoint(String partitionId)
-    {
-    	// Make this a no-op to avoid deleting leases by accident.
-        return null;
     }
 
     @Override
@@ -270,9 +213,6 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
     		{
    				leaseInStore.setEpoch(lease.getEpoch());
-    			CheckPoint cp = lease.getCheckpoint();
-  				leaseInStore.setOffset(cp.getOffset());
-   				leaseInStore.setSequenceNumber(cp.getSequenceNumber());
     			leaseInStore.setToken(lease.getToken());
     		}
     		else
@@ -296,10 +236,13 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
 
         public static InMemoryLeaseStore getSingleton()
         {
-            if (InMemoryLeaseStore.singleton == null)
-            {
-                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
-            }
+        	synchronized (InMemoryLeaseStore.singleton)
+        	{
+	            if (InMemoryLeaseStore.singleton == null)
+	            {
+	                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
+	            }
+        	}
             return InMemoryLeaseStore.singleton;
         }
 

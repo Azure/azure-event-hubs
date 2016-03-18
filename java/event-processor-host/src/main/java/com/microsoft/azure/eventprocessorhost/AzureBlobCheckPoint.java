@@ -26,7 +26,7 @@ public class AzureBlobCheckPoint extends CheckPoint
 		this.lease = lease;
 	}
 	
-	public AzureBlobLease getLease()
+	AzureBlobLease getLease()
 	{
 		return this.lease;
 	}

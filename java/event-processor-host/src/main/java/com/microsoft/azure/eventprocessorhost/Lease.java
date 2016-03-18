@@ -13,7 +13,6 @@ public class Lease
     private String partitionId;
 
     private long epoch;
-    protected CheckPoint checkpoint;
     private String owner;
     private String token;
 
@@ -24,9 +23,6 @@ public class Lease
         this.partitionId = partitionId;
 
         this.epoch = 0;
-        this.checkpoint = new CheckPoint(this.partitionId);
-        this.checkpoint.setOffset(PartitionReceiver.START_OF_STREAM);
-        this.checkpoint.setSequenceNumber(0);
         this.owner = "";
         this.token = "";
     }
@@ -38,7 +34,6 @@ public class Lease
         this.partitionId = source.partitionId;
 
         this.epoch = source.epoch;
-        this.checkpoint = new CheckPoint(source.getCheckpoint());
         this.owner = source.owner;
         this.token = source.token;
     }
@@ -59,16 +54,6 @@ public class Lease
     	return this.epoch;
     }
     
-    public CheckPoint getCheckpoint()
-    {
-    	return new CheckPoint(this.checkpoint);
-    }
-
-    public void setOffset(String offset)
-    {
-        this.checkpoint.setOffset(offset);
-    }
-
     public String getOwner()
     {
         return this.owner;
@@ -92,11 +77,6 @@ public class Lease
     public String getConsumerGroup()
     {
         return this.consumerGroup;
-    }
-
-    public void setSequenceNumber(long sequenceNumber)
-    {
-        this.checkpoint.setSequenceNumber(sequenceNumber);
     }
 
     public String getToken()

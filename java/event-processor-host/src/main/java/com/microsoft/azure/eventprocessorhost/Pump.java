@@ -4,18 +4,8 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
-import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
-import com.microsoft.azure.servicebus.ServiceBusException;
-
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
 
@@ -42,6 +32,7 @@ class Pump
     	public void setLease(Lease newLease)
     	{
     		this.lease = newLease;
+    		this.pump.setLease(newLease);
     	}
     	
     	public PartitionPump getPump()
@@ -74,20 +65,35 @@ class Pump
     	LeaseAndPump capturedState = this.pumpStates.get(partitionId);
     	if (capturedState != null)
     	{
-    		// There already is a pump. Just replace the lease.
-    		this.host.logWithHostAndPartition(partitionId, "updating lease for pump");
-    		capturedState.setLease(lease);
+    		// There already is a pump. Make sure the pump is working and replace the lease.
+    		if ((capturedState.getPump().getPumpStatus() == PartitionPumpStatus.PP_ERRORED) || capturedState.getPump().isClosing())
+    		{
+    			// The existing pump is bad. Remove it and create a new one.
+    			removePump(partitionId, CloseReason.Shutdown).get();
+    			createNewPump(partitionId, lease);
+    		}
+    		else
+    		{
+    			// Pump is working, just replace the lease.
+    			this.host.logWithHostAndPartition(partitionId, "updating lease for pump");
+    			capturedState.setLease(lease);
+    		}
     	}
     	else
     	{
-    		// Create a new pump.
-    		PartitionPump newPartitionPump = (PartitionPump)this.pumpClass.newInstance();
-    		newPartitionPump.initialize(this.host, lease);
-    		LeaseAndPump newPump = new LeaseAndPump(lease, newPartitionPump);
-    		EventProcessorHost.getExecutorService().submit(newPump);
-            this.pumpStates.put(partitionId, newPump); // do the put after start, if the start fails then put doesn't happen
-    		this.host.logWithHostAndPartition(partitionId, "created new pump");
+    		// No existing pump, create a new one.
+    		createNewPump(partitionId, lease);
     	}
+    }
+    
+    private void createNewPump(String partitionId, Lease lease) throws Exception
+    {
+		PartitionPump newPartitionPump = (PartitionPump)this.pumpClass.newInstance();
+		newPartitionPump.initialize(this.host, lease);
+		LeaseAndPump newPump = new LeaseAndPump(lease, newPartitionPump);
+		EventProcessorHost.getExecutorService().submit(newPump);
+        this.pumpStates.put(partitionId, newPump); // do the put after start, if the start fails then put doesn't happen
+		this.host.logWithHostAndPartition(partitionId, "created new pump");
     }
     
     public Future<?> removePump(String partitionId, final CloseReason reason)

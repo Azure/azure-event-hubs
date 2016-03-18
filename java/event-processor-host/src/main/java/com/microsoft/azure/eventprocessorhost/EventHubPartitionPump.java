@@ -74,7 +74,7 @@ class EventHubPartitionPump extends PartitionPump
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-    	String startingOffset = this.lease.getCheckpoint().getOffset();
+    	String startingOffset = this.partitionContext.getStartingOffset();
     	long epoch = this.lease.getEpoch();
     	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
 		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(), startingOffset, epoch);
@@ -150,13 +150,31 @@ class EventHubPartitionPump extends PartitionPump
 		@Override
 		public void onError(Throwable error)
 		{
-			// TODO Auto-generated method stub
+			if (error == null)
+			{
+				error = new Throwable("No error info supplied by EventHub client");
+			}
+			EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
+			if (error instanceof Exception)
+			{
+				EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+			}
+			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}
 
 		@Override
 		public void onClose(Throwable error)
 		{
-			// TODO Auto-generated method stub
+			if (error == null)
+			{
+				error = new Throwable("normal shutdown"); // Is this true?
+			}
+			EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client closed: " + error.toString());
+			if (error instanceof Exception)
+			{
+				EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client closed continued", (Exception)error);
+			}
+			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}
     }
 }

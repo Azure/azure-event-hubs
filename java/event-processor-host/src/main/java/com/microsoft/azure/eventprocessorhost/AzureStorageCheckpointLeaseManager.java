@@ -89,10 +89,13 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
     }
     
-    private CheckPoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    private AzureBlobCheckPoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease lease = (AzureBlobLease)getLeaseSync(partitionId);
-    	return lease.getCheckpoint();
+    	AzureBlobCheckPoint checkpoint = new AzureBlobCheckPoint(lease);
+    	checkpoint.setOffset(lease.getOffset());
+    	checkpoint.setSequenceNumber(lease.getSequenceNumber());
+    	return checkpoint;
     }
 
     @Override

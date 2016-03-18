@@ -21,6 +21,11 @@ public abstract class PartitionPump
 		this.processingSynchronizer = new Object();
 	}
 	
+	public void setLease(Lease newLease)
+	{
+		this.partitionContext.setLease(newLease);
+	}
+	
     public void startPump()
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;

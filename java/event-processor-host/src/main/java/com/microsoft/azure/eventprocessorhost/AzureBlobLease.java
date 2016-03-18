@@ -12,6 +12,8 @@ import com.microsoft.azure.storage.blob.LeaseState;
 public class AzureBlobLease extends Lease
 {
 	private transient CloudBlockBlob blob; // do not serialize
+	private String offset;
+	private long sequenceNumber;
 	
 	public AzureBlobLease(String eventHub, String consumerGroup, String partitionId, CloudBlockBlob blob)
 	{
@@ -31,13 +33,15 @@ public class AzureBlobLease extends Lease
 		this.blob = blob;
 	}
 	
-	public CloudBlockBlob getBlob() { return this.blob; }
+	CloudBlockBlob getBlob() { return this.blob; }
 	
-	@Override
-	public CheckPoint getCheckpoint()
-	{
-		return new AzureBlobCheckPoint(this.checkpoint, this);
-	}
+	void setOffset(String offset) { this.offset = offset; }
+	
+	String getOffset() { return this.offset; }
+
+	void setSequenceNumber(long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
+	
+	long getSequenceNumber() { return this.sequenceNumber; }
 	
 	public String getStateDebug()
 	{
