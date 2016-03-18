@@ -1,10 +1,6 @@
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
 
 public abstract class PartitionPump
 {

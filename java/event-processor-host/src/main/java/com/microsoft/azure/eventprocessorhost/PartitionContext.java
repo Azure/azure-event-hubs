@@ -15,11 +15,6 @@ public class PartitionContext
     private Lease lease;
     private String partitionId;
 
-    private PartitionContext()
-    {
-        // FORBIDDEN!
-    }
-
     PartitionContext(ICheckpointManager checkpointManager, String partitionId)
     {
         this.checkpointManager = checkpointManager;
