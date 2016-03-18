@@ -16,7 +16,6 @@ import java.util.logging.Logger;
 
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
-import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.*;
 import org.apache.qpid.proton.amqp.messaging.Source;
 import org.apache.qpid.proton.amqp.messaging.Target;
@@ -25,7 +24,6 @@ import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.engine.impl.DeliveryImpl;
 import org.apache.qpid.proton.message.Message;
 
-import com.microsoft.azure.servicebus.*;
 import com.microsoft.azure.servicebus.Timer;
 import com.microsoft.azure.servicebus.amqp.*;
 
@@ -136,6 +134,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		return this.send(bytes, arrayOffset, messageFormat, null, null);
 	}
 	
+	// contract: actual send on the SenderLink should happen only in this method
 	private CompletableFuture<Void> send(
 			final byte[] bytes,
 			final int arrayOffset,
@@ -173,6 +172,53 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         return onSendFuture;
 	}
 	
+	private int getPayloadSize(Message msg)
+	{
+		if (msg == null || msg.getBody() == null)
+		{
+			return 0;
+		}
+		
+		Data payloadSection = (Data) msg.getBody();
+		if (payloadSection == null)
+		{
+			return 0;
+		}
+		
+		Binary payloadBytes = payloadSection.getValue();
+		if (payloadBytes == null)
+		{
+			return 0;
+		}
+		
+		return payloadBytes.getLength();
+	}
+	
+	private int getDataSerializedSize(Message amqpMessage)
+	{
+		if (amqpMessage == null)
+		{
+			return 0;
+		}
+		
+		int payloadSize = this.getPayloadSize(amqpMessage);
+		
+		// EventData - accepts only PartitionKey - which is a String & stuffed into MessageAnnotation
+		MessageAnnotations msgAnnotations = amqpMessage.getMessageAnnotations();
+		if (msgAnnotations == null)
+		{
+			return payloadSize;
+		}
+		
+		int annotationsSize = 0;
+		for(Object value: msgAnnotations.getValue().values())
+		{
+			annotationsSize += value.toString().length();
+		}
+		
+		return annotationsSize + payloadSize;
+	}
+	
 	public CompletableFuture<Void> send(final Iterable<Message> messages)
 	{
 		if (messages == null || IteratorUtil.sizeEquals(messages, 0))
@@ -199,8 +245,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		{
 			Message messageWrappedByData = Proton.message();
 			
-			byte[] messageBytes = new byte[ClientConstants.MAX_MESSAGE_LENGTH_BYTES];
-			int messageSizeBytes = amqpMessage.encode(messageBytes, 0, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+			int payloadSize = this.getDataSerializedSize(amqpMessage);
+			int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+			
+			byte[] messageBytes = new byte[allocationSize];
+			int messageSizeBytes = amqpMessage.encode(messageBytes, 0, allocationSize);
 			messageWrappedByData.setBody(new Data(new Binary(messageBytes, 0, messageSizeBytes)));
 			
 			try
@@ -222,11 +271,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	
 	public CompletableFuture<Void> send(Message msg)
 	{
-		byte[] bytes = new byte[ClientConstants.MAX_MESSAGE_LENGTH_BYTES];
+		int payloadSize = this.getDataSerializedSize(msg);
+		int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+		
+		byte[] bytes = new byte[allocationSize];
 		int encodedSize = 0;
 		try
 		{
-			encodedSize = msg.encode(bytes, 0, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+			encodedSize = msg.encode(bytes, 0, allocationSize);
 		}
 		catch(BufferOverflowException exception)
 		{
@@ -421,19 +473,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		ReplayableWorkItem<Void> pendingSend = this.pendingSendWaiters.remove(deliveryTag);
 		if (pendingSend != null)
 		{
-			byte[] tag = String.valueOf(nextTag.incrementAndGet()).getBytes();
-	        Delivery dlv = this.sendLink.delivery(tag);
-	        dlv.setMessageFormat(pendingSend.getMessageFormat());
-	        
-	        int sentMsgSize = this.sendLink.send(pendingSend.getMessage(), 0, pendingSend.getEncodedMessageSize());
-	        assert sentMsgSize != pendingSend.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
-	        
-	        CompletableFuture<Void> onSend = new CompletableFuture<Void>();
-	        this.pendingSendWaiters.put(tag, 
-	        		new ReplayableWorkItem<Void>(pendingSend.getMessage(), 
-	        				pendingSend.getEncodedMessageSize(), pendingSend.getMessageFormat(), onSend, this.operationTimeout));
-	        
-	        this.sendLink.advance();
+			this.send(pendingSend.getMessage(), 
+					pendingSend.getEncodedMessageSize(), 
+					pendingSend.getMessageFormat(),
+					pendingSend.getWork(),
+					pendingSend.getTimeoutTracker());
 		}
 	}
 	
