@@ -11,14 +11,19 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	final int hostCount = 2;
-    	final int partitionCount = 8;
+    	final int hostCount = 1;
+    	final int partitionCount = 1;
     	EventProcessorHost.setDummyPartitionCount(partitionCount);
     	
-    	int runCase = 2;
+    	int runCase = 3;
     	boolean useInMemory = false;
-    	boolean useEH = false;
-    	
+    	boolean useEH = true;
+
+    	String ehConsumerGroup = "$Default";
+    	String ehNamespace = "";
+    	String ehEventhub = "";
+    	String ehKeyname = "";
+    	String ehKey = "";
     	String storageConnectionString = "this is not a valid storage connection string";
     	
     	if (runCase == 1)
@@ -109,7 +114,7 @@ public class EventProcessorSample {
     		EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     		for (int i = 0; i < hostCount; i++)
     		{
-    			hosts[i] = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", "storage connection string");
+    			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, storageConnectionString);
     			if (!useEH)
     			{
     				hosts[i].setPumpClass(SyntheticPump.class);
@@ -419,6 +424,8 @@ public class EventProcessorSample {
 
     public static class EventProcessor implements IEventProcessor
     {
+    	private int checkpointBatchingCount = 0;
+    	
         public void onOpen(PartitionContext context) throws Exception
         {
             String hostname = context.getLease().getOwner();
@@ -439,8 +446,15 @@ public class EventProcessorSample {
             int messageCount = 0;
             for (EventData data : messages)
             {
-                System.out.println("SAMPLE (" + hostname + "," + context.getPartitionId() + "): " + new String(data.getBody(), "UTF8"));
+                System.out.print("SAMPLE (" + hostname + "," + context.getPartitionId() + ",");
+                System.out.print(data.getSystemProperties().getOffset() + "," + data.getSystemProperties().getSequenceNumber() + "): ");
+                System.out.println(new String(data.getBody(), "UTF8"));
                 messageCount++;
+                this.checkpointBatchingCount++;
+                if ((checkpointBatchingCount % 5) == 0)
+                {
+                	context.checkpoint(data);
+                }
             }
             System.out.println("SAMPLE: Partition " + context.getPartitionId() + " batch size was " + messageCount + " for host " + hostname);
         }
