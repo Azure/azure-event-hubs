@@ -1,5 +1,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.Iterator;
+
 import com.microsoft.azure.eventhubs.EventData;
 
 public abstract class PartitionPump
@@ -114,6 +116,17 @@ public abstract class PartitionPump
         	synchronized(this.processingSynchronizer)
         	{
         		this.processor.onEvents(this.partitionContext, events);
+        		
+        		Iterator<EventData> blah = events.iterator();
+        		EventData last = null;
+        		while (blah.hasNext())
+        		{
+        			last = blah.next();
+        		}
+        		if (last != null)
+        		{
+        			this.partitionContext.setOffsetAndSequenceNumber(last);
+        		}
         	}
         }
         catch (Exception e)
