@@ -83,36 +83,38 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     }
 
     @Override
-    public Future<CheckPoint> getCheckpoint(String partitionId)
+    public Future<Checkpoint> getCheckpoint(String partitionId)
     {
     	
         return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
     }
     
-    private AzureBlobCheckPoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    private AzureBlobCheckpoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
-    	AzureBlobLease lease = (AzureBlobLease)getLeaseSync(partitionId);
-    	AzureBlobCheckPoint checkpoint = new AzureBlobCheckPoint(lease);
+    	AzureBlobLease lease = getLeaseSync(partitionId);
+    	AzureBlobCheckpoint checkpoint = new AzureBlobCheckpoint(lease);
     	checkpoint.setOffset(lease.getOffset());
     	checkpoint.setSequenceNumber(lease.getSequenceNumber());
     	return checkpoint;
     }
 
     @Override
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint)
+    public Future<Void> updateCheckpoint(Checkpoint checkpoint)
     {
     	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
     }
     
     @Override
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
+    public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckPoint)checkpoint, offset, sequenceNumber));
+        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckpoint)checkpoint, offset, sequenceNumber));
     }
     
-    private Void updateCheckpointSync(AzureBlobCheckPoint checkpoint, String offset, long sequenceNumber) throws Exception
+    private Void updateCheckpointSync(AzureBlobCheckpoint checkpoint, String offset, long sequenceNumber) throws Exception
     {
-    	AzureBlobLease lease = checkpoint.getLease();
+    	// Need to fetch the most current lease data so that we can update it correctly.
+    	AzureBlobLease lease = getLeaseSync(checkpoint.getPartitionId()); 
+    	checkpoint.setLease(lease);
     	lease.setOffset(offset);
     	lease.setSequenceNumber(sequenceNumber);
     	updateLeaseSync(lease);
@@ -188,26 +190,27 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	try
     	{
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
-    		Lease lease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
-    		String jsonLease = this.gson.toJson(lease);
+    		returnLease = new AzureBlobLease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId, leaseBlob);
+    		String jsonLease = this.gson.toJson(returnLease);
     		this.host.logWithHostAndPartition(partitionId,
     				"CreateLeaseIfNotExist - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName());
     		leaseBlob.uploadText(jsonLease, null, AccessCondition.generateIfNoneMatchCondition("*"), null, null);
-    		returnLease = new AzureBlobLease(lease, leaseBlob);
     	}
     	catch (StorageException se)
     	{
     		StorageExtendedErrorInformation extendedErrorInfo = se.getExtendedErrorInformation();
-    		if ((extendedErrorInfo != null) && (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) != 0))
+    		if ((extendedErrorInfo != null) && (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) == 0))
+    		{
+    			// The blob already exists.
+    			this.host.logWithHostAndPartition(partitionId, "Lease already exists");
+        		returnLease = getLeaseSync(partitionId);
+    		}
+    		else
     		{
     			this.host.logWithHostAndPartition(partitionId,
     				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
     				se);
-    		}
-    		else
-    		{
-    			// The blob already exists.
-        		returnLease = getLeaseSync(partitionId);
+    			throw se;
     		}
     	}
     	
@@ -367,7 +370,9 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	try
     	{
-    		leaseBlob.uploadText(this.gson.toJson(lease), null, AccessCondition.generateLeaseCondition(token), null, null);
+    		String jsonToUpload = this.gson.toJson(lease);
+    		//this.host.logWithHost("Raw JSON uploading: " + jsonToUpload);
+    		leaseBlob.uploadText(jsonToUpload, null, AccessCondition.generateLeaseCondition(token), null, null);
     	}
     	catch (StorageException se)
     	{
@@ -387,7 +392,11 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private AzureBlobLease downloadLease(CloudBlockBlob blob) throws StorageException, IOException
     {
     	String jsonLease = blob.downloadText();
-    	AzureBlobLease blobLease = new AzureBlobLease(this.gson.fromJson(jsonLease, Lease.class), blob);
+    	//this.host.logWithHost("Raw JSON downloaded: " + jsonLease);
+    	AzureBlobLease rehydrated = this.gson.fromJson(jsonLease, AzureBlobLease.class);
+    	//this.host.logWithHost("Rehydrated offset is " + rehydrated.getOffset());
+    	AzureBlobLease blobLease = new AzureBlobLease(rehydrated, blob);
+    	//this.host.logWithHost("After adding blob offset is " + blobLease.getOffset());
     	return blobLease;
     }
     

@@ -83,7 +83,7 @@ public class PartitionContext
     
     String getStartingOffset() throws InterruptedException, ExecutionException
     {
-    	CheckPoint startingCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	Checkpoint startingCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
     	this.offset = startingCheckpoint.getOffset();
     	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
     	return this.offset;
@@ -91,7 +91,7 @@ public class PartitionContext
 
     public Future<Void> checkpoint() throws InterruptedException, ExecutionException
     {
-    	CheckPoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
     	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
     	{
     		checkpoint.setOffset(this.offset);
@@ -106,7 +106,7 @@ public class PartitionContext
 
     public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
     {
-    	CheckPoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
     	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
     	{
 	    	checkpoint.setOffset(event.getSystemProperties().getOffset());

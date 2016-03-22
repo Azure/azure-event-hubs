@@ -4,6 +4,7 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.storage.StorageException;
 import com.microsoft.azure.storage.blob.BlobProperties;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
@@ -12,8 +13,8 @@ import com.microsoft.azure.storage.blob.LeaseState;
 public class AzureBlobLease extends Lease
 {
 	private transient CloudBlockBlob blob; // do not serialize
-	private String offset;
-	private long sequenceNumber;
+	private String offset = PartitionReceiver.START_OF_STREAM;
+	private long sequenceNumber = 0;
 	
 	public AzureBlobLease(String eventHub, String consumerGroup, String partitionId, CloudBlockBlob blob)
 	{
@@ -24,7 +25,17 @@ public class AzureBlobLease extends Lease
 	public AzureBlobLease(AzureBlobLease source)
 	{
 		super(source);
+		this.offset = source.offset;
+		this.sequenceNumber = source.sequenceNumber;
 		this.blob = source.blob;
+	}
+	
+	public AzureBlobLease(AzureBlobLease source, CloudBlockBlob blob)
+	{
+		super(source);
+		this.offset = source.offset;
+		this.sequenceNumber = source.sequenceNumber;
+		this.blob = blob;
 	}
 	
 	public AzureBlobLease(Lease source, CloudBlockBlob blob)

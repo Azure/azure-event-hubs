@@ -4,30 +4,32 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-public class AzureBlobCheckPoint extends CheckPoint
+public class AzureBlobCheckpoint extends Checkpoint
 {
 	private AzureBlobLease lease;
 	
-	public AzureBlobCheckPoint(AzureBlobLease lease)
+	public AzureBlobCheckpoint(AzureBlobLease lease)
 	{
 		super(lease.getPartitionId());
 		this.lease = lease;
+		this.setOffset(lease.getOffset());
+		this.setSequenceNumber(lease.getSequenceNumber());
 	}
 	
-	public AzureBlobCheckPoint(AzureBlobCheckPoint source)
+	public AzureBlobCheckpoint(AzureBlobCheckpoint source)
 	{
 		super(source);
 		this.lease = source.lease;
 	}
 	
-	public AzureBlobCheckPoint(CheckPoint source, AzureBlobLease lease)
+	public AzureBlobCheckpoint(Checkpoint source, AzureBlobLease lease)
 	{
 		super(source);
 		this.lease = lease;
 	}
 	
-	AzureBlobLease getLease()
+	void setLease(AzureBlobLease lease)
 	{
-		return this.lease;
+		this.lease = lease;
 	}
 }
