@@ -33,7 +33,12 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public Future<Boolean> leaseStoreExists()
     {
-        return EventProcessorHost.getExecutorService().submit(() -> (InMemoryLeaseStore.getSingleton().inMemoryLeases != null));
+        return EventProcessorHost.getExecutorService().submit(() -> leaseStoreExistsSync());
+    }
+    
+    private Boolean leaseStoreExistsSync()
+    {
+    	return (InMemoryLeaseStore.singleton.inMemoryLeases != null);
     }
 
     @Override
@@ -44,10 +49,10 @@ public class InMemoryLeaseManager implements ILeaseManager
 
     private Boolean createLeaseStoreIfNotExistsSync()
     {
-        if (InMemoryLeaseStore.getSingleton().inMemoryLeases == null)
+        if (InMemoryLeaseStore.singleton.inMemoryLeases == null)
         {
         	this.host.logWithHost("createLeaseStoreIfNotExists() creating in memory hashmap");
-            InMemoryLeaseStore.getSingleton().inMemoryLeases = new HashMap<String, Lease>();
+            InMemoryLeaseStore.singleton.inMemoryLeases = new HashMap<String, Lease>();
         }
         return true;
     }
@@ -61,7 +66,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     private Lease getLeaseSync(String partitionId)
     {
     	Lease returnLease = null;
-        Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(partitionId);
+        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (leaseInStore == null)
         {
         	this.host.logWithHostAndPartition(partitionId, "getLease() no existing lease");
@@ -94,7 +99,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 
     private Lease createLeaseIfNotExistsSync(String partitionId)
     {
-    	Lease returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(partitionId);
+    	Lease returnLease = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (returnLease != null)
         {
         	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() found existing lease, OK");
@@ -105,7 +110,7 @@ public class InMemoryLeaseManager implements ILeaseManager
             Lease storeLease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
             storeLease.setEpoch(0L);
             storeLease.setOwner(this.host.getHostName());
-            InMemoryLeaseStore.getSingleton().inMemoryLeases.put(partitionId, storeLease);
+            InMemoryLeaseStore.singleton.inMemoryLeases.put(partitionId, storeLease);
             returnLease = new Lease(storeLease);
         }
         return returnLease;
@@ -119,7 +124,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     
     private Void deleteLeaseSync(Lease lease)
     {
-    	InMemoryLeaseStore.getSingleton().inMemoryLeases.remove(lease.getPartitionId());
+    	InMemoryLeaseStore.singleton.inMemoryLeases.remove(lease.getPartitionId());
     	return null;
     }
 
@@ -132,7 +137,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     private Boolean acquireLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-        Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
         if (leaseInStore != null)
         {
             if ((leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
@@ -176,7 +181,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     private Boolean releaseLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
@@ -207,7 +212,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     private Boolean updateLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
@@ -232,19 +237,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 
     private static class InMemoryLeaseStore
     {
-        private static InMemoryLeaseStore singleton = null;
-
-        public static InMemoryLeaseStore getSingleton()
-        {
-        	synchronized (InMemoryLeaseStore.singleton)
-        	{
-	            if (InMemoryLeaseStore.singleton == null)
-	            {
-	                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
-	            }
-        	}
-            return InMemoryLeaseStore.singleton;
-        }
+        public final static InMemoryLeaseStore singleton = new InMemoryLeaseStore();
 
         public HashMap<String, Lease> inMemoryLeases = null;
     }
