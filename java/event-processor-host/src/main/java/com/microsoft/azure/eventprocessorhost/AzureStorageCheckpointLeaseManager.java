@@ -89,10 +89,10 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
     }
     
-    private AzureBlobCheckpoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    private Checkpoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease lease = getLeaseSync(partitionId);
-    	AzureBlobCheckpoint checkpoint = new AzureBlobCheckpoint(lease);
+    	Checkpoint checkpoint = new Checkpoint(partitionId);
     	checkpoint.setOffset(lease.getOffset());
     	checkpoint.setSequenceNumber(lease.getSequenceNumber());
     	return checkpoint;
@@ -107,14 +107,13 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     @Override
     public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync((AzureBlobCheckpoint)checkpoint, offset, sequenceNumber));
+        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint, offset, sequenceNumber));
     }
     
-    private Void updateCheckpointSync(AzureBlobCheckpoint checkpoint, String offset, long sequenceNumber) throws Exception
+    private Void updateCheckpointSync(Checkpoint checkpoint, String offset, long sequenceNumber) throws Exception
     {
     	// Need to fetch the most current lease data so that we can update it correctly.
     	AzureBlobLease lease = getLeaseSync(checkpoint.getPartitionId()); 
-    	checkpoint.setLease(lease);
     	lease.setOffset(offset);
     	lease.setSequenceNumber(sequenceNumber);
     	updateLeaseSync(lease);
