@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.Iterator;
+import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
 
@@ -53,7 +54,7 @@ public abstract class PartitionPump
             {
             	// If the processor won't create or open, only thing we can do here is pass the buck.
             	// Null it out so we don't try to operate on it further.
-            	this.host.logWithHostAndPartition(this.partitionContext, "Failed creating or opening processor", e);
+            	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failed creating or opening processor", e);
             	this.processor = null;
             	
             	this.pumpStatus = PartitionPumpStatus.PP_OPENFAILED;
@@ -81,7 +82,7 @@ public abstract class PartitionPump
     public void shutdown(CloseReason reason)
     {
     	this.pumpStatus = PartitionPumpStatus.PP_CLOSING;
-        this.host.logWithHostAndPartition(this.partitionContext, "pump shutdown for reason " + reason.toString()); // DUMMY
+        this.host.logWithHostAndPartition(Level.INFO, this.partitionContext, "pump shutdown for reason " + reason.toString());
 
         specializedShutdown(reason);
 
@@ -99,9 +100,8 @@ public abstract class PartitionPump
             }
             catch (Exception e)
             {
-                // DUMMY STARTS Is there anything we should do here except log it?
-            	this.host.logWithHostAndPartition(this.partitionContext, "Failure closing processor", e);
-                // DUMMY ENDS
+                // TODO Is there anything we should do here except log it?
+            	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failure closing processor", e);
             }
         }
         
@@ -136,10 +136,9 @@ public abstract class PartitionPump
         }
         catch (Exception e)
         {
-            // DUMMY STARTS
+            // TODO
         	// What do we even do here?
-        	this.host.logWithHostAndPartition(this.partitionContext, "Got exception from onEvents", e);
-            // DUMMY ENDS
+        	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
         }
 	}
 }

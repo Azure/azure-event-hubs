@@ -7,6 +7,7 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.util.HashMap;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
 
 
 public class InMemoryCheckpointManager implements ICheckpointManager
@@ -46,7 +47,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     {
         if (InMemoryCheckpointStore.singleton.inMemoryCheckpoints == null)
         {
-        	this.host.logWithHost("createCheckpointStoreIfNotExists() creating in memory hashmap");
+        	this.host.logWithHost(Level.INFO, "createCheckpointStoreIfNotExists() creating in memory hashmap");
             InMemoryCheckpointStore.singleton.inMemoryCheckpoints = new HashMap<String, Checkpoint>();
         }
         return true;
@@ -64,7 +65,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
         Checkpoint CheckpointInStore = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
         if (CheckpointInStore == null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "getCheckpoint() no existing Checkpoint");
+        	this.host.logWithHostAndPartition(Level.SEVERE, partitionId, "getCheckpoint() no existing Checkpoint");
         	returnCheckpoint = null;
         }
         else
@@ -96,7 +97,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(partitionId, "updateCheckpoint() can't find checkpoint");
+    		this.host.logWithHostAndPartition(Level.SEVERE, partitionId, "updateCheckpoint() can't find checkpoint");
     	}
     	return null;
     }

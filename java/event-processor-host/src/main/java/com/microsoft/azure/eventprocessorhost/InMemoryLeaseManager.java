@@ -8,6 +8,7 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 
 public class InMemoryLeaseManager implements ILeaseManager
 {
@@ -52,7 +53,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
         if (InMemoryLeaseStore.singleton.inMemoryLeases == null)
         {
-        	this.host.logWithHost("createLeaseStoreIfNotExists() creating in memory hashmap");
+        	this.host.logWithHost(Level.INFO, "createLeaseStoreIfNotExists() creating in memory hashmap");
             InMemoryLeaseStore.singleton.inMemoryLeases = new HashMap<String, Lease>();
         }
         return true;
@@ -70,7 +71,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (leaseInStore == null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "getLease() no existing lease");
+        	this.host.logWithHostAndPartition(Level.WARNING, partitionId, "getLease() no existing lease");
         	returnLease = null;
         }
         else
@@ -103,11 +104,11 @@ public class InMemoryLeaseManager implements ILeaseManager
     	Lease returnLease = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (returnLease != null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() found existing lease, OK");
+        	this.host.logWithHostAndPartition(Level.INFO, partitionId, "createLeaseIfNotExists() found existing lease, OK");
         }
         else
         {
-        	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() creating new lease");
+        	this.host.logWithHostAndPartition(Level.INFO, partitionId, "createLeaseIfNotExists() creating new lease");
             Lease storeLease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
             storeLease.setEpoch(0L);
             storeLease.setOwner(this.host.getHostName());
@@ -144,22 +145,22 @@ public class InMemoryLeaseManager implements ILeaseManager
             if ((leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
             {
                 leaseInStore.setOwner(this.host.getHostName());
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() acquired lease");
+            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() acquired lease");
             }
             else if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
             {
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() already hold lease");
+            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() already hold lease");
             }
             else
             {
             	String oldOwner = leaseInStore.getOwner();
             	leaseInStore.setOwner(this.host.getHostName());
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
+            	this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
             }
         }
         else
         {
-        	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() can't find lease");
+        	this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "acquireLease() can't find lease");
         	retval = false;
         }
         
@@ -187,18 +188,18 @@ public class InMemoryLeaseManager implements ILeaseManager
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() released OK");
+	    		this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "releaseLease() released OK");
 	    		leaseInStore.setOwner("");
     		}
     		else
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() not released because we don't own lease");
+	    		this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "releaseLease() not released because we don't own lease");
     			retval = false;
     		}
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() can't find lease");
+    		this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "releaseLease() can't find lease");
     		retval = false;
     	}
     	return retval;
@@ -223,13 +224,13 @@ public class InMemoryLeaseManager implements ILeaseManager
     		}
     		else
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "updateLease() not updated because we don't own lease");
+	    		this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "updateLease() not updated because we don't own lease");
     			retval = false;
     		}
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(lease.getPartitionId(), "updateLease() can't find lease");
+    		this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "updateLease() can't find lease");
     		retval = false;
     	}
     	return retval;
