@@ -113,7 +113,8 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private Void updateCheckpointSync(Checkpoint checkpoint, String offset, long sequenceNumber) throws Exception
     {
     	// Need to fetch the most current lease data so that we can update it correctly.
-    	AzureBlobLease lease = getLeaseSync(checkpoint.getPartitionId()); 
+    	AzureBlobLease lease = getLeaseSync(checkpoint.getPartitionId());
+    	this.host.logWithHostAndPartition(checkpoint.getPartitionId(), "Checkpointing at " + offset + " // " + sequenceNumber);
     	lease.setOffset(offset);
     	lease.setSequenceNumber(sequenceNumber);
     	updateLeaseSync(lease);
