@@ -1,5 +1,5 @@
 /*
- * LICENSE GOES HERE
+ * LICENSE GOES HERE TOO
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -173,6 +173,16 @@ public final class EventProcessorHost
      * @return	Event Hub connection string.
      */
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
+    
+    /**
+     * FOR TESTING USE ONLY
+     * 
+     * @param pumpClass
+     */
+    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
+    {
+    	this.partitionManager.setPumpClass(pumpClass);
+    }
 
     // All of these accessors are for internal use only.
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
@@ -181,7 +191,7 @@ public final class EventProcessorHost
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
-    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    public static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
     
     /**
      * Register class for event processor and start processing.
@@ -278,10 +288,27 @@ public final class EventProcessorHost
      * 
      * @return	Future that does not complete until the processor host shuts down.
      */
-    public Future<?> unregisterEventProcessor()
+    public void unregisterEventProcessor()
     {
         this.partitionManager.stopPartitions();
-        return this.partitionManagerFuture;
+        try
+        {
+			this.partitionManagerFuture.get();
+	        if (EventProcessorHost.weOwnExecutor)
+	        {
+	        	// If there are multiple EventProcessorHosts in one process, only await the shutdown on the last one.
+	        	// Otherwise the first one will block forever here...
+	        	if (EventProcessorHost.executorRefCount <= 0)
+	        	{
+	        		EventProcessorHost.executorService.awaitTermination(10, TimeUnit.MINUTES);
+	        	}
+	        }
+		}
+        catch (InterruptedException | ExecutionException e)
+        {
+        	// Log the failure but nothing really to do about it.
+        	logWithHost("Failure shutting down", e);
+		}
     }
     
     // PartitionManager calls this after all shutdown tasks have been submitted to the ExecutorService.
@@ -326,6 +353,17 @@ public final class EventProcessorHost
     	{
     		logWithHost(stack[i].toString());
     	}
+    	Throwable cause = e.getCause();
+    	if ((cause != null) && (cause instanceof Exception))
+    	{
+    		Exception inner = (Exception)cause;
+    		logWithHost("Inner exception " + inner.toString());
+    		stack = inner.getStackTrace();
+        	for (int i = 0; i < stack.length; i++)
+        	{
+        		logWithHost(stack[i].toString());
+        	}
+    	}
     }
     
     void logWithHostAndPartition(String partitionId, String logMessage)
@@ -341,6 +379,17 @@ public final class EventProcessorHost
     	for (int i = 0; i < stack.length; i++)
     	{
     		logWithHostAndPartition(partitionId, stack[i].toString());
+    	}
+    	Throwable cause = e.getCause();
+    	if ((cause != null) && (cause instanceof Exception))
+    	{
+    		Exception inner = (Exception)cause;
+    		logWithHostAndPartition(partitionId, "Inner exception " + inner.toString());
+    		stack = inner.getStackTrace();
+        	for (int i = 0; i < stack.length; i++)
+        	{
+        		logWithHostAndPartition(partitionId, stack[i].toString());
+        	}
     	}
     }
     

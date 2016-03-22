@@ -1,15 +1,20 @@
 /*
- * LICENSE GOES HERE
+ * LICENSE GOES HERE TOO
  */
 
 package com.microsoft.azure.eventprocessorhost;
 
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.BlobProperties;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
 
 public class AzureBlobLease extends Lease
 {
 	private transient CloudBlockBlob blob; // do not serialize
+	private String offset = PartitionReceiver.START_OF_STREAM;
+	private long sequenceNumber = 0;
 	
 	public AzureBlobLease(String eventHub, String consumerGroup, String partitionId, CloudBlockBlob blob)
 	{
@@ -20,7 +25,17 @@ public class AzureBlobLease extends Lease
 	public AzureBlobLease(AzureBlobLease source)
 	{
 		super(source);
+		this.offset = source.offset;
+		this.sequenceNumber = source.sequenceNumber;
 		this.blob = source.blob;
+	}
+	
+	public AzureBlobLease(AzureBlobLease source, CloudBlockBlob blob)
+	{
+		super(source);
+		this.offset = source.offset;
+		this.sequenceNumber = source.sequenceNumber;
+		this.blob = blob;
 	}
 	
 	public AzureBlobLease(Lease source, CloudBlockBlob blob)
@@ -29,17 +44,37 @@ public class AzureBlobLease extends Lease
 		this.blob = blob;
 	}
 	
-	public CloudBlockBlob getBlob() { return this.blob; }
+	CloudBlockBlob getBlob() { return this.blob; }
 	
-	@Override
-	public CheckPoint getCheckpoint()
+	void setOffset(String offset) { this.offset = offset; }
+	
+	String getOffset() { return this.offset; }
+
+	void setSequenceNumber(long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
+	
+	long getSequenceNumber() { return this.sequenceNumber; }
+	
+	public String getStateDebug()
 	{
-		return new AzureBlobCheckPoint(this.checkpoint, this);
+		String retval = "uninitialized";
+		try
+		{
+			this.blob.downloadAttributes();
+			BlobProperties props = this.blob.getProperties();
+			retval = props.getLeaseState().toString() + " " + props.getLeaseStatus().toString() + " " + props.getLeaseDuration().toString();
+		}
+		catch (StorageException e)
+		{
+			retval = "downloadAttributes on the blob caught " + e.toString();
+		}
+		return retval; 
 	}
 
 	@Override
-	public boolean isExpired()
+	public boolean isExpired() throws Exception
 	{
-		return (this.blob.getProperties().getLeaseState() != LeaseState.LEASED);
+		this.blob.downloadAttributes(); // Get the latest metadata
+		LeaseState currentState = this.blob.getProperties().getLeaseState();
+		return (currentState != LeaseState.LEASED); 
 	}
 }

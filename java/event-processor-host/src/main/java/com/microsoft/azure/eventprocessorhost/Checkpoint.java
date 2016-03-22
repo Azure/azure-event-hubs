@@ -1,17 +1,23 @@
+/*
+ * LICENSE GOES HERE TOO
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
-public class CheckPoint
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+
+public class Checkpoint
 {
 	private String partitionId = "";
-	private String offset = "";
+	private String offset = PartitionReceiver.START_OF_STREAM;
 	private long sequenceNumber = 0;
 	
-	public CheckPoint(String partitionId)
+	public Checkpoint(String partitionId)
 	{
 		this.partitionId = partitionId;
 	}
 	
-	public CheckPoint(CheckPoint source)
+	public Checkpoint(Checkpoint source)
 	{
 		this.partitionId = source.partitionId;
 		this.offset = source.offset;

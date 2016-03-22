@@ -1,11 +1,13 @@
 /*
- * LICENSE GOES HERE
+ * LICENSE GOES HERE TOO
  */
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class PartitionContext
 {
@@ -14,11 +16,8 @@ public class PartitionContext
     private String eventHubPath;
     private Lease lease;
     private String partitionId;
-
-    private PartitionContext()
-    {
-        // FORBIDDEN!
-    }
+    private String offset = PartitionReceiver.START_OF_STREAM;
+    private long sequenceNumber = 0;;
 
     PartitionContext(ICheckpointManager checkpointManager, String partitionId)
     {
@@ -56,18 +55,67 @@ public class PartitionContext
         this.lease = lease;
     }
     
+    public void setOffsetAndSequenceNumber(EventData event)
+    {
+    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
+    }
+    
+    public void setOffsetAndSequenceNumber(String offset, long sequenceNumber) throws IllegalArgumentException
+    {
+    	synchronized (this.offset)
+    	{
+    		if (sequenceNumber >= this.sequenceNumber)
+    		{
+    			this.offset = offset;
+    			this.sequenceNumber = sequenceNumber;
+    		}
+    		else
+    		{
+    			throw new IllegalArgumentException("new offset less than old");
+    		}
+    	}
+    }
+    
     public String getPartitionId()
     {
     	return this.partitionId;
     }
-
-    public Future<Void> checkpoint()
+    
+    String getStartingOffset() throws InterruptedException, ExecutionException
     {
-        return this.checkpointManager.updateCheckpoint(this.lease.getCheckpoint());
+    	Checkpoint startingCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	this.offset = startingCheckpoint.getOffset();
+    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
+    	return this.offset;
     }
 
-    public Future<Void> checkpoint(EventData data)
+    public Future<Void> checkpoint() throws InterruptedException, ExecutionException
     {
-        return checkpointManager.updateCheckpoint(this.lease.getCheckpoint(), data.getSystemProperties().getOffset(), data.getSystemProperties().getSequenceNumber());
+    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
+    	{
+    		checkpoint.setOffset(this.offset);
+    		checkpoint.setSequenceNumber(this.sequenceNumber);
+    	}
+    	else
+    	{
+			throw new IllegalArgumentException("new offset less than old");
+    	}
+        return this.checkpointManager.updateCheckpoint(checkpoint);
+    }
+
+    public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
+    {
+    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
+    	{
+	    	checkpoint.setOffset(event.getSystemProperties().getOffset());
+	    	checkpoint.setSequenceNumber(event.getSystemProperties().getSequenceNumber());
+    	}
+    	else
+    	{
+			throw new IllegalArgumentException("new offset less than old");
+    	}
+        return this.checkpointManager.updateCheckpoint(checkpoint);
     }
 }

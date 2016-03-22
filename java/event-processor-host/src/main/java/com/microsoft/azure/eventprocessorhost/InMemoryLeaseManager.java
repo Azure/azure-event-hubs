@@ -1,5 +1,5 @@
 /*
- * LICENSE GOES HERE
+ * LICENSE GOES HERE TOO
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -8,78 +8,40 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;
 
-public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpointManager
+public class InMemoryLeaseManager implements ILeaseManager
 {
     private EventProcessorHost host;
 
-    public InMemoryCheckpointLeaseManager()
+    public InMemoryLeaseManager()
     {
     }
 
-    // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
+    // The EventProcessorHost can't pass itself to the constructor
     // because it is still being constructed.
-    public void setHost(EventProcessorHost host)
+    public void initialize(EventProcessorHost host)
     {
         this.host = host;
     }
 
-    public Future<Boolean> checkpointStoreExists()
+    @Override
+    public int getLeaseRenewIntervalInMilliseconds()
     {
-        return leaseStoreExists();
+    	// Leases don't expire in this manager but we want the partition manager loop to execute reasonably often.
+    	return 10 * 1000;
     }
 
-    public Future<Boolean> createCheckpointStoreIfNotExists()
-    {
-        return createLeaseStoreIfNotExists();
-    }
-
-    public Future<CheckPoint> getCheckpoint(String partitionId)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> getCheckpointSync(partitionId));
-    }
-    
-    private CheckPoint getCheckpointSync(String partitionId)
-    {
-    	Lease lease = getLeaseSync(partitionId);
-    	CheckPoint retval = null;
-    	if (lease != null)
-    	{
-    		retval = lease.getCheckpoint();
-    	}
-    	return retval;
-    }
-
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint)
-    {
-    	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
-    }
-
-    public Future<Void> updateCheckpoint(CheckPoint checkpoint, String offset, long sequenceNumber)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), offset, sequenceNumber));
-    }
-
-    private Void updateCheckpointSync(String partitionId, String offset, long sequenceNumber)
-    {
-    	Lease lease = getLeaseSync(partitionId);
-    	lease.setOffset(offset);
-    	lease.setSequenceNumber(sequenceNumber);
-    	updateLeaseSync(lease);
-    	return null;
-    }
-
-    public Future<Void> deleteCheckpoint(String partitionId)
-    {
-    	// Make this a no-op to avoid deleting leases by accident.
-        return null;
-    }
-
-
+    @Override
     public Future<Boolean> leaseStoreExists()
     {
-        return EventProcessorHost.getExecutorService().submit(() -> (InMemoryLeaseStore.getSingleton().inMemoryLeases != null));
+        return EventProcessorHost.getExecutorService().submit(() -> leaseStoreExistsSync());
+    }
+    
+    private Boolean leaseStoreExistsSync()
+    {
+    	return (InMemoryLeaseStore.singleton.inMemoryLeases != null);
     }
 
+    @Override
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseStoreIfNotExistsSync());
@@ -87,14 +49,15 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
 
     private Boolean createLeaseStoreIfNotExistsSync()
     {
-        if (InMemoryLeaseStore.getSingleton().inMemoryLeases == null)
+        if (InMemoryLeaseStore.singleton.inMemoryLeases == null)
         {
         	this.host.logWithHost("createLeaseStoreIfNotExists() creating in memory hashmap");
-            InMemoryLeaseStore.getSingleton().inMemoryLeases = new HashMap<String, Lease>();
+            InMemoryLeaseStore.singleton.inMemoryLeases = new HashMap<String, Lease>();
         }
         return true;
     }
     
+    @Override
     public Future<Lease> getLease(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
@@ -103,7 +66,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     private Lease getLeaseSync(String partitionId)
     {
     	Lease returnLease = null;
-        Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(partitionId);
+        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (leaseInStore == null)
         {
         	this.host.logWithHostAndPartition(partitionId, "getLease() no existing lease");
@@ -116,6 +79,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return returnLease;
     }
 
+    @Override
     public Iterable<Future<Lease>> getAllLeases()
     {
         ArrayList<Future<Lease>> leases = new ArrayList<Future<Lease>>();
@@ -127,6 +91,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return leases;
     }
 
+    @Override
     public Future<Lease> createLeaseIfNotExists(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
@@ -134,7 +99,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
 
     private Lease createLeaseIfNotExistsSync(String partitionId)
     {
-    	Lease returnLease = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(partitionId);
+    	Lease returnLease = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (returnLease != null)
         {
         	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() found existing lease, OK");
@@ -145,12 +110,13 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
             Lease storeLease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
             storeLease.setEpoch(0L);
             storeLease.setOwner(this.host.getHostName());
-            InMemoryLeaseStore.getSingleton().inMemoryLeases.put(partitionId, storeLease);
+            InMemoryLeaseStore.singleton.inMemoryLeases.put(partitionId, storeLease);
             returnLease = new Lease(storeLease);
         }
         return returnLease;
     }
     
+    @Override
     public Future<Void> deleteLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseSync(lease));
@@ -158,10 +124,11 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     
     private Void deleteLeaseSync(Lease lease)
     {
-    	InMemoryLeaseStore.getSingleton().inMemoryLeases.remove(lease.getPartitionId());
+    	InMemoryLeaseStore.singleton.inMemoryLeases.remove(lease.getPartitionId());
     	return null;
     }
 
+    @Override
     public Future<Boolean> acquireLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync(lease));
@@ -170,7 +137,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     private Boolean acquireLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-        Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
         if (leaseInStore != null)
         {
             if ((leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
@@ -198,12 +165,14 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
         return retval;
     }
     
+    @Override
     public Future<Boolean> renewLease(Lease lease)
     {
     	// No-op at this time
         return EventProcessorHost.getExecutorService().submit(() -> true);
     }
 
+    @Override
     public Future<Boolean> releaseLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync(lease));
@@ -212,7 +181,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     private Boolean releaseLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
@@ -234,6 +203,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     	return retval;
     }
 
+    @Override
     public Future<Boolean> updateLease(Lease lease)
     {
         return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync(lease));
@@ -242,15 +212,12 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
     private Boolean updateLeaseSync(Lease lease)
     {
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.getSingleton().inMemoryLeases.get(lease.getPartitionId());
+    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
     		{
    				leaseInStore.setEpoch(lease.getEpoch());
-    			CheckPoint cp = lease.getCheckpoint();
-  				leaseInStore.setOffset(cp.getOffset());
-   				leaseInStore.setSequenceNumber(cp.getSequenceNumber());
     			leaseInStore.setToken(lease.getToken());
     		}
     		else
@@ -270,16 +237,7 @@ public class InMemoryCheckpointLeaseManager implements ILeaseManager, ICheckpoin
 
     private static class InMemoryLeaseStore
     {
-        private static InMemoryLeaseStore singleton = null;
-
-        public static InMemoryLeaseStore getSingleton()
-        {
-            if (InMemoryLeaseStore.singleton == null)
-            {
-                InMemoryLeaseStore.singleton = new InMemoryLeaseStore();
-            }
-            return InMemoryLeaseStore.singleton;
-        }
+        public final static InMemoryLeaseStore singleton = new InMemoryLeaseStore();
 
         public HashMap<String, Lease> inMemoryLeases = null;
     }

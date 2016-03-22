@@ -1,5 +1,5 @@
 /*
- * LICENSE GOES HERE
+ * LICENSE GOES HERE TOO
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -7,9 +7,10 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.concurrent.Future;
 
 // WILL NORMALLY BE IMPLEMENTED ON THE SAME OBJECT AS ICheckpointManager
-// REQUIRES IManagerBase also
 public interface ILeaseManager
 {
+	public int getLeaseRenewIntervalInMilliseconds();
+	
     public Future<Boolean> leaseStoreExists();
 
     public Future<Boolean> createLeaseStoreIfNotExists();

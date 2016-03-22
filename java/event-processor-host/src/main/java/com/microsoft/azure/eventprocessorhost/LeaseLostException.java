@@ -1,10 +1,14 @@
+/*
+ * LICENSE GOES HERE TOO
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 public class LeaseLostException extends Exception
 {
-	private Lease lease = null;
+	private static final long serialVersionUID = -4625001822439809869L;
 	
-	// TODO is serialVersionUid needed?
+	private Lease lease = null;
 	
 	public LeaseLostException()
 	{
