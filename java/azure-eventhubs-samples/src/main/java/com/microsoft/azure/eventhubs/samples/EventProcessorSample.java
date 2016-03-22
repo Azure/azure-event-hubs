@@ -15,9 +15,11 @@ public class EventProcessorSample {
     	final int partitionCount = 8;
     	EventProcessorHost.setDummyPartitionCount(partitionCount);
     	
-    	int runCase = 1;
-    	boolean useInMemory = true;
+    	int runCase = 2;
+    	boolean useInMemory = false;
     	boolean useEH = false;
+    	
+    	String storageConnectionString = "this is not a valid storage connection string";
     	
     	if (runCase == 1)
     	{
@@ -30,7 +32,7 @@ public class EventProcessorSample {
     		}
     		else
     		{
-    			AzureStorageCheckpointLeaseManager azMgr = new AzureStorageCheckpointLeaseManager("storage connection string");
+    			AzureStorageCheckpointLeaseManager azMgr = new AzureStorageCheckpointLeaseManager(storageConnectionString);
     			leaseMgr = azMgr;
     			checkpointMgr = azMgr;
     		}
@@ -70,10 +72,10 @@ public class EventProcessorSample {
     		}
     		else
     		{
-    			AzureStorageCheckpointLeaseManager azMgr1 = new AzureStorageCheckpointLeaseManager("storage connection string");
+    			AzureStorageCheckpointLeaseManager azMgr1 = new AzureStorageCheckpointLeaseManager(storageConnectionString);
     			leaseMgr1 = azMgr1;
     			checkMgr1 = azMgr1;
-		    	AzureStorageCheckpointLeaseManager azMgr2 = new AzureStorageCheckpointLeaseManager("storage connection string");
+		    	AzureStorageCheckpointLeaseManager azMgr2 = new AzureStorageCheckpointLeaseManager(storageConnectionString);
 		    	leaseMgr2 = azMgr2;
 		    	checkMgr2 = azMgr2;
     		}
@@ -100,7 +102,7 @@ public class EventProcessorSample {
 	    		e.printStackTrace();
 			}
 	    	
-	    	stealLeaseTest(leaseMgr1, checkMgr1, leaseMgr2, checkMgr2);
+	    	stealLeaseTest(leaseMgr1, checkMgr1, leaseMgr2, checkMgr2, useInMemory);
     	}
     	else if (runCase == 3)
     	{
@@ -119,7 +121,7 @@ public class EventProcessorSample {
         System.out.println("End of sample");
     }
     
-    private static void stealLeaseTest(ILeaseManager leaseMgr1, ICheckpointManager checkMgr1, ILeaseManager leaseMgr2, ICheckpointManager checkMgr2)
+    private static void stealLeaseTest(ILeaseManager leaseMgr1, ICheckpointManager checkMgr1, ILeaseManager leaseMgr2, ICheckpointManager checkMgr2, boolean useInMemory)
     {
     	try
     	{
@@ -149,6 +151,10 @@ public class EventProcessorSample {
 			System.out.println("Lease token is " + mgr1Lease.getToken());
 			
 			System.out.println("Waiting for lease on 0 to expire.");
+			if (useInMemory)
+			{
+				System.out.println("IN MEMORY LEASE WILL NEVER EXPIRE SAVE YOURSELF GET OUT NOW");
+			}
 			int x = 1;
 			while (!mgr1Lease.isExpired())
 			{
@@ -185,13 +191,13 @@ public class EventProcessorSample {
 			System.out.println("done");
 			
 			System.out.print("Mgr2 gets current lease data in order to steal it... ");
-			mgr2Lease = leaseMgr2.getLease(mgr1Lease.getPartitionId()).get();
+			mgr2Lease = leaseMgr2.getLease("0").get();
 			System.out.println("OK");
 			
 			System.out.print("Mgr2 tries to steal lease... ");
 			boolret = leaseMgr2.acquireLease(mgr2Lease).get();
 			System.out.println(boolret);
-			System.out.println("Lease token is " + mgr1Lease.getToken());
+			System.out.println("Lease token is " + mgr2Lease.getToken());
 			Checkpoint check2 = checkMgr2.getCheckpoint("0").get();
 			System.out.println("Got checkpoint of offset: " + check2.getOffset() + " seqNo: " + check2.getSequenceNumber());
 			
@@ -202,6 +208,9 @@ public class EventProcessorSample {
 			System.out.print("Mgr1 releasing lease... ");
 			boolret = leaseMgr2.releaseLease(mgr1Lease).get();
 			System.out.println(boolret);
+
+			check2 = checkMgr2.getCheckpoint("0").get();
+			System.out.println("Got checkpoint of offset: " + check2.getOffset() + " seqNo: " + check2.getSequenceNumber());
     	}
     	catch (Exception e)
     	{
