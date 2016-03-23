@@ -116,7 +116,9 @@ class Pump
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(Level.WARNING, partitionId, "no pump found to remove for partition " + partitionId);
+    		// PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
+    		// Not finding a pump for a partition is normal and expected most of the time.
+    		this.host.logWithHostAndPartition(Level.FINE, partitionId, "no pump found to remove for partition " + partitionId);
     	}
     	return retval;
     }

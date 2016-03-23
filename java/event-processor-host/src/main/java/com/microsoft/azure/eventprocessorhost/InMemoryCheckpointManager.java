@@ -62,17 +62,35 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     private Checkpoint getCheckpointSync(String partitionId)
     {
     	Checkpoint returnCheckpoint = null;
-        Checkpoint CheckpointInStore = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
-        if (CheckpointInStore == null)
+        Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
+        if (checkpointInStore == null)
         {
+        	
         	this.host.logWithHostAndPartition(Level.SEVERE, partitionId, "getCheckpoint() no existing Checkpoint");
         	returnCheckpoint = null;
         }
         else
         {
-        	returnCheckpoint = new Checkpoint(CheckpointInStore);
+        	returnCheckpoint = new Checkpoint(checkpointInStore);
         }
         return returnCheckpoint;
+    }
+    
+    @Override
+    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> createCheckpointIfNotExistsSync(partitionId));
+    }
+    
+    private Checkpoint createCheckpointIfNotExistsSync(String partitionId)
+    {
+    	Checkpoint returnCheckpoint = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
+    	if (returnCheckpoint == null)
+    	{
+    		returnCheckpoint = new Checkpoint(partitionId);
+    		InMemoryCheckpointStore.singleton.inMemoryCheckpoints.put(partitionId, returnCheckpoint);
+    	}
+    	return returnCheckpoint;
     }
 
     @Override

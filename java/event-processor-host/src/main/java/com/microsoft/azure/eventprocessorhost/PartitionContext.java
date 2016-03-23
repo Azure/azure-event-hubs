@@ -92,31 +92,33 @@ public class PartitionContext
 
     public Future<Void> checkpoint() throws InterruptedException, ExecutionException
     {
-    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
+    	Checkpoint inStoreCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	if (this.sequenceNumber >= inStoreCheckpoint.getSequenceNumber())
     	{
-    		checkpoint.setOffset(this.offset);
-    		checkpoint.setSequenceNumber(this.sequenceNumber);
+    		inStoreCheckpoint.setOffset(this.offset);
+    		inStoreCheckpoint.setSequenceNumber(this.sequenceNumber);
     	}
     	else
     	{
-			throw new IllegalArgumentException("new offset less than old");
+			throw new IllegalArgumentException("new offset " + this.offset + "/" + this.sequenceNumber +
+					" less than old " + inStoreCheckpoint.getOffset() + "/" + inStoreCheckpoint.getSequenceNumber());
     	}
-        return this.checkpointManager.updateCheckpoint(checkpoint);
+        return this.checkpointManager.updateCheckpoint(inStoreCheckpoint);
     }
 
     public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
     {
-    	Checkpoint checkpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	if (this.sequenceNumber >= checkpoint.getSequenceNumber())
+    	Checkpoint inStoreCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
+    	if (this.sequenceNumber >= inStoreCheckpoint.getSequenceNumber())
     	{
-	    	checkpoint.setOffset(event.getSystemProperties().getOffset());
-	    	checkpoint.setSequenceNumber(event.getSystemProperties().getSequenceNumber());
+	    	inStoreCheckpoint.setOffset(event.getSystemProperties().getOffset());
+	    	inStoreCheckpoint.setSequenceNumber(event.getSystemProperties().getSequenceNumber());
     	}
     	else
     	{
-			throw new IllegalArgumentException("new offset less than old");
+			throw new IllegalArgumentException("new offset " + this.offset + "/" + this.sequenceNumber +
+					" less than old " + inStoreCheckpoint.getOffset() + "/" + inStoreCheckpoint.getSequenceNumber());
     	}
-        return this.checkpointManager.updateCheckpoint(checkpoint);
+        return this.checkpointManager.updateCheckpoint(inStoreCheckpoint);
     }
 }

@@ -108,6 +108,22 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     }
 
     @Override
+    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
+    {
+        return EventProcessorHost.getExecutorService().submit(() -> createCheckpointIfNotExistsSync(partitionId));
+    }
+    
+    private Checkpoint createCheckpointIfNotExistsSync(String partitionId) throws URISyntaxException, IOException, StorageException
+    {
+    	// Normally the lease will already be created, checkpoint store is initialized after lease store.
+    	AzureBlobLease lease = createLeaseIfNotExistsSync(partitionId);
+    	Checkpoint checkpoint = new Checkpoint(partitionId);
+    	checkpoint.setOffset(lease.getOffset());
+    	checkpoint.setSequenceNumber(lease.getSequenceNumber());
+    	return checkpoint;
+    }
+
+    @Override
     public Future<Void> updateCheckpoint(Checkpoint checkpoint)
     {
     	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
@@ -212,7 +228,9 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	catch (StorageException se)
     	{
     		StorageExtendedErrorInformation extendedErrorInfo = se.getExtendedErrorInformation();
-    		if ((extendedErrorInfo != null) && (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) == 0))
+    		if ((extendedErrorInfo != null) &&
+    				((extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) == 0) ||
+    				 (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.LEASE_ID_MISSING) == 0))) // occurs when somebody else already has leased the blob
     		{
     			// The blob already exists.
     			this.host.logWithHostAndPartition(Level.INFO, partitionId, "Lease already exists");
@@ -220,6 +238,8 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     		}
     		else
     		{
+    			System.out.println("errorCode " + extendedErrorInfo.getErrorCode());
+    			System.out.println("errorString " + extendedErrorInfo.getErrorMessage());
     			this.host.logWithHostAndPartition(Level.SEVERE, partitionId,
     				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
     				se);

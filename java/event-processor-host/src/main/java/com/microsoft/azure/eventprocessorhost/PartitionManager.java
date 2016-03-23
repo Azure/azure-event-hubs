@@ -61,6 +61,7 @@ class PartitionManager implements Runnable
     {
     	try
     	{
+    		initializeStores();
     		runLoop();
     		this.host.logWithHost(Level.INFO, "Partition manager main loop exited normally, shutting down");
     	}
@@ -102,6 +103,63 @@ class PartitionManager implements Runnable
     	this.host.logWithHost(Level.INFO, "Partition manager exiting");
     }
     
+    private void initializeStores() throws InterruptedException, ExecutionException
+    {
+        ILeaseManager leaseManager = this.host.getLeaseManager();
+        
+        // Make sure the lease store exists
+        if (!leaseManager.leaseStoreExists().get())
+        {
+            if (!leaseManager.createLeaseStoreIfNotExists().get())
+            {
+                throw new RuntimeException("Creating lease store returned false");
+            }
+        }
+        // else
+        //	lease store already exists, no work needed
+        
+        // Now make sure the leases exist
+        for (String id : getPartitionIds())
+        {
+        	try
+        	{
+                leaseManager.createLeaseIfNotExists(id).get();
+        	}
+        	catch (ExecutionException e)
+        	{
+        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating lease for this partition, skipping", e);
+        		// TODO if creating a lease fails the first time through it will never be created!
+        	}
+        }
+        
+        ICheckpointManager checkpointManager = this.host.getCheckpointManager();
+        
+        // Make sure the checkpoint store exists
+        if (!checkpointManager.checkpointStoreExists().get())
+        {
+        	if (!checkpointManager.createCheckpointStoreIfNotExists().get())
+        	{
+        		throw new RuntimeException("Creating checkpoint store returned false");
+        	}
+        }
+        // else
+        //	checkpoint store already exists, no work needed
+        
+        // Now make sure the checkpoints exist
+        for (String id : getPartitionIds())
+        {
+        	try
+        	{
+                checkpointManager.createCheckpointIfNotExists(id).get();
+        	}
+        	catch (ExecutionException e)
+        	{
+        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating checkpoint for this partition, skipping", e);
+        		// TODO if creating a checkpoint fails the first time through it will never be created!
+        	}
+        }
+    }
+    
     private void runLoop() throws Exception
     {
     	while (this.keepGoing)
@@ -109,114 +167,86 @@ class PartitionManager implements Runnable
             ILeaseManager leaseManager = this.host.getLeaseManager();
             HashMap<String, Lease> allLeases = new HashMap<String, Lease>();
 
-            if (!leaseManager.leaseStoreExists().get())
+            // Inspect all leases.
+            // Acquire any expired leases.
+            // Renew any leases that currently belong to us.
+            Iterable<Future<Lease>> gettingAllLeases = leaseManager.getAllLeases();
+            ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
+            int ourLeasesCount = 0;
+            for (Future<Lease> future : gettingAllLeases)
             {
-                if (!leaseManager.createLeaseStoreIfNotExists().get())
-                {
-                    throw new RuntimeException("Creating lease store returned false");
-                }
-                
-                // Determine how many partitions there are, create leases for them, and acquire those leases
-                for (String id : getPartitionIds())
-                {
-                	try
-                	{
-	                    Lease createdLease = leaseManager.createLeaseIfNotExists(id).get();
-	                    if ((createdLease != null) && leaseManager.acquireLease(createdLease).get())
-	                    {
-	                        allLeases.put(createdLease.getPartitionId(), createdLease);
-	                    }
-                	}
-                	catch (ExecutionException e)
-                	{
-                		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating lease or acquiring created lease for this partition, skipping", e);
-                		// TODO if creating a lease fails the first time through it will never be created!
-                	}
-                }
+            	try
+            	{
+                    Lease possibleLease = future.get();
+                    if (possibleLease.isExpired())
+                    {
+                    	if (leaseManager.acquireLease(possibleLease).get())
+                    	{
+                    		allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                    	}
+                    }
+                    else if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
+                    {
+                        if (leaseManager.renewLease(possibleLease).get())
+                        {
+                            allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                            ourLeasesCount++;
+                        }
+                    }
+                    else
+                    {
+                    	allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                    	leasesOwnedByOthers.add(possibleLease);
+                    }
+            	}
+            	catch (ExecutionException e)
+            	{
+            		this.host.logWithHost(Level.WARNING, "Failure getting/acquiring/renewing lease, skipping", e);
+            	}
             }
-            else
+            
+            // Grab more leases if available and needed for load balancing
+            if (leasesOwnedByOthers.size() > 0)
             {
-                // Inspect all leases.
-                // Acquire any expired leases.
-                // Renew any leases that currently belong to us.
-                Iterable<Future<Lease>> gettingAllLeases = leaseManager.getAllLeases();
-                ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
-                int ourLeasesCount = 0;
-                for (Future<Lease> future : gettingAllLeases)
-                {
-                	try
-                	{
-	                    Lease possibleLease = future.get();
-	                    if (possibleLease.isExpired())
-	                    {
-	                    	if (leaseManager.acquireLease(possibleLease).get())
-	                    	{
-	                    		allLeases.put(possibleLease.getPartitionId(), possibleLease);
-	                    	}
-	                    }
-	                    else if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
-	                    {
-	                        if (leaseManager.renewLease(possibleLease).get())
-	                        {
-	                            allLeases.put(possibleLease.getPartitionId(), possibleLease);
-	                            ourLeasesCount++;
-	                        }
-	                    }
-	                    else
-	                    {
-	                    	allLeases.put(possibleLease.getPartitionId(), possibleLease);
-	                    	leasesOwnedByOthers.add(possibleLease);
-	                    }
-                	}
-                	catch (ExecutionException e)
-                	{
-                		this.host.logWithHost(Level.WARNING, "Failure getting/acquiring/renewing lease, skipping", e);
-                	}
-                }
-                
-                // Grab more leases if available and needed for load balancing
-                if (leasesOwnedByOthers.size() > 0)
-                {
-    	            Iterable<Lease> stealTheseLeases = whichLeasesToSteal(leasesOwnedByOthers, ourLeasesCount);
-    	            if (stealTheseLeases != null)
-    	            {
-    	            	for (Lease stealee : stealTheseLeases)
-    	            	{
-    	            		try
-    	            		{
-	    	                	if (leaseManager.acquireLease(stealee).get())
-	    	                	{
-	    	                		this.host.logWithHostAndPartition(Level.INFO, stealee.getPartitionId(), "Stole lease");
-	    	                		allLeases.put(stealee.getPartitionId(), stealee);
-	    	                		ourLeasesCount++;
-	    	                	}
-	    	                	else
-	    	                	{
-	    	                		this.host.logWithHost(Level.WARNING, "Failed to steal lease for partition " + stealee.getPartitionId());
-	    	                	}
-    	            		}
-    	            		catch (ExecutionException e)
-    	            		{
-    	            			this.host.logWithHost(Level.SEVERE, "Exception stealing lease for partition " + stealee.getPartitionId(), e);
-    	            		}
-    	            	}
-    	            }
-                }
+	            Iterable<Lease> stealTheseLeases = whichLeasesToSteal(leasesOwnedByOthers, ourLeasesCount);
+	            if (stealTheseLeases != null)
+	            {
+	            	for (Lease stealee : stealTheseLeases)
+	            	{
+	            		try
+	            		{
+    	                	if (leaseManager.acquireLease(stealee).get())
+    	                	{
+    	                		this.host.logWithHostAndPartition(Level.INFO, stealee.getPartitionId(), "Stole lease");
+    	                		allLeases.put(stealee.getPartitionId(), stealee);
+    	                		ourLeasesCount++;
+    	                	}
+    	                	else
+    	                	{
+    	                		this.host.logWithHost(Level.WARNING, "Failed to steal lease for partition " + stealee.getPartitionId());
+    	                	}
+	            		}
+	            		catch (ExecutionException e)
+	            		{
+	            			this.host.logWithHost(Level.SEVERE, "Exception stealing lease for partition " + stealee.getPartitionId(), e);
+	            		}
+	            	}
+	            }
+            }
 
-                // Update pump with new state of leases.
-                for (String partitionId : allLeases.keySet())
-                {
-                	Lease updatedLease = allLeases.get(partitionId);
-                	this.host.logWithHost(Level.FINE, "Lease on partition " + updatedLease.getPartitionId() + " owned by " + updatedLease.getOwner()); // DEBUG
-                	if (updatedLease.getOwner().compareTo(this.host.getHostName()) == 0)
-                	{
-                		this.pump.addPump(partitionId, updatedLease);
-                	}
-                	else
-                	{
-                		this.pump.removePump(partitionId, CloseReason.LeaseLost);
-                	}
-                }
+            // Update pump with new state of leases.
+            for (String partitionId : allLeases.keySet())
+            {
+            	Lease updatedLease = allLeases.get(partitionId);
+            	this.host.logWithHost(Level.FINE, "Lease on partition " + updatedLease.getPartitionId() + " owned by " + updatedLease.getOwner()); // DEBUG
+            	if (updatedLease.getOwner().compareTo(this.host.getHostName()) == 0)
+            	{
+            		this.pump.addPump(partitionId, updatedLease);
+            	}
+            	else
+            	{
+            		this.pump.removePump(partitionId, CloseReason.LeaseLost);
+            	}
             }
     		
             try

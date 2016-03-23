@@ -15,6 +15,8 @@ public interface ICheckpointManager
     public Future<Boolean> createCheckpointStoreIfNotExists();
 
     public Future<Checkpoint> getCheckpoint(String partitionId);
+    
+    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId);
 
     public Future<Void> updateCheckpoint(Checkpoint checkpoint);
     public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber);

@@ -48,7 +48,7 @@ public final class EventProcessorHost
     public static void setDummyPartitionCount(int count)
     {
     	PartitionManager.dummyPartitionCount = count;
-    	TRACE_LOGGER.setLevel(Level.ALL);
+    	TRACE_LOGGER.setLevel(Level.FINEST);
     }
     // DUMMY ENDS
 
@@ -361,7 +361,7 @@ public final class EventProcessorHost
     void log(Level logLevel, String logMessage)
     {
   		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	//System.out.println(logMessage);
+    	//System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)
