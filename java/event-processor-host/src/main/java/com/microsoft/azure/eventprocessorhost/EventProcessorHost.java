@@ -208,6 +208,7 @@ public final class EventProcessorHost
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
+    EventProcessorOptions getEventProcessorOptions() { return this.processorOptions; }
     
     /**
      * Register class for event processor and start processing.

@@ -112,6 +112,13 @@ public abstract class PartitionPump
     
     public void onEvents(Iterable<EventData> events)
 	{
+    	// Assumes that javaClient will call with null on receive timeout. Currently it doesn't call at all.
+    	// See note on EventProcessorOptions.
+    	if ((events == null) && (this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout() == false))
+    	{
+    		return;
+    	}
+    	
         try
         {
         	// Synchronize on the handler object to serialize calls to the processor.
