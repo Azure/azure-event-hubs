@@ -4,10 +4,40 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.List;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
+import com.microsoft.azure.servicebus.StringUtil;
 
 
 class PartitionManager implements Runnable
@@ -15,7 +45,7 @@ class PartitionManager implements Runnable
     private EventProcessorHost host;
     private Pump pump;
 
-    private ArrayList<String> partitionIds = null;
+    private List<String> partitionIds = null;
     
     private boolean keepGoing = true;
 
@@ -36,17 +66,45 @@ class PartitionManager implements Runnable
     
     public Iterable<String> getPartitionIds()
     {
-        // DUMMY BEGINS
         if (this.partitionIds == null)
         {
-            this.partitionIds = new ArrayList<String>();
-            for (int i = 0; i < PartitionManager.dummyPartitionCount; i++)
-            {
-            	partitionIds.add(String.valueOf(i));
-            }
+        	try
+        	{
+	        	String contentEncoding = StandardCharsets.UTF_8.name();
+	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(host.getEventHubConnectionString());
+	        	URI namespaceUri = new URI("https", connectionString.getEndpoint().getHost(), null, null);
+	        	String resourcePath = String.join("/", namespaceUri.toString(), connectionString.getEntityPath());
+	        	
+	        	final String authorizationToken = SharedAccessSignatureTokenProvider.generateSharedAccessSignature(
+	        			connectionString.getSasKeyName(), connectionString.getSasKey(), 
+	        			resourcePath, Duration.ofMinutes(20));
+	        	        	
+	            URLConnection connection = new URL(resourcePath).openConnection();
+	        	connection.addRequestProperty("Authorization", authorizationToken);
+	        	connection.setRequestProperty("Content-Type", "application/atom+xml;type=entry");
+	        	connection.setRequestProperty("charset", contentEncoding);
+	        	InputStream responseStream = connection.getInputStream();
+	        	
+	        	DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+	        	DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+	        	Document doc = docBuilder.parse(responseStream);
+	        	
+	        	XPath xpath = XPathFactory.newInstance().newXPath();
+	        	Node partitionIdsNode = ((NodeList) xpath.evaluate("//entry/content/EventHubDescription/PartitionIds", doc.getDocumentElement(), XPathConstants.NODESET)).item(0);
+	        	NodeList partitionIdsNodes = partitionIdsNode.getChildNodes();
+	        	
+	        	this.partitionIds = new ArrayList<String>();
+	            for (int partitionIndex = 0; partitionIndex < partitionIdsNodes.getLength(); partitionIndex++)
+	        	{
+	        		this.partitionIds.add(partitionIdsNodes.item(partitionIndex).getTextContent());    		
+	        	}
+        	}
+        	catch(XPathExpressionException|ParserConfigurationException|IOException|InvalidKeyException|NoSuchAlgorithmException|URISyntaxException|SAXException exception)
+        	{
+        		throw new EPHConfigurationException("Encountered error while fetching the list of EventHub PartitionIds", exception);
+        	}
         }
-        // DUMMY ENDS
-
+        
         return this.partitionIds;
     }
     

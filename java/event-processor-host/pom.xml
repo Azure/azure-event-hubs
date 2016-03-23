@@ -20,14 +20,14 @@
 	</repositories>
     
   <dependencies>
-<!-- TODO: make this a real dependency later, for now just add it as a project link in Eclipse manually.
+<!-- TODO: make this a real dependency later, for now just add it as a project link in Eclipse manually.  -->
     <dependency>
   		<groupId>com.microsoft.azure</groupId>
   		<artifactId>azure-eventhubs</artifactId>
   		<version>0.0.1-SNAPSHOT</version>
   		<scope>system</scope>
-  		<systemPath>\\thinker\public\javaClient\azure-eventhubs-0.0.1-SNAPSHOT.jar</systemPath>
-  	</dependency>   -->
+  		<systemPath>\\thinker\public\javaClient\4eph\azure-eventhubs-0.7.0-SNAPSHOT.jar</systemPath>
+  	</dependency> 
 	   <dependency>
 	 		<groupId>org.apache.qpid</groupId>
 	 		<artifactId>proton-j</artifactId>
