@@ -1,5 +1,6 @@
 /*
- * LICENSE GOES HERE TOO
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -7,6 +8,7 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
 import java.util.concurrent.Callable;
 
 
@@ -75,7 +77,7 @@ class Pump
     		else
     		{
     			// Pump is working, just replace the lease.
-    			this.host.logWithHostAndPartition(partitionId, "updating lease for pump");
+    			this.host.logWithHostAndPartition(Level.FINE, partitionId, "updating lease for pump");
     			capturedState.setLease(lease);
     		}
     	}
@@ -93,7 +95,7 @@ class Pump
 		LeaseAndPump newPump = new LeaseAndPump(lease, newPartitionPump);
 		EventProcessorHost.getExecutorService().submit(newPump);
         this.pumpStates.put(partitionId, newPump); // do the put after start, if the start fails then put doesn't happen
-		this.host.logWithHostAndPartition(partitionId, "created new pump");
+		this.host.logWithHostAndPartition(Level.INFO, partitionId, "created new pump");
     }
     
     public Future<?> removePump(String partitionId, final CloseReason reason)
@@ -102,19 +104,21 @@ class Pump
     	LeaseAndPump capturedState = this.pumpStates.get(partitionId);
     	if (capturedState != null)
     	{
-			this.host.logWithHostAndPartition(partitionId, "closing pump for reason " + reason.toString());
+			this.host.logWithHostAndPartition(Level.INFO, partitionId, "closing pump for reason " + reason.toString());
     		if (!capturedState.getPump().isClosing())
     		{
     			retval = EventProcessorHost.getExecutorService().submit(() -> capturedState.getPump().shutdown(reason));
     		}
     		// else, pump is already closing/closed, don't need to try to shut it down again
     		
-    		this.host.logWithHostAndPartition(partitionId, "removing pump");
+    		this.host.logWithHostAndPartition(Level.INFO, partitionId, "removing pump");
     		this.pumpStates.remove(partitionId);
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(partitionId, "no pump found to remove for partition " + partitionId);
+    		// PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
+    		// Not finding a pump for a partition is normal and expected most of the time.
+    		this.host.logWithHostAndPartition(Level.FINE, partitionId, "no pump found to remove for partition " + partitionId);
     	}
     	return retval;
     }

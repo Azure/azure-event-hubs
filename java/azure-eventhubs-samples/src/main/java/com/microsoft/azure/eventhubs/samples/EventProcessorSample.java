@@ -11,13 +11,13 @@ import java.util.concurrent.Future;
 public class EventProcessorSample {
     public static void main(String args[])
     {
-    	final int hostCount = 1;
-    	final int partitionCount = 1;
+    	final int hostCount = 2;
+    	final int partitionCount = 8;
     	EventProcessorHost.setDummyPartitionCount(partitionCount);
     	
     	int runCase = 3;
     	boolean useInMemory = false;
-    	boolean useEH = true;
+    	boolean useEH = false;
 
     	String ehConsumerGroup = "$Default";
     	String ehNamespace = "";
@@ -114,10 +114,40 @@ public class EventProcessorSample {
     		EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     		for (int i = 0; i < hostCount; i++)
     		{
-    			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, storageConnectionString);
+        		ILeaseManager leaseMgr = null;
+        		ICheckpointManager checkMgr = null;
+        		if (useInMemory)
+        		{
+        			leaseMgr = new InMemoryLeaseManager();
+        			checkMgr = new InMemoryCheckpointManager();
+        		}
+        		else
+        		{
+        			AzureStorageCheckpointLeaseManager azMgr = new AzureStorageCheckpointLeaseManager(storageConnectionString);
+        			leaseMgr = azMgr;
+        			checkMgr = azMgr;
+        		}
+    			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, checkMgr, leaseMgr);
     			if (!useEH)
     			{
     				hosts[i].setPumpClass(SyntheticPump.class);
+    			}
+    			if (useInMemory)
+    			{
+    				((InMemoryLeaseManager)leaseMgr).initialize(hosts[i]);
+    				((InMemoryCheckpointManager)checkMgr).initialize(hosts[i]);
+    			}
+    			else
+    			{
+    				try 
+    				{
+						((AzureStorageCheckpointLeaseManager)leaseMgr).initialize(hosts[i]);
+					}
+    		    	catch (Exception e)
+    		    	{
+    		    		System.out.println("Initialize failed " + e.toString());
+    		    		e.printStackTrace();
+    				}
     			}
     		}
     		processMessages(hosts);
@@ -130,21 +160,43 @@ public class EventProcessorSample {
     {
     	try
     	{
-	    	System.out.println("Store may not exist");
+	    	System.out.println("Lease store may not exist");
 			Boolean boolret = leaseMgr1.leaseStoreExists().get();
-			System.out.println("getStoreExists() returned " + boolret);
+			System.out.println("leaseStoreExists() returned " + boolret);
 			
-			System.out.println("Create store if not exists");
+			System.out.println("Create lease store if not exists");
 			boolret = leaseMgr1.createLeaseStoreIfNotExists().get();
-			System.out.println("createStoreIfNotExists() returned " + boolret);
+			System.out.println("createLeaseStoreIfNotExists() returned " + boolret);
 	
-	    	System.out.println("Store should exist now");
+	    	System.out.println("Lease store should exist now");
 			boolret = leaseMgr1.leaseStoreExists().get();
-			System.out.println("getStoreExists() returned " + boolret);
+			System.out.println("leaseStoreExists() returned " + boolret);
+
+			if (useInMemory)
+			{
+		    	System.out.println("Checkpoint store may not exist");
+				boolret = checkMgr1.checkpointStoreExists().get();
+				System.out.println("checkpointStoreExists() returned " + boolret);
+				
+				System.out.println("Create checkpoint store if not exists");
+				boolret = checkMgr1.createCheckpointStoreIfNotExists().get();
+				System.out.println("createCheckpointStoreIfNotExists() returned " + boolret);
+		
+		    	System.out.println("Checkpoint store should exist now");
+				boolret = checkMgr1.checkpointStoreExists().get();
+				System.out.println("checkpointStoreExists() returned " + boolret);
+			}
 			
 			System.out.print("Mgr1 making sure lease for 0 exists... ");
 			Lease mgr1Lease = leaseMgr1.createLeaseIfNotExists("0").get();
 			System.out.println("OK");
+			
+			if (useInMemory)
+			{
+				System.out.print("Mgr1 making sure checkpoint for 0 exists... ");
+				checkMgr1.createCheckpointIfNotExists("0").get();
+				System.out.println("OK");
+			}
 			
 			System.out.print("Mgr2 get lease... ");
 			Lease mgr2Lease = leaseMgr2.getLease("0").get();
@@ -156,10 +208,6 @@ public class EventProcessorSample {
 			System.out.println("Lease token is " + mgr1Lease.getToken());
 			
 			System.out.println("Waiting for lease on 0 to expire.");
-			if (useInMemory)
-			{
-				System.out.println("IN MEMORY LEASE WILL NEVER EXPIRE SAVE YOURSELF GET OUT NOW");
-			}
 			int x = 1;
 			while (!mgr1Lease.isExpired())
 			{
@@ -219,7 +267,7 @@ public class EventProcessorSample {
     	}
     	catch (Exception e)
     	{
-        	System.out.println("Caught " + e.toString());
+        	System.out.println("Sample caught " + e.toString());
         	StackTraceElement[] stack = e.getStackTrace();
         	for (int i = 0; i < stack.length; i++)
         	{
@@ -324,10 +372,6 @@ public class EventProcessorSample {
 			}
 			
 			System.out.println("Waiting for lease on 0 to expire.");
-			if (useInMemory)
-			{
-				System.out.println("IN MEMORY LEASE WILL NEVER EXPIRE GIVE UP HOPE ABORT NOW");
-			}
 			int x = 1;
 			while (!leases[0].isExpired())
 			{
@@ -359,7 +403,7 @@ public class EventProcessorSample {
     	}
     	catch (Exception e)
     	{
-        	System.out.println("Caught " + e.toString());
+        	System.out.println("Sample caught " + e.toString());
         	StackTraceElement[] stack = e.getStackTrace();
         	for (int i = 0; i < stack.length; i++)
         	{
@@ -405,6 +449,7 @@ public class EventProcessorSample {
 				String eventBody = "Event " + eventNumber + " on partition " + this.lease.getPartitionId();
 				eventNumber++;
 				EventData event = new EventData(eventBody.getBytes());
+				event.fakeReceivedMessage(Integer.toString(eventNumber * 75), eventNumber);
 				events.add(event);
 				onEvents(events);
 				
@@ -453,6 +498,8 @@ public class EventProcessorSample {
                 this.checkpointBatchingCount++;
                 if ((checkpointBatchingCount % 5) == 0)
                 {
+                	System.out.println("SAMPLE: Partition " + context.getPartitionId() + " checkpointing at " +
+               			data.getSystemProperties().getOffset() + "," + data.getSystemProperties().getSequenceNumber());
                 	context.checkpoint(data);
                 }
             }

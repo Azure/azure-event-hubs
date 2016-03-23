@@ -1,8 +1,14 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
@@ -34,16 +40,14 @@ class EventHubPartitionPump extends PartitionPump
         {
         	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
         	{
-        		// DUMMY This is probably due to a receiver with a higher epoch
+        		// TODO This is probably due to a receiver with a higher epoch
         		// Is there a way to be sure without checking the exception text?
-        		this.host.logWithHostAndPartition(this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
-        		// DUMMY ENDS
+        		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
         	}
         	else
         	{
-				// DUMMY figure out the retry policy here
-				this.host.logWithHostAndPartition(this.partitionContext, "Failure creating client or receiver", e);
-				// DUMMY ENDS
+				// TODO figure out the retry policy here
+				this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Failure creating client or receiver", e);
         	}
 			this.pumpStatus = PartitionPumpStatus.PP_OPENFAILED;
 		}
@@ -51,9 +55,9 @@ class EventHubPartitionPump extends PartitionPump
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
             this.internalReceiveHandler = new InternalReceiveHandler();
-            // onOpen is called from the base class and must have returned in order for execution to reach here, 
-            // meaning it is safe to set the handler and start calling onEvents.
-            // Set the status to running before setting the handler, so the handler can never race and see the status != running.
+            // IEventProcessor.onOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
+            // meaning it is safe to set the handler and start calling IEventProcessor.onEvents.
+            // Set the status to running before setting the javaClient handler, so the IEventProcessor.onEvents can never race and see status != running.
             this.pumpStatus = PartitionPumpStatus.PP_RUNNING;
             this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler);
         }
@@ -69,20 +73,20 @@ class EventHubPartitionPump extends PartitionPump
     private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
     {
     	// Create new client/receiver
-    	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH client");
+    	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH client");
 		this.internalOperationFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString());
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
     	String startingOffset = this.partitionContext.getStartingOffset();
     	long epoch = this.lease.getEpoch();
-    	this.host.logWithHostAndPartition(this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
+    	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
 		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(), startingOffset, epoch);
 		this.lease.setEpoch(epoch);
 		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-        this.host.logWithHostAndPartition(this.partitionContext, "EH client and receiver creation finished");
+        this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "EH client and receiver creation finished");
     }
     
     private void cleanUpClients() // swallows all exceptions
@@ -98,14 +102,14 @@ class EventHubPartitionPump extends PartitionPump
         		this.partitionReceiver.setReceiveHandler(null);
         	}
         	
-        	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH receiver");
+        	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Closing EH receiver");
         	this.partitionReceiver.close();
         	this.partitionReceiver = null;
         }
         
         if (this.eventHubClient != null)
         {
-        	this.host.logWithHostAndPartition(this.partitionContext, "Closing EH client");
+        	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Closing EH client");
         	this.eventHubClient.close();
         	this.eventHubClient = null;
         }
@@ -154,10 +158,10 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				error = new Throwable("No error info supplied by EventHub client");
 			}
-			EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
+			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
 			if (error instanceof Exception)
 			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}
@@ -169,10 +173,10 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				error = new Throwable("normal shutdown"); // Is this true?
 			}
-			EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client closed: " + error.toString());
+			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.INFO, EventHubPartitionPump.this.partitionContext, "EventHub client closed: " + error.toString());
 			if (error instanceof Exception)
 			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(EventHubPartitionPump.this.partitionContext, "EventHub client closed continued", (Exception)error);
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client closed continued", (Exception)error);
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}

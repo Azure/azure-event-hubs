@@ -1,5 +1,6 @@
 /*
- * LICENSE GOES HERE TOO
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -7,10 +8,14 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 
 public class InMemoryLeaseManager implements ILeaseManager
 {
     private EventProcessorHost host;
+
+    private final static int leaseIntervalInMillieconds = 30 * 1000;	   // thirty seconds
+    private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
 
     public InMemoryLeaseManager()
     {
@@ -26,8 +31,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public int getLeaseRenewIntervalInMilliseconds()
     {
-    	// Leases don't expire in this manager but we want the partition manager loop to execute reasonably often.
-    	return 10 * 1000;
+    	return InMemoryLeaseManager.leaseRenewIntervalInMilliseconds;
     }
 
     @Override
@@ -51,8 +55,8 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
         if (InMemoryLeaseStore.singleton.inMemoryLeases == null)
         {
-        	this.host.logWithHost("createLeaseStoreIfNotExists() creating in memory hashmap");
-            InMemoryLeaseStore.singleton.inMemoryLeases = new HashMap<String, Lease>();
+        	this.host.logWithHost(Level.INFO, "createLeaseStoreIfNotExists() creating in memory hashmap");
+            InMemoryLeaseStore.singleton.inMemoryLeases = new HashMap<String, InMemoryLease>();
         }
         return true;
     }
@@ -63,18 +67,18 @@ public class InMemoryLeaseManager implements ILeaseManager
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
     }
 
-    private Lease getLeaseSync(String partitionId)
+    private InMemoryLease getLeaseSync(String partitionId)
     {
-    	Lease returnLease = null;
-        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
+    	InMemoryLease returnLease = null;
+    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (leaseInStore == null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "getLease() no existing lease");
+        	this.host.logWithHostAndPartition(Level.WARNING, partitionId, "getLease() no existing lease");
         	returnLease = null;
         }
         else
         {
-        	returnLease = new Lease(leaseInStore);
+        	returnLease = new InMemoryLease(leaseInStore);
         }
         return returnLease;
     }
@@ -97,21 +101,21 @@ public class InMemoryLeaseManager implements ILeaseManager
         return EventProcessorHost.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId));
     }
 
-    private Lease createLeaseIfNotExistsSync(String partitionId)
+    private InMemoryLease createLeaseIfNotExistsSync(String partitionId)
     {
-    	Lease returnLease = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
+    	InMemoryLease returnLease = InMemoryLeaseStore.singleton.inMemoryLeases.get(partitionId);
         if (returnLease != null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() found existing lease, OK");
+        	this.host.logWithHostAndPartition(Level.INFO, partitionId, "createLeaseIfNotExists() found existing lease, OK");
         }
         else
         {
-        	this.host.logWithHostAndPartition(partitionId, "createLeaseIfNotExists() creating new lease");
-            Lease storeLease = new Lease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
+        	this.host.logWithHostAndPartition(Level.INFO, partitionId, "createLeaseIfNotExists() creating new lease");
+        	InMemoryLease storeLease = new InMemoryLease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
             storeLease.setEpoch(0L);
-            storeLease.setOwner(this.host.getHostName());
+            storeLease.setOwner("");
             InMemoryLeaseStore.singleton.inMemoryLeases.put(partitionId, storeLease);
-            returnLease = new Lease(storeLease);
+            returnLease = new InMemoryLease(storeLease);
         }
         return returnLease;
     }
@@ -124,6 +128,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     
     private Void deleteLeaseSync(Lease lease)
     {
+    	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "Deleting lease");
     	InMemoryLeaseStore.singleton.inMemoryLeases.remove(lease.getPartitionId());
     	return null;
     }
@@ -131,34 +136,39 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public Future<Boolean> acquireLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> acquireLeaseSync((InMemoryLease)lease));
     }
 
-    private Boolean acquireLeaseSync(Lease lease)
+    private Boolean acquireLeaseSync(InMemoryLease lease)
     {
+    	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "Acquiring lease");
+    	
     	Boolean retval = true;
-        Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
+    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
         if (leaseInStore != null)
         {
             if ((leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
             {
                 leaseInStore.setOwner(this.host.getHostName());
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() acquired lease");
+            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() acquired lease");
             }
             else if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
             {
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() already hold lease");
+            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() already hold lease");
             }
             else
             {
             	String oldOwner = leaseInStore.getOwner();
             	leaseInStore.setOwner(this.host.getHostName());
-            	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
+            	this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
             }
+            long newExpiration = System.currentTimeMillis() + InMemoryLeaseManager.leaseIntervalInMillieconds;
+            leaseInStore.setExpirationTime(newExpiration);
+            lease.setExpirationTime(newExpiration);
         }
         else
         {
-        	this.host.logWithHostAndPartition(lease.getPartitionId(), "acquireLease() can't find lease");
+        	this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "acquireLease() can't find lease");
         	retval = false;
         }
         
@@ -168,36 +178,68 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public Future<Boolean> renewLease(Lease lease)
     {
-    	// No-op at this time
-        return EventProcessorHost.getExecutorService().submit(() -> true);
+        return EventProcessorHost.getExecutorService().submit(() -> renewLeaseSync((InMemoryLease)lease));
+    }
+    
+    private Boolean renewLeaseSync(InMemoryLease lease)
+    {
+    	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "Renewing lease");
+    	
+    	Boolean retval = true;
+    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
+        if (leaseInStore != null)
+        {
+        	if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
+        	{
+                long newExpiration = System.currentTimeMillis() + InMemoryLeaseManager.leaseIntervalInMillieconds;
+                leaseInStore.setExpirationTime(newExpiration);
+                lease.setExpirationTime(newExpiration);
+        	}
+        	else
+            {
+            	this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "renewLease() not renewed because we don't own lease");
+            	retval = false;
+            }
+        }
+        else
+        {
+        	this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "renewLease() can't find lease");
+        	retval = false;
+        }
+        
+        return retval;
     }
 
     @Override
     public Future<Boolean> releaseLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> releaseLeaseSync((InMemoryLease)lease));
     }
     
-    private Boolean releaseLeaseSync(Lease lease)
+    private Boolean releaseLeaseSync(InMemoryLease lease)
     {
+    	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "Releasing lease");
+    	
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
+    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() released OK");
+	    		this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "releaseLease() released OK");
 	    		leaseInStore.setOwner("");
+	    		leaseInStore.setExpirationTime(0);
+	    		lease.setExpirationTime(0);
     		}
     		else
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() not released because we don't own lease");
+	    		this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "releaseLease() not released because we don't own lease");
     			retval = false;
     		}
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(lease.getPartitionId(), "releaseLease() can't find lease");
+    		this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "releaseLease() can't find lease");
     		retval = false;
     	}
     	return retval;
@@ -206,29 +248,32 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public Future<Boolean> updateLease(Lease lease)
     {
-        return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync(lease));
+        return EventProcessorHost.getExecutorService().submit(() -> updateLeaseSync((InMemoryLease)lease));
     }
     
-    private Boolean updateLeaseSync(Lease lease)
+    private Boolean updateLeaseSync(InMemoryLease lease)
     {
+    	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "Updating lease");
+    	
     	Boolean retval = true;
-    	Lease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
+    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.inMemoryLeases.get(lease.getPartitionId());
     	if (leaseInStore != null)
     	{
     		if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
     		{
    				leaseInStore.setEpoch(lease.getEpoch());
     			leaseInStore.setToken(lease.getToken());
+    			// Don't copy expiration time, that is managed directly by Acquire/Renew/Release
     		}
     		else
     		{
-	    		this.host.logWithHostAndPartition(lease.getPartitionId(), "updateLease() not updated because we don't own lease");
+	    		this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "updateLease() not updated because we don't own lease");
     			retval = false;
     		}
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(lease.getPartitionId(), "updateLease() can't find lease");
+    		this.host.logWithHostAndPartition(Level.SEVERE, lease.getPartitionId(), "updateLease() can't find lease");
     		retval = false;
     	}
     	return retval;
@@ -239,8 +284,34 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
         public final static InMemoryLeaseStore singleton = new InMemoryLeaseStore();
 
-        public HashMap<String, Lease> inMemoryLeases = null;
+        public HashMap<String, InMemoryLease> inMemoryLeases = null;
+    }
+    
+    
+    private static class InMemoryLease extends Lease
+    {
+    	private long expirationTimeMillis = 0;
+    	
+		public InMemoryLease(String eventHub, String consumerGroup, String partitionId)
+		{
+			super(eventHub, consumerGroup, partitionId);
+		}
+		
+		public InMemoryLease(InMemoryLease source)
+		{
+			super(source);
+			this.expirationTimeMillis = source.expirationTimeMillis;
+		}
+		
+		public void setExpirationTime(long expireAtMillis)
+		{
+			this.expirationTimeMillis = expireAtMillis;
+		}
+		
+		@Override
+	    public boolean isExpired() throws Exception
+	    {
+			return (System.currentTimeMillis() >= this.expirationTimeMillis);
+	    }
     }
 }
-
-

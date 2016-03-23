@@ -1,7 +1,13 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.HashMap;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
 
 
 public class InMemoryCheckpointManager implements ICheckpointManager
@@ -41,7 +47,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     {
         if (InMemoryCheckpointStore.singleton.inMemoryCheckpoints == null)
         {
-        	this.host.logWithHost("createCheckpointStoreIfNotExists() creating in memory hashmap");
+        	this.host.logWithHost(Level.INFO, "createCheckpointStoreIfNotExists() creating in memory hashmap");
             InMemoryCheckpointStore.singleton.inMemoryCheckpoints = new HashMap<String, Checkpoint>();
         }
         return true;
@@ -56,17 +62,35 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     private Checkpoint getCheckpointSync(String partitionId)
     {
     	Checkpoint returnCheckpoint = null;
-        Checkpoint CheckpointInStore = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
-        if (CheckpointInStore == null)
+        Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
+        if (checkpointInStore == null)
         {
-        	this.host.logWithHostAndPartition(partitionId, "getCheckpoint() no existing Checkpoint");
+        	
+        	this.host.logWithHostAndPartition(Level.SEVERE, partitionId, "getCheckpoint() no existing Checkpoint");
         	returnCheckpoint = null;
         }
         else
         {
-        	returnCheckpoint = new Checkpoint(CheckpointInStore);
+        	returnCheckpoint = new Checkpoint(checkpointInStore);
         }
         return returnCheckpoint;
+    }
+    
+    @Override
+    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> createCheckpointIfNotExistsSync(partitionId));
+    }
+    
+    private Checkpoint createCheckpointIfNotExistsSync(String partitionId)
+    {
+    	Checkpoint returnCheckpoint = InMemoryCheckpointStore.singleton.inMemoryCheckpoints.get(partitionId);
+    	if (returnCheckpoint == null)
+    	{
+    		returnCheckpoint = new Checkpoint(partitionId);
+    		InMemoryCheckpointStore.singleton.inMemoryCheckpoints.put(partitionId, returnCheckpoint);
+    	}
+    	return returnCheckpoint;
     }
 
     @Override
@@ -91,7 +115,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	}
     	else
     	{
-    		this.host.logWithHostAndPartition(partitionId, "updateCheckpoint() can't find checkpoint");
+    		this.host.logWithHostAndPartition(Level.SEVERE, partitionId, "updateCheckpoint() can't find checkpoint");
     	}
     	return null;
     }

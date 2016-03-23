@@ -1,5 +1,6 @@
 /*
- * LICENSE GOES HERE TOO
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 package com.microsoft.azure.eventprocessorhost;
@@ -11,6 +12,8 @@ import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 
 public final class EventProcessorHost
@@ -37,11 +40,15 @@ public final class EventProcessorHost
     private static int executorRefCount = 0;
     private static Boolean weOwnExecutor = true;
     
+    public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
+	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
+    
     
     // DUMMY STARTS
     public static void setDummyPartitionCount(int count)
     {
     	PartitionManager.dummyPartitionCount = count;
+    	TRACE_LOGGER.setLevel(Level.FINEST);
     }
     // DUMMY ENDS
 
@@ -152,6 +159,8 @@ public final class EventProcessorHost
                 sharedAccessKeyName, sharedAccessKey).toString();
 
         this.partitionManager = new PartitionManager(this);
+        
+        logWithHost(Level.INFO, "New EventProcessorHost created");
     }
 
     /**
@@ -177,13 +186,21 @@ public final class EventProcessorHost
     /**
      * FOR TESTING USE ONLY
      * 
-     * @param pumpClass
      */
     public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
     {
     	this.partitionManager.setPumpClass(pumpClass);
     }
 
+    /**
+     * FOR TESTING USE ONLY
+     * 
+     */
+    public static ExecutorService getExecutorService()
+    {
+    	return EventProcessorHost.executorService;
+    }
+    
     // All of these accessors are for internal use only.
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
@@ -191,7 +208,7 @@ public final class EventProcessorHost
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
-    public static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    EventProcessorOptions getEventProcessorOptions() { return this.processorOptions; }
     
     /**
      * Register class for event processor and start processing.
@@ -199,10 +216,11 @@ public final class EventProcessorHost
      * <p>
      * This overload uses the default event processor factory, which simply creates new instances of
      * the registered event processor class, and uses all the default options.
-     * <p>
-     * class EventProcessor implements IEventProcessor { ... }<br>
-     * EventProcessorHost host = new EventProcessorHost(...);<br>
-     * Future<?> foo = host.registerEventProcessor(EventProcessor.class);<br>
+     * <pre>
+     * class EventProcessor implements IEventProcessor { ... }
+     * EventProcessorHost host = new EventProcessorHost(...);
+     * Future<?> foo = host.registerEventProcessor(EventProcessor.class);
+     * </pre>
      *  
      * @param eventProcessorType	Class that implements IEventProcessor.
      * @return						Future that does not complete until the processor host shuts down.
@@ -268,11 +286,12 @@ public final class EventProcessorHost
 			}
             catch (InvalidKeyException | URISyntaxException | StorageException e)
             {
-            	this.logWithHost("Failure initializing Storage lease manager", e);
+            	this.logWithHost(Level.SEVERE, "Failure initializing Storage lease manager", e);
             	throw new RuntimeException("Failure initializing Storage lease manager", e);
 			}
         }
         
+        logWithHost(Level.INFO, "Starting event processing");
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);
@@ -290,6 +309,8 @@ public final class EventProcessorHost
      */
     public void unregisterEventProcessor()
     {
+    	logWithHost(Level.INFO, "Stopping event processing");
+    	
         this.partitionManager.stopPartitions();
         try
         {
@@ -297,7 +318,9 @@ public final class EventProcessorHost
 	        if (EventProcessorHost.weOwnExecutor)
 	        {
 	        	// If there are multiple EventProcessorHosts in one process, only await the shutdown on the last one.
-	        	// Otherwise the first one will block forever here...
+	        	// Otherwise the first one will block forever here.
+	        	// This could race with stopExecutor() but that is harmless: it is legal to call awaitTermination()
+	        	// at any time, whether executorServer.shutdown() has been called yet or not.
 	        	if (EventProcessorHost.executorRefCount <= 0)
 	        	{
 	        		EventProcessorHost.executorService.awaitTermination(10, TimeUnit.MINUTES);
@@ -307,7 +330,7 @@ public final class EventProcessorHost
         catch (InterruptedException | ExecutionException e)
         {
         	// Log the failure but nothing really to do about it.
-        	logWithHost("Failure shutting down", e);
+        	logWithHost(Level.SEVERE, "Failure shutting down", e);
 		}
     }
     
@@ -330,76 +353,79 @@ public final class EventProcessorHost
         	}
         }
     }
+
     
-    // Centralized logging. TODO Hook this up to tracing.
-    void log(String logMessage)
+    //
+    // Centralized logging.
+    //
+    
+    void log(Level logLevel, String logMessage)
     {
-    	// DUMMY STARTS
-    	System.out.println(logMessage);
-    	// DUMMY ENDS
+  		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
+    	//System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
-    void logWithHost(String logMessage)
+    void logWithHost(Level logLevel, String logMessage)
     {
-    	log("host " + this.hostName + ": " + logMessage);
+    	log(logLevel, "host " + this.hostName + ": " + logMessage);
     }
     
-    void logWithHost(String logMessage, Exception e)
+    void logWithHost(Level logLevel, String logMessage, Exception e)
     {
-    	log("host " + this.hostName + ": " + logMessage);
-    	logWithHost("Caught " + e.toString());
+    	log(logLevel, "host " + this.hostName + ": " + logMessage);
+    	logWithHost(logLevel, "Caught " + e.toString());
     	StackTraceElement[] stack = e.getStackTrace();
     	for (int i = 0; i < stack.length; i++)
     	{
-    		logWithHost(stack[i].toString());
+    		logWithHost(logLevel, stack[i].toString());
     	}
     	Throwable cause = e.getCause();
     	if ((cause != null) && (cause instanceof Exception))
     	{
     		Exception inner = (Exception)cause;
-    		logWithHost("Inner exception " + inner.toString());
+    		logWithHost(logLevel, "Inner exception " + inner.toString());
     		stack = inner.getStackTrace();
         	for (int i = 0; i < stack.length; i++)
         	{
-        		logWithHost(stack[i].toString());
+        		logWithHost(logLevel, stack[i].toString());
         	}
     	}
     }
     
-    void logWithHostAndPartition(String partitionId, String logMessage)
+    void logWithHostAndPartition(Level logLevel, String partitionId, String logMessage)
     {
-    	logWithHost("partition " + partitionId + ": " + logMessage);
+    	logWithHost(logLevel, "partition " + partitionId + ": " + logMessage);
     }
     
-    void logWithHostAndPartition(String partitionId, String logMessage, Exception e)
+    void logWithHostAndPartition(Level logLevel, String partitionId, String logMessage, Exception e)
     {
-    	logWithHostAndPartition(partitionId, logMessage);
-    	logWithHostAndPartition(partitionId, "Caught " + e.toString());
+    	logWithHostAndPartition(logLevel, partitionId, logMessage);
+    	logWithHostAndPartition(logLevel, partitionId, "Caught " + e.toString());
     	StackTraceElement[] stack = e.getStackTrace();
     	for (int i = 0; i < stack.length; i++)
     	{
-    		logWithHostAndPartition(partitionId, stack[i].toString());
+    		logWithHostAndPartition(logLevel, partitionId, stack[i].toString());
     	}
     	Throwable cause = e.getCause();
     	if ((cause != null) && (cause instanceof Exception))
     	{
     		Exception inner = (Exception)cause;
-    		logWithHostAndPartition(partitionId, "Inner exception " + inner.toString());
+    		logWithHostAndPartition(logLevel, partitionId, "Inner exception " + inner.toString());
     		stack = inner.getStackTrace();
         	for (int i = 0; i < stack.length; i++)
         	{
-        		logWithHostAndPartition(partitionId, stack[i].toString());
+        		logWithHostAndPartition(logLevel, partitionId, stack[i].toString());
         	}
     	}
     }
     
-    void logWithHostAndPartition(PartitionContext context, String logMessage)
+    void logWithHostAndPartition(Level logLevel, PartitionContext context, String logMessage)
     {
-    	logWithHostAndPartition(context.getPartitionId(), logMessage);
+    	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage);
     }
     
-    void logWithHostAndPartition(PartitionContext context, String logMessage, Exception e)
+    void logWithHostAndPartition(Level logLevel, PartitionContext context, String logMessage, Exception e)
     {
-    	logWithHostAndPartition(context.getPartitionId(), logMessage, e);
+    	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage, e);
     }
 }
