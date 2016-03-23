@@ -35,6 +35,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 import com.microsoft.azure.servicebus.StringUtil;
 
@@ -63,38 +64,44 @@ class PartitionManager implements Runnable
     	this.pump.setPumpClass(pumpClass);
     }
     
-    public Iterable<String> getPartitionIds() 
-    		throws XPathExpressionException, ParserConfigurationException, MalformedURLException, IOException, InvalidKeyException, NoSuchAlgorithmException, URISyntaxException, SAXException
+    public Iterable<String> getPartitionIds()
     {
         if (this.partitionIds == null)
         {
-        	String contentEncoding = StandardCharsets.UTF_8.name();
-        	this.partitionIds = new ArrayList<String>();
-            
-        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(host.getEventHubConnectionString());
-        	URI namespaceUri = new URI("https", connectionString.getEndpoint().getHost(), null, null);
-        	String resourcePath = String.join("/", namespaceUri.toString(), connectionString.getEntityPath());
-        	
-        	final String authorizationToken = SharedAccessSignatureTokenProvider.generateSharedAccessSignature(
-        			connectionString.getSasKeyName(), connectionString.getSasKey(), 
-        			resourcePath, Duration.ofMinutes(20));
-        	        	
-            URLConnection connection = new URL(resourcePath).openConnection();
-        	connection.addRequestProperty("Authorization", authorizationToken);
-        	connection.setRequestProperty("Content-Type", "application/atom+xml;type=entry");
-        	connection.setRequestProperty("charset", contentEncoding);
-        	InputStream responseStream = connection.getInputStream();
-        	
-        	DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
-        	DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-        	Document doc = docBuilder.parse(responseStream);
-        	
-        	XPath xpath = XPathFactory.newInstance().newXPath();
-        	Node partitionIdsNode = ((NodeList) xpath.evaluate("//entry/content/EventHubDescription/PartitionIds", doc.getDocumentElement(), XPathConstants.NODESET)).item(0);
-        	NodeList partitionIdsNodes = partitionIdsNode.getChildNodes();
-        	for (int partitionIndex = 0; partitionIndex < partitionIdsNodes.getLength(); partitionIndex++)
+        	try
         	{
-        		this.partitionIds.add(partitionIdsNodes.item(partitionIndex).getTextContent());    		
+	        	String contentEncoding = StandardCharsets.UTF_8.name();
+	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(host.getEventHubConnectionString());
+	        	URI namespaceUri = new URI("https", connectionString.getEndpoint().getHost(), null, null);
+	        	String resourcePath = String.join("/", namespaceUri.toString(), connectionString.getEntityPath());
+	        	
+	        	final String authorizationToken = SharedAccessSignatureTokenProvider.generateSharedAccessSignature(
+	        			connectionString.getSasKeyName(), connectionString.getSasKey(), 
+	        			resourcePath, Duration.ofMinutes(20));
+	        	        	
+	            URLConnection connection = new URL(resourcePath).openConnection();
+	        	connection.addRequestProperty("Authorization", authorizationToken);
+	        	connection.setRequestProperty("Content-Type", "application/atom+xml;type=entry");
+	        	connection.setRequestProperty("charset", contentEncoding);
+	        	InputStream responseStream = connection.getInputStream();
+	        	
+	        	DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+	        	DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+	        	Document doc = docBuilder.parse(responseStream);
+	        	
+	        	XPath xpath = XPathFactory.newInstance().newXPath();
+	        	Node partitionIdsNode = ((NodeList) xpath.evaluate("//entry/content/EventHubDescription/PartitionIds", doc.getDocumentElement(), XPathConstants.NODESET)).item(0);
+	        	NodeList partitionIdsNodes = partitionIdsNode.getChildNodes();
+	        	
+	        	this.partitionIds = new ArrayList<String>();
+	            for (int partitionIndex = 0; partitionIndex < partitionIdsNodes.getLength(); partitionIndex++)
+	        	{
+	        		this.partitionIds.add(partitionIdsNodes.item(partitionIndex).getTextContent());    		
+	        	}
+        	}
+        	catch(XPathExpressionException|ParserConfigurationException|IOException|InvalidKeyException|NoSuchAlgorithmException|URISyntaxException|SAXException exception)
+        	{
+        		throw new EPHConfigurationException("Encountered error while fetching the list of EventHub PartitionIds", exception);
         	}
         }
         
