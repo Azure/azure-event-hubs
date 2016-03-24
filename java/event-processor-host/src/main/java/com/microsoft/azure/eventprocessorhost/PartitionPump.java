@@ -38,7 +38,7 @@ public abstract class PartitionPump
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;
     	
-        this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.lease.getPartitionId());
+        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId());
         this.partitionContext.setEventHubPath(this.host.getEventHubPath());
         this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
         this.partitionContext.setLease(this.lease);
