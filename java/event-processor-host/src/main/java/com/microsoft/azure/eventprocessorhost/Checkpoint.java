@@ -18,6 +18,13 @@ public class Checkpoint
 		this.partitionId = partitionId;
 	}
 	
+	public Checkpoint(String partitionId, String offset, long sequenceNumber)
+	{
+		this.partitionId = partitionId;
+		this.offset = offset;
+		this.sequenceNumber = sequenceNumber;
+	}
+	
 	public Checkpoint(Checkpoint source)
 	{
 		this.partitionId = source.partitionId;

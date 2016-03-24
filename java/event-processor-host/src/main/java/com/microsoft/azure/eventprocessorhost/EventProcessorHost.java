@@ -28,6 +28,7 @@ public final class EventProcessorHost
     private ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false; 
     private PartitionManager partitionManager;
+    private CheckpointDispatcher checkpointDispatcher;
     private Future<?> partitionManagerFuture = null;
     private IEventProcessorFactory<?> processorFactory;
     private EventProcessorOptions processorOptions;
@@ -151,6 +152,7 @@ public final class EventProcessorHost
                 sharedAccessKeyName, sharedAccessKey).toString();
 
         this.partitionManager = new PartitionManager(this);
+        this.checkpointDispatcher = new CheckpointDispatcher(this);
         
         logWithHost(Level.INFO, "New EventProcessorHost created");
     }
@@ -197,6 +199,7 @@ public final class EventProcessorHost
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
     PartitionManager getPartitionManager() { return this.partitionManager; }
+    CheckpointDispatcher getCheckpointDispatcher() { return this.checkpointDispatcher; }
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
@@ -287,6 +290,8 @@ public final class EventProcessorHost
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);
+        // Don't need to start the checkpointDispatcher here -- it auto-starts when work is added to its queue.
+        
         return this.partitionManagerFuture;
     }
 

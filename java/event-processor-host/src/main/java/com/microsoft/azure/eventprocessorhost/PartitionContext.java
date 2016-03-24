@@ -6,7 +6,6 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -22,9 +21,6 @@ public class PartitionContext
     private String offset = PartitionReceiver.START_OF_STREAM;
     private long sequenceNumber = 0;;
     
-    private Object updateSynchronizer = new Object();
-    
-
     PartitionContext(EventProcessorHost host, String partitionId)
     {
         this.host = host;
@@ -96,54 +92,23 @@ public class PartitionContext
     	return this.offset;
     }
 
-    public Future<Void> checkpoint() throws InterruptedException, ExecutionException
+    public void checkpoint()
     {
     	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
     	// instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
     	// task runs, the fields in this object may have changed, but we should only write to store what the user
     	// has directed us to write.
-    	String capturedOffset;
-    	long capturedSequenceNumber;
+    	Checkpoint capturedCheckpoint = null;
     	synchronized (this.offset)
     	{
-    		capturedOffset = this.offset;
-    		capturedSequenceNumber = this.sequenceNumber;
+    		capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
     	}
-    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync(capturedOffset, capturedSequenceNumber));
+    	this.host.getCheckpointDispatcher().enqueueCheckpoint(capturedCheckpoint);
     }
 
-    public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
+    public void checkpoint(EventData event)
     {
     	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
-    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
-    }
-    
-    // Checkpointing needs to be async, otherwise when called from IEventProcessor.onEvents it could block the javaClient pump thread.
-    // However, making checkpointing async means that multiple checkpointing tasks for the same partition can race against each other.
-    // Synchronize the read/modify/write cycle on this.updateSynchronizer, so there is only one rmw cycle going on at a time. The cycles
-    // may be executed out of order, so before doing the modify-write we check whether the captured state is 
-    // out of date and abandon the update if it is. Since this is an expected possibility, we don't throw on abandon, just log.
-    private Void checkpointSync(String capturedOffset, long capturedSequenceNumber) throws InterruptedException, ExecutionException
-    {
-    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Checkpoint task starting for " + capturedOffset + "//" + capturedSequenceNumber);
-
-    	synchronized (this.updateSynchronizer)
-    	{
-	    	Checkpoint inStoreCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId).get();
-	    	if (capturedSequenceNumber >= inStoreCheckpoint.getSequenceNumber())
-	    	{
-		    	inStoreCheckpoint.setOffset(capturedOffset);
-		    	inStoreCheckpoint.setSequenceNumber(capturedSequenceNumber);
-		        this.host.getCheckpointManager().updateCheckpoint(inStoreCheckpoint).get();
-	    	}
-	    	else
-	    	{
-	    		// Another checkpoint task has already updated the in-store checkpoint beyond what we have. That's fine.
-	    		this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Abandoning out of date checkpoint " + capturedOffset + "//" + capturedSequenceNumber);
-	    	}
-    	}
-        
-        this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Checkpoint task ending");
-        return null;
+    	this.host.getCheckpointDispatcher().enqueueCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
 }
