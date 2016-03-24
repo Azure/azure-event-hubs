@@ -158,10 +158,18 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				error = new Throwable("No error info supplied by EventHub client");
 			}
-			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
-			if (error instanceof Exception)
+			if (error instanceof ReceiverDisconnectedException)
 			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.WARNING, EventHubPartitionPump.this.partitionContext,
+						"EventHub client disconnected, probably another host took the partition");
+			}
+			else
+			{
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
+				if (error instanceof Exception)
+				{
+					EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+				}
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}
