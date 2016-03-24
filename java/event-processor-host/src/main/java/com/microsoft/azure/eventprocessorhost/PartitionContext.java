@@ -98,23 +98,10 @@ public class PartitionContext
 
     public Future<Void> checkpoint() throws InterruptedException, ExecutionException
     {
-    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync());
-    }
-
-    public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
-    {
-    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
-    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync());
-    }
-    
-    // Checkpointing needs to be async, otherwise when called from IEventProcessor.onEvents it could block the javaClient pump thread.
-    // However, making checkpointing async means that multiple checkpointing tasks for the same partition can race against each other.
-    // Synchronize on this.offset to ensure that we get a matched pair of offset and sequenceNumber, no possibility of grabbing them
-    // halfway through an update. Then synchronize the read/modify/write cycle on this.updateSynchronizer, so there is only one rmw
-    // cycle going on at a time. They may be out of order, so before doing the modify-write we check whether the captured state is
-    // out of date and abandon the update if it is.
-    private Void checkpointSync() throws InterruptedException, ExecutionException
-    {
+    	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
+    	// instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
+    	// task runs, the fields in this object may have changed, but we should only write to store what the user
+    	// has directed us to write.
     	String capturedOffset;
     	long capturedSequenceNumber;
     	synchronized (this.offset)
@@ -122,6 +109,22 @@ public class PartitionContext
     		capturedOffset = this.offset;
     		capturedSequenceNumber = this.sequenceNumber;
     	}
+    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync(capturedOffset, capturedSequenceNumber));
+    }
+
+    public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
+    {
+    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
+    	return EventProcessorHost.getExecutorService().submit(() -> checkpointSync(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    }
+    
+    // Checkpointing needs to be async, otherwise when called from IEventProcessor.onEvents it could block the javaClient pump thread.
+    // However, making checkpointing async means that multiple checkpointing tasks for the same partition can race against each other.
+    // Synchronize the read/modify/write cycle on this.updateSynchronizer, so there is only one rmw cycle going on at a time. The cycles
+    // may be executed out of order, so before doing the modify-write we check whether the captured state is 
+    // out of date and abandon the update if it is. Since this is an expected possibility, we don't throw on abandon, just log.
+    private Void checkpointSync(String capturedOffset, long capturedSequenceNumber) throws InterruptedException, ExecutionException
+    {
     	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Checkpoint task starting for " + capturedOffset + "//" + capturedSequenceNumber);
 
     	synchronized (this.updateSynchronizer)
