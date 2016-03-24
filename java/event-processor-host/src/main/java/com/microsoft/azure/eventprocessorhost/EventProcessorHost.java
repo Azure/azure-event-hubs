@@ -43,14 +43,6 @@ public final class EventProcessorHost
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
     
-    
-    // DUMMY STARTS
-    public static void setDummyPartitionCount(int count)
-    {
-    	PartitionManager.dummyPartitionCount = count;
-    	TRACE_LOGGER.setLevel(Level.FINEST);
-    }
-    // DUMMY ENDS
 
     /**
      * Create a new host to process events from an Event Hub.

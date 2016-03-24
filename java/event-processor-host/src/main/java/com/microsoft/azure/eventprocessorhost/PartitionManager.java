@@ -8,7 +8,6 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.List;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -37,9 +36,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
-import com.microsoft.azure.servicebus.StringUtil;
 
 
 class PartitionManager implements Runnable
@@ -50,10 +47,6 @@ class PartitionManager implements Runnable
     private List<String> partitionIds = null;
     
     private boolean keepGoing = true;
-
-    // DUMMY STARTS
-    public static int dummyPartitionCount = 4;
-    // DUMMY ENDS
 
     public PartitionManager(EventProcessorHost host)
     {
