@@ -66,7 +66,7 @@ class PartitionManager implements Runnable
         	try
         	{
 	        	String contentEncoding = StandardCharsets.UTF_8.name();
-	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(host.getEventHubConnectionString());
+	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(this.host.getEventHubConnectionString());
 	        	URI namespaceUri = new URI("https", connectionString.getEndpoint().getHost(), null, null);
 	        	String resourcePath = String.join("/", namespaceUri.toString(), connectionString.getEntityPath());
 	        	
@@ -98,6 +98,12 @@ class PartitionManager implements Runnable
         	{
         		throw new EPHConfigurationException("Encountered error while fetching the list of EventHub PartitionIds", exception);
         	}
+            
+            this.host.logWithHost(Level.INFO, "Eventhub " + this.host.getEventHubPath() + " count of partitions: " + this.partitionIds.size());
+            for (String id : this.partitionIds)
+            {
+            	this.host.logWithHost(Level.FINE, "Found partition with id: " + id);
+            }
         }
         
         return this.partitionIds;
