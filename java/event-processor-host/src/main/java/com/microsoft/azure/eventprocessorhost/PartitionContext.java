@@ -109,7 +109,7 @@ public class PartitionContext
     public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
     {
     	Checkpoint inStoreCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	if (this.sequenceNumber >= inStoreCheckpoint.getSequenceNumber())
+    	if (event.getSystemProperties().getSequenceNumber() >= inStoreCheckpoint.getSequenceNumber())
     	{
 	    	inStoreCheckpoint.setOffset(event.getSystemProperties().getOffset());
 	    	inStoreCheckpoint.setSequenceNumber(event.getSystemProperties().getSequenceNumber());
