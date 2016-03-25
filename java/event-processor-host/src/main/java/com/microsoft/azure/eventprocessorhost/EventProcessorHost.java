@@ -21,6 +21,8 @@ public final class EventProcessorHost
     private final String hostName;
     private final String namespaceName;
     private final String eventHubPath;
+    private final String sharedAccessKeyName;
+    private final String sharedAccessKey;
     private final String consumerGroupName;
     private String eventHubConnectionString;
 
@@ -28,6 +30,7 @@ public final class EventProcessorHost
     private ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false; 
     private PartitionManager partitionManager;
+    private CheckpointDispatcher checkpointDispatcher;
     private Future<?> partitionManagerFuture = null;
     private IEventProcessorFactory<?> processorFactory;
     private EventProcessorOptions processorOptions;
@@ -43,14 +46,6 @@ public final class EventProcessorHost
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
     
-    
-    // DUMMY STARTS
-    public static void setDummyPartitionCount(int count)
-    {
-    	PartitionManager.dummyPartitionCount = count;
-    	TRACE_LOGGER.setLevel(Level.FINEST);
-    }
-    // DUMMY ENDS
 
     /**
      * Create a new host to process events from an Event Hub.
@@ -144,6 +139,8 @@ public final class EventProcessorHost
         this.hostName = hostName;
         this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
+        this.sharedAccessKeyName = sharedAccessKeyName;
+        this.sharedAccessKey = sharedAccessKey;
         this.consumerGroupName = consumerGroupName;
         this.checkpointManager = checkpointManager;
         this.leaseManager = leaseManager;
@@ -155,10 +152,8 @@ public final class EventProcessorHost
 	        }
         }
 
-        this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
-                sharedAccessKeyName, sharedAccessKey).toString();
-
         this.partitionManager = new PartitionManager(this);
+        this.checkpointDispatcher = new CheckpointDispatcher(this);
         
         logWithHost(Level.INFO, "New EventProcessorHost created");
     }
@@ -205,6 +200,7 @@ public final class EventProcessorHost
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
     PartitionManager getPartitionManager() { return this.partitionManager; }
+    CheckpointDispatcher getCheckpointDispatcher() { return this.checkpointDispatcher; }
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
@@ -278,6 +274,10 @@ public final class EventProcessorHost
      */
     public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
+    	// This is where we would set the timeout if javaClient supported it.
+        this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
+                this.sharedAccessKeyName, this.sharedAccessKey /*, processorOptions.getReceiveTimeOut(), RetryPolicy.getDefault()*/).toString();
+
         if (this.initializeLeaseManager)
         {
             try
@@ -295,6 +295,8 @@ public final class EventProcessorHost
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);
+        // Don't need to start the checkpointDispatcher here -- it auto-starts when work is added to its queue.
+        
         return this.partitionManagerFuture;
     }
 
@@ -361,8 +363,8 @@ public final class EventProcessorHost
     
     void log(Level logLevel, String logMessage)
     {
-  		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	//System.out.println(logLevel.toString() + ": " + logMessage);
+  		//EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
+    	System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)

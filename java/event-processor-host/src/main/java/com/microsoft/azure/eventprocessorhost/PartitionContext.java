@@ -6,23 +6,25 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.logging.Level;
+
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class PartitionContext
 {
-    private ICheckpointManager checkpointManager;
+	private EventProcessorHost host;
     private String consumerGroupName;
     private String eventHubPath;
     private Lease lease;
     private String partitionId;
     private String offset = PartitionReceiver.START_OF_STREAM;
     private long sequenceNumber = 0;;
-
-    PartitionContext(ICheckpointManager checkpointManager, String partitionId)
+    
+    PartitionContext(EventProcessorHost host, String partitionId)
     {
-        this.checkpointManager = checkpointManager;
+        this.host = host;
         this.partitionId = partitionId;
     }
 
@@ -72,7 +74,7 @@ public class PartitionContext
     		}
     		else
     		{
-    			throw new IllegalArgumentException("new offset less than old");
+    			throw new IllegalArgumentException("new offset " + offset + "//" + sequenceNumber + " less than old " + this.offset + "//" + this.sequenceNumber);
     		}
     	}
     }
@@ -82,43 +84,43 @@ public class PartitionContext
     	return this.partitionId;
     }
     
-    String getStartingOffset() throws InterruptedException, ExecutionException
+    String getInitialOffset() throws InterruptedException, ExecutionException
     {
-    	Checkpoint startingCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	this.offset = startingCheckpoint.getOffset();
-    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
+    	Function<String, String> initialOffsetProvider = this.host.getEventProcessorOptions().getInitialOffsetProvider();
+    	if (initialOffsetProvider != null)
+    	{
+    		this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Calling user-provided initial offset provider");
+    		this.offset = initialOffsetProvider.apply(this.partitionId);
+    		this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
+	    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber);
+    	}
+    	else
+    	{
+	    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId).get();
+	    	this.offset = startingCheckpoint.getOffset();
+	    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
+	    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
+    	}
     	return this.offset;
     }
 
-    public Future<Void> checkpoint() throws InterruptedException, ExecutionException
+    public void checkpoint()
     {
-    	Checkpoint inStoreCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	if (this.sequenceNumber >= inStoreCheckpoint.getSequenceNumber())
+    	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
+    	// instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
+    	// task runs, the fields in this object may have changed, but we should only write to store what the user
+    	// has directed us to write.
+    	Checkpoint capturedCheckpoint = null;
+    	synchronized (this.offset)
     	{
-    		inStoreCheckpoint.setOffset(this.offset);
-    		inStoreCheckpoint.setSequenceNumber(this.sequenceNumber);
+    		capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
     	}
-    	else
-    	{
-			throw new IllegalArgumentException("new offset " + this.offset + "/" + this.sequenceNumber +
-					" less than old " + inStoreCheckpoint.getOffset() + "/" + inStoreCheckpoint.getSequenceNumber());
-    	}
-        return this.checkpointManager.updateCheckpoint(inStoreCheckpoint);
+    	this.host.getCheckpointDispatcher().enqueueCheckpoint(capturedCheckpoint);
     }
 
-    public Future<Void> checkpoint(EventData event) throws InterruptedException, ExecutionException
+    public void checkpoint(EventData event)
     {
-    	Checkpoint inStoreCheckpoint = this.checkpointManager.getCheckpoint(this.partitionId).get();
-    	if (this.sequenceNumber >= inStoreCheckpoint.getSequenceNumber())
-    	{
-	    	inStoreCheckpoint.setOffset(event.getSystemProperties().getOffset());
-	    	inStoreCheckpoint.setSequenceNumber(event.getSystemProperties().getSequenceNumber());
-    	}
-    	else
-    	{
-			throw new IllegalArgumentException("new offset " + this.offset + "/" + this.sequenceNumber +
-					" less than old " + inStoreCheckpoint.getOffset() + "/" + inStoreCheckpoint.getSequenceNumber());
-    	}
-        return this.checkpointManager.updateCheckpoint(inStoreCheckpoint);
+    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
+    	this.host.getCheckpointDispatcher().enqueueCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
 }

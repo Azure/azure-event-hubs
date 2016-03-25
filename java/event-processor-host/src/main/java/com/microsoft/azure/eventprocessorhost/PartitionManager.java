@@ -8,7 +8,6 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.List;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -37,9 +36,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
-import com.microsoft.azure.servicebus.StringUtil;
 
 
 class PartitionManager implements Runnable
@@ -50,10 +47,6 @@ class PartitionManager implements Runnable
     private List<String> partitionIds = null;
     
     private boolean keepGoing = true;
-
-    // DUMMY STARTS
-    public static int dummyPartitionCount = 4;
-    // DUMMY ENDS
 
     public PartitionManager(EventProcessorHost host)
     {
@@ -73,7 +66,7 @@ class PartitionManager implements Runnable
         	try
         	{
 	        	String contentEncoding = StandardCharsets.UTF_8.name();
-	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(host.getEventHubConnectionString());
+	        	ConnectionStringBuilder connectionString = new ConnectionStringBuilder(this.host.getEventHubConnectionString());
 	        	URI namespaceUri = new URI("https", connectionString.getEndpoint().getHost(), null, null);
 	        	String resourcePath = String.join("/", namespaceUri.toString(), connectionString.getEntityPath());
 	        	
@@ -105,6 +98,12 @@ class PartitionManager implements Runnable
         	{
         		throw new EPHConfigurationException("Encountered error while fetching the list of EventHub PartitionIds", exception);
         	}
+            
+            this.host.logWithHost(Level.INFO, "Eventhub " + this.host.getEventHubPath() + " count of partitions: " + this.partitionIds.size());
+            for (String id : this.partitionIds)
+            {
+            	this.host.logWithHost(Level.FINE, "Found partition with id: " + id);
+            }
         }
         
         return this.partitionIds;

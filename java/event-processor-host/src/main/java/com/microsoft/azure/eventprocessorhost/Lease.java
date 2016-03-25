@@ -5,8 +5,6 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.eventhubs.PartitionReceiver;
-
 public class Lease
 {
     private String eventHubPath;

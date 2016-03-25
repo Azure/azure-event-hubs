@@ -78,12 +78,13 @@ class EventHubPartitionPump extends PartitionPump
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-    	String startingOffset = this.partitionContext.getStartingOffset();
+    	String startingOffset = this.partitionContext.getInitialOffset();
     	long epoch = this.lease.getEpoch();
     	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
 		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(), startingOffset, epoch);
 		this.lease.setEpoch(epoch);
 		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
+		this.partitionReceiver.setPrefetchCount(this.host.getEventProcessorOptions().getPrefetchCount());
 		this.internalOperationFuture = null;
 		
         this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "EH client and receiver creation finished");
@@ -158,10 +159,19 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				error = new Throwable("No error info supplied by EventHub client");
 			}
-			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
-			if (error instanceof Exception)
+			if (error instanceof ReceiverDisconnectedException)
 			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.WARNING, EventHubPartitionPump.this.partitionContext,
+						"EventHub client disconnected, probably another host took the partition");
+			}
+			else
+			{
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
+				if (error instanceof Exception)
+				{
+					EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+				}
+				EventHubPartitionPump.this.onError(error);
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}

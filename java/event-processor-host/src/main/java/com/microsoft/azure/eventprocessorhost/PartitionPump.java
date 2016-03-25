@@ -34,11 +34,12 @@ public abstract class PartitionPump
 		this.partitionContext.setLease(newLease);
 	}
 	
-    public void startPump()
+	// return Void so it can be called from a lambda submitted to ExecutorService
+    public Void startPump()
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;
     	
-        this.partitionContext = new PartitionContext(this.host.getCheckpointManager(), this.lease.getPartitionId());
+        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId());
         this.partitionContext.setEventHubPath(this.host.getEventHubPath());
         this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
         this.partitionContext.setLease(this.lease);
@@ -65,6 +66,8 @@ public abstract class PartitionPump
         {
         	specializedStartPump();
         }
+        
+        return null;
     }
 
     public abstract void specializedStartPump();
@@ -110,7 +113,7 @@ public abstract class PartitionPump
     
     public abstract void specializedShutdown(CloseReason reason);
     
-    public void onEvents(Iterable<EventData> events)
+    protected void onEvents(Iterable<EventData> events)
 	{
     	// Assumes that javaClient will call with null on receive timeout. Currently it doesn't call at all.
     	// See note on EventProcessorOptions.
@@ -137,6 +140,8 @@ public abstract class PartitionPump
         		}
         		if (last != null)
         		{
+        			this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Updating offset in partition context with end of batch " +
+        					last.getSystemProperties().getOffset() + "//" + last.getSystemProperties().getSequenceNumber());
         			this.partitionContext.setOffsetAndSequenceNumber(last);
         		}
         	}
@@ -148,4 +153,13 @@ public abstract class PartitionPump
         	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
         }
 	}
+    
+    protected void onError(Throwable error)
+    {
+    	// This handler is called when javaClient calls the error handler we have installed.
+    	// JavaClient can only do that when execution is down in javaClient. Therefore no onEvents
+    	// call can be in progress right now. JavaClient will not get control back until this handler
+    	// returns, so there will be no calls to onEvents until after the user's error handler has returned.
+    	this.processor.onError(this.partitionContext, error);
+    }
 }

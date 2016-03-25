@@ -52,4 +52,6 @@ public interface IEventProcessor
      * @throws Exception
      */
     public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception;
+    
+    public void onError(PartitionContext context, Throwable error);
 }
