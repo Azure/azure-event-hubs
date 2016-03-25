@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -83,12 +84,23 @@ public class PartitionContext
     	return this.partitionId;
     }
     
-    String getStartingOffset() throws InterruptedException, ExecutionException
+    String getInitialOffset() throws InterruptedException, ExecutionException
     {
-    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId).get();
-    	this.offset = startingCheckpoint.getOffset();
-    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
-    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
+    	Function<String, String> initialOffsetProvider = this.host.getEventProcessorOptions().getInitialOffsetProvider();
+    	if (initialOffsetProvider != null)
+    	{
+    		this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Calling user-provided initial offset provider");
+    		this.offset = initialOffsetProvider.apply(this.partitionId);
+    		this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
+	    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber);
+    	}
+    	else
+    	{
+	    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId).get();
+	    	this.offset = startingCheckpoint.getOffset();
+	    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
+	    	this.host.logWithHostAndPartition(Level.FINE, this.partitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
+    	}
     	return this.offset;
     }
 

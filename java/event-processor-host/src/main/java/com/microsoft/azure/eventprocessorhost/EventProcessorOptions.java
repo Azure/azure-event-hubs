@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Duration;
+import java.util.function.Function;
 
 public final class EventProcessorOptions
 {
@@ -13,6 +14,7 @@ public final class EventProcessorOptions
     private int maxBatchSize = 10;
     private int prefetchCount = 300;
     private Duration receiveTimeOut = Duration.ofMinutes(1);
+    private Function<String, String> initialOffsetProvider = null;
 
     public static EventProcessorOptions getDefaultOptions()
     {
@@ -64,9 +66,15 @@ public final class EventProcessorOptions
         this.prefetchCount = prefetchCount;
     }
 
-    //
-    // TODO Initial offset provider goes here.
-    //
+    public Function<String, String> getInitialOffsetProvider()
+    {
+    	return this.initialOffsetProvider;
+    }
+    
+    public void setInitialOffsetProvider(Function<String, String> initialOffsetProvider)
+    {
+    	this.initialOffsetProvider = initialOffsetProvider;
+    }
     
     public Boolean getInvokeProcessorAfterReceiveTimeout()
     {

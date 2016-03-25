@@ -78,7 +78,7 @@ class EventHubPartitionPump extends PartitionPump
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-    	String startingOffset = this.partitionContext.getStartingOffset();
+    	String startingOffset = this.partitionContext.getInitialOffset();
     	long epoch = this.lease.getEpoch();
     	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
 		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(), startingOffset, epoch);
