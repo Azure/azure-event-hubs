@@ -171,6 +171,7 @@ class EventHubPartitionPump extends PartitionPump
 				{
 					EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
 				}
+				EventHubPartitionPump.this.onError(error);
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}

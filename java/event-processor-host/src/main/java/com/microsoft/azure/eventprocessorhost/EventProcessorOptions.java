@@ -24,7 +24,8 @@ public final class EventProcessorOptions
     }
     
     //
-    // TODO User exception handler goes here.
+    // The .NET library sets the user error handler here.
+    // This version has the user error handler in IEventProcessor.
     //
 
     public int getMaxBatchSize()

@@ -110,7 +110,7 @@ public abstract class PartitionPump
     
     public abstract void specializedShutdown(CloseReason reason);
     
-    public void onEvents(Iterable<EventData> events)
+    protected void onEvents(Iterable<EventData> events)
 	{
     	// Assumes that javaClient will call with null on receive timeout. Currently it doesn't call at all.
     	// See note on EventProcessorOptions.
@@ -150,4 +150,13 @@ public abstract class PartitionPump
         	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
         }
 	}
+    
+    protected void onError(Throwable error)
+    {
+    	// This handler is called when javaClient calls the error handler we have installed.
+    	// JavaClient can only do that when execution is down in javaClient. Therefore no onEvents
+    	// call can be in progress right now. JavaClient will not get control back until this handler
+    	// returns, so there will be no calls to onEvents until after the user's error handler has returned.
+    	this.processor.onError(this.partitionContext, error);
+    }
 }

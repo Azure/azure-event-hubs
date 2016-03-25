@@ -10,18 +10,17 @@ public class TemporaryTest
 {
     public static void main(String args[])
     {
-    	final int hostCount = 1;
-    	
+    	final int hostCount = 2;
     	int runCase = 3;
-    	boolean useInMemory = false;
-    	boolean useEH = true;
+    	final boolean useInMemory = false;
+    	final boolean useEH = true;
 
-    	String ehConsumerGroup = "$Default";
-    	String ehNamespace = "";
-    	String ehEventhub = "";
-    	String ehKeyname = "";
-    	String ehKey = "";
-    	String storageConnectionString = "this is not a valid storage connection string";
+    	final String ehConsumerGroup = "$Default";
+    	final String ehNamespace = "";
+    	final String ehEventhub = "";
+    	final String ehKeyname = "";
+    	final String ehKey = "";
+    	final String storageConnectionString = "this is not a valid storage connection string";
     	
     	if (runCase == 1)
     	{
@@ -450,18 +449,21 @@ public class TemporaryTest
     {
     	private int checkpointBatchingCount = 0;
     	
+    	@Override
         public void onOpen(PartitionContext context) throws Exception
         {
             String hostname = context.getLease().getOwner();
         	System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is opening for host " + hostname.substring(hostname.length() - 4));
         }
 
+    	@Override
         public void onClose(PartitionContext context, CloseReason reason) throws Exception
         {
             String hostname = context.getLease().getOwner();
             System.out.println("SAMPLE: Partition " + context.getPartitionId() + " is closing for reason " + reason.toString() + " for host " + hostname.substring(hostname.length() - 4));
         }
 
+    	@Override
         public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception
         {
             String hostname = context.getLease().getOwner();
@@ -470,9 +472,8 @@ public class TemporaryTest
             int messageCount = 0;
             for (EventData data : messages)
             {
-                System.out.print("SAMPLE (" + hostname + "," + context.getPartitionId() + ",");
-                System.out.print(data.getSystemProperties().getOffset() + "," + data.getSystemProperties().getSequenceNumber() + "): ");
-                System.out.println(new String(data.getBody(), "UTF8"));
+                System.out.println("SAMPLE (" + hostname + "," + context.getPartitionId() + "," + data.getSystemProperties().getOffset() + "," +
+                		data.getSystemProperties().getSequenceNumber() + "): " + new String(data.getBody(), "UTF8"));
                 messageCount++;
                 this.checkpointBatchingCount++;
                 if ((checkpointBatchingCount % 5) == 0)
@@ -484,5 +485,11 @@ public class TemporaryTest
             }
             System.out.println("SAMPLE: Partition " + context.getPartitionId() + " batch size was " + messageCount + " for host " + hostname);
         }
+    	
+    	@Override
+    	public void onError(PartitionContext context, Throwable error)
+    	{
+    		System.out.println("SAMPLE: Partition " + context.getPartitionId() + " onError: " + error.toString());
+    	}
     }
 }
