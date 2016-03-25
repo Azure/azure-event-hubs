@@ -45,10 +45,13 @@ public final class EventProcessorOptions
         return this.receiveTimeOut;
     }
 
+    /*
+     * JavaClient has a way to set the timeout but it is not exposed right now.
     public void setReceiveTimeOut(Duration receiveTimeOut)
     {
         this.receiveTimeOut = receiveTimeOut;
     }
+    */
 
     public int getPrefetchCount()
     {
