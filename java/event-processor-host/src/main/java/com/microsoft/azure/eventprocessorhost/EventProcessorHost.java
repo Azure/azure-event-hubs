@@ -6,7 +6,6 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.RetryPolicy;
 import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;
@@ -364,8 +363,8 @@ public final class EventProcessorHost
     
     void log(Level logLevel, String logMessage)
     {
-  		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	//System.out.println(logLevel.toString() + ": " + logMessage);
+  		//EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
+    	System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)

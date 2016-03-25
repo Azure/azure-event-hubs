@@ -34,7 +34,8 @@ public abstract class PartitionPump
 		this.partitionContext.setLease(newLease);
 	}
 	
-    public void startPump()
+	// return Void so it can be called from a lambda submitted to ExecutorService
+    public Void startPump()
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;
     	
@@ -65,6 +66,8 @@ public abstract class PartitionPump
         {
         	specializedStartPump();
         }
+        
+        return null;
     }
 
     public abstract void specializedStartPump();
