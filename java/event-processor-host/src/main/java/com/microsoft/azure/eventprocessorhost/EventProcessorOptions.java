@@ -5,13 +5,14 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.time.Duration;
 
 public final class EventProcessorOptions
 {
     private Boolean invokeProcessorAfterReceiveTimeout = false;
     private int maxBatchSize = 10;
     private int prefetchCount = 300;
-    private int receiveTimeOutMilliseconds = 60000; // default to one minute
+    private Duration receiveTimeOut = Duration.ofMinutes(1);
 
     public static EventProcessorOptions getDefaultOptions()
     {
@@ -21,7 +22,48 @@ public final class EventProcessorOptions
     public EventProcessorOptions()
     {
     }
+    
+    //
+    // TODO User exception handler goes here.
+    //
 
+    public int getMaxBatchSize()
+    {
+        return this.maxBatchSize;
+    }
+
+    /*
+     * JavaClient does not have a max batch size setting for receive.
+    public void setMaxBatchSize(int maxBatchSize)
+    {
+        this.maxBatchSize = maxBatchSize;
+    }
+    */
+
+    public Duration getReceiveTimeOut()
+    {
+        return this.receiveTimeOut;
+    }
+
+    public void setReceiveTimeOut(Duration receiveTimeOut)
+    {
+        this.receiveTimeOut = receiveTimeOut;
+    }
+
+    public int getPrefetchCount()
+    {
+        return this.prefetchCount;
+    }
+
+    public void setPrefetchCount(int prefetchCount)
+    {
+        this.prefetchCount = prefetchCount;
+    }
+
+    //
+    // TODO Initial offset provider goes here.
+    //
+    
     public Boolean getInvokeProcessorAfterReceiveTimeout()
     {
         return this.invokeProcessorAfterReceiveTimeout;
@@ -37,34 +79,4 @@ public final class EventProcessorOptions
         this.invokeProcessorAfterReceiveTimeout = invokeProcessorAfterReceiveTimeout;
     }
     */
-
-    public int getMaxBatchSize()
-    {
-        return this.maxBatchSize;
-    }
-
-    public void setMaxBatchSize(int maxBatchSize)
-    {
-        this.maxBatchSize = maxBatchSize;
-    }
-
-    public int getPrefetchCount()
-    {
-        return this.prefetchCount;
-    }
-
-    public void setPrefetchCount(int prefetchCount)
-    {
-        this.prefetchCount = prefetchCount;
-    }
-
-    public int getReceiveTimeOut()
-    {
-        return this.receiveTimeOutMilliseconds;
-    }
-
-    public void setReceiveTimeOut(int receiveTimeOutMilliseconds)
-    {
-        this.receiveTimeOutMilliseconds = receiveTimeOutMilliseconds;
-    }
 }

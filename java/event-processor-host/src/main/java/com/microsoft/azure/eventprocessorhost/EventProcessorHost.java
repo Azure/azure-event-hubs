@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.RetryPolicy;
 import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;
@@ -21,6 +22,8 @@ public final class EventProcessorHost
     private final String hostName;
     private final String namespaceName;
     private final String eventHubPath;
+    private final String sharedAccessKeyName;
+    private final String sharedAccessKey;
     private final String consumerGroupName;
     private String eventHubConnectionString;
 
@@ -137,6 +140,8 @@ public final class EventProcessorHost
         this.hostName = hostName;
         this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
+        this.sharedAccessKeyName = sharedAccessKeyName;
+        this.sharedAccessKey = sharedAccessKey;
         this.consumerGroupName = consumerGroupName;
         this.checkpointManager = checkpointManager;
         this.leaseManager = leaseManager;
@@ -147,9 +152,6 @@ public final class EventProcessorHost
 	        	EventProcessorHost.executorRefCount++;
 	        }
         }
-
-        this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
-                sharedAccessKeyName, sharedAccessKey).toString();
 
         this.partitionManager = new PartitionManager(this);
         this.checkpointDispatcher = new CheckpointDispatcher(this);
@@ -273,6 +275,10 @@ public final class EventProcessorHost
      */
     public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
+    	// This is where we would set the timeout if javaClient supported it.
+        this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
+                this.sharedAccessKeyName, this.sharedAccessKey /*, processorOptions.getReceiveTimeOut(), RetryPolicy.getDefault()*/).toString();
+
         if (this.initializeLeaseManager)
         {
             try
