@@ -180,14 +180,25 @@ class PartitionManager implements Runnable
         // Now make sure the leases exist
         for (String id : getPartitionIds())
         {
-        	try
+        	boolean createdOK = false;
+        	int retryCount = 0;
+        	do
         	{
-                leaseManager.createLeaseIfNotExists(id).get();
-        	}
-        	catch (ExecutionException e)
+	        	try
+	        	{
+	                leaseManager.createLeaseIfNotExists(id).get();
+	                createdOK = true;
+	        	}
+	        	catch (ExecutionException e)
+	        	{
+	        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating lease for this partition, retrying", e);
+	        		retryCount++;
+	        	}
+        	} while (!createdOK && (retryCount < 5));
+        	if (!createdOK)
         	{
-        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating lease for this partition, skipping", e);
-        		// TODO if creating a lease fails the first time through it will never be created!
+        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Out of retries creating lease for this partition");
+        		throw new RuntimeException("Out of retries creating lease blob for partition " + id);
         	}
         }
         
@@ -207,14 +218,25 @@ class PartitionManager implements Runnable
         // Now make sure the checkpoints exist
         for (String id : getPartitionIds())
         {
-        	try
+        	boolean createdOK = false;
+        	int retryCount = 0;
+        	do
         	{
-                checkpointManager.createCheckpointIfNotExists(id).get();
-        	}
-        	catch (ExecutionException e)
+	        	try
+	        	{
+	                checkpointManager.createCheckpointIfNotExists(id).get();
+	                createdOK = true;
+	        	}
+	        	catch (ExecutionException e)
+	        	{
+	        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating checkpoint for this partition, skipping", e);
+	        		retryCount++;
+	        	}
+        	} while (!createdOK && (retryCount < 5));
+        	if (!createdOK)
         	{
-        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating checkpoint for this partition, skipping", e);
-        		// TODO if creating a checkpoint fails the first time through it will never be created!
+        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Out of retries creating checkpoint for this partition");
+        		throw new RuntimeException("Out of retries creating checkpoint blob for partition " + id);
         	}
         }
     }

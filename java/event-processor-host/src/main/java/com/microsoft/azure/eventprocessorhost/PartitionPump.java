@@ -105,7 +105,6 @@ public abstract class PartitionPump
             }
             catch (Exception e)
             {
-                // TODO Is there anything we should do here except log it?
             	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failure closing processor", e);
             }
         }
@@ -150,8 +149,10 @@ public abstract class PartitionPump
         }
         catch (Exception e)
         {
-            // TODO
-        	// What do we even do here?
+            // TODO -- do we pass errors from IEventProcessor.onEvents to IEventProcessor.onError?
+        	// Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
+        	// a convenient way of centralizing error handling.
+        	// In the meantime, just trace it.
         	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
         }
 	}

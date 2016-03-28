@@ -34,25 +34,36 @@ class EventHubPartitionPump extends PartitionPump
     @Override
     public void specializedStartPump()
     {
-        try
-        {
-			openClients();
-		}
-        catch (Exception e)
-        {
-        	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
-        	{
-        		// TODO This is probably due to a receiver with a higher epoch
-        		// Is there a way to be sure without checking the exception text?
-        		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
-        	}
-        	else
-        	{
-				// TODO figure out the retry policy here
-				this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Failure creating client or receiver", e);
-        	}
+    	boolean openedOK = false;
+    	int retryCount = 0;
+    	do
+    	{
+	        try
+	        {
+				openClients();
+				openedOK = true;
+			}
+	        catch (Exception e)
+	        {
+	        	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
+	        	{
+	        		// TODO Assuming this is due to a receiver with a higher epoch.
+	        		// Is there a way to be sure without checking the exception text?
+	        		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
+	        		// If it's a bad epoch, then retrying isn't going to help. Make retryCount huge to force an immediate bail.
+	        		retryCount = 999999;
+	        	}
+	        	else
+	        	{
+					this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Failure creating client or receiver", e);
+					retryCount++;
+	        	}
+			}
+    	} while (!openedOK && (retryCount < 5));
+    	if (!openedOK)
+    	{
 			this.pumpStatus = PartitionPumpStatus.PP_OPENFAILED;
-		}
+    	}
 
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
