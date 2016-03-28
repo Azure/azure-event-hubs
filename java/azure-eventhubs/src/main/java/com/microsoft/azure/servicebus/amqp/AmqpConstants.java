@@ -25,5 +25,7 @@ public final class AmqpConstants
 	public static final Symbol STRING_FILTER = Symbol.valueOf(AmqpConstants.APACHE + ":selector-filter:string");
 	public static final Symbol EPOCH = Symbol.valueOf(AmqpConstants.VENDOR + ":epoch");
 	
+	public static final Symbol USER_AGENT = Symbol.getSymbol(AmqpConstants.VENDOR + ":user-agent");
+	
 	public static final int AMQP_BATCH_MESSAGE_FORMAT = 0x80013700; // 2147563264L; 
 }

@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.logging.*;
 
 import org.apache.qpid.proton.Proton;
+import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.*;
 import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.reactor.*;
@@ -43,6 +44,10 @@ public final class ConnectionHandler extends BaseHandler
 		Connection connection = event.getConnection();
 		connection.setHostname(this.hostname + ":" + ClientConstants.AMQPS_PORT);
 		connection.setContainer(UUID.randomUUID().toString());
+		
+		Map<Symbol, Object> connectionProperties = new HashMap<Symbol, Object>();
+		connectionProperties.put(AmqpConstants.USER_AGENT, ClientConstants.USER_AGENT_WITH_VERSION);
+		connection.setProperties(connectionProperties);
 		connection.open();
 	}
 	
