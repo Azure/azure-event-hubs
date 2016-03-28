@@ -26,7 +26,7 @@ namespace Microsoft.Azure.EventHubs
 
         public void Close()
         {
-            this.CloseAsync().Wait();
+            this.CloseAsync().GetAwaiter().GetResult();
         }
     }
 }

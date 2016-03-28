@@ -19,33 +19,19 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     /// <seealso cref="EventHubClient.CreateReceiver"/>
     /// <seealso cref="EventHubClient.CreateEpochReceiver"/>
-    public sealed class PartitionReceiver : ClientEntity
+    public abstract class PartitionReceiver : ClientEntity
     {
-        const int MINIMUM_PREFETCH_COUNT = 10;
-        const int MAXIMUM_PREFETCH_COUNT = 999;
-
-        const int DEFAULT_PREFETCH_COUNT = 300;
-        const long NULL_EPOCH = 0;
-
         /// <summary>
         /// This is a constant defined to represent the start of a partition stream in EventHub.
         /// </summary>
         public static readonly string StartOfStream = "-1";
+        internal const long NullEpoch = 0;
 
-        private PartitionReceiver(
-            EventHubClient eventHubClient,
-            string consumerGroupName,
-            string partitionId,
-            string startingOffset,
-            bool offsetInclusive,
-            DateTime dateTime,
-            long epoch,
-            bool isEpochReceiver)
-            : base(null)
-        {
-        }
+        const int MinPrefetchCount = 10;
+        const int MaxPrefetchCount = 999;
+        const int DefaultPrefetchCount = 300;
 
-        internal static PartitionReceiver Create(
+        internal PartitionReceiver(
             EventHubClient eventHubClient,
             string consumerGroupName,
             string partitionId,
@@ -54,34 +40,23 @@ namespace Microsoft.Azure.EventHubs
             DateTime? dateTime,
             long epoch,
             bool isEpochReceiver)
+            : base(nameof(EventSender) + StringUtility.GetRandomString())
         {
-            throw new NotImplementedException();
+            this.PartitionId = partitionId;
+            this.PrefetchCount = DefaultPrefetchCount;
         }
 
         /// <summary>
         /// Get the EventHub partition identifier.
         /// </summary>
         /// <value>The identifier representing the partition from which this receiver is fetching data</value>
-        public string PartitionId
-        {
-            get; private set;
-        }
+        public string PartitionId { get; }
 
         /// <summary>
         /// Get Prefetch Count configured on the Receiver.
         /// </summary>
         /// <value>The upper limit of events this receiver will actively receive regardless of whether a receive operation is pending.</value>
-        public int PrefetchCount
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
+        public int PrefetchCount { get; set; }
 
         /// <summary>
         /// Get the epoch value that this receiver is currently using for partition ownership.
@@ -127,17 +102,16 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
         public Task<IEnumerable<EventData>> ReceiveAsync()
         {
-            throw new NotImplementedException();
+            return this.OnReceiveAsync();
         }
 
         public void SetReceiveHandler(IPartitionReceiveHandler receiveHandler)
         {
-            throw new NotImplementedException();
+            this.OnSetReceiveHandler(receiveHandler);
         }
 
-        public override Task CloseAsync()
-        {
-            throw new NotImplementedException();
-        }
+        protected abstract Task<IEnumerable<EventData>> OnReceiveAsync();
+
+        protected abstract void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler);
     }
 }

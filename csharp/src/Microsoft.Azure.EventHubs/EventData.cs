@@ -5,7 +5,6 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
     using System.Collections.Generic;
-    using Microsoft.Azure.Amqp;
 
     /// <summary>
     /// The data structure encapsulating the Event being sent-to and received-from EventHubs.
@@ -13,19 +12,6 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     public class EventData
     {
-        EventData()
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Internal Constructor - intended to be used only by the PartitionReceiver to create EventData out of AmqpMessage
-        /// </summary>
-        EventData(AmqpMessage amqpMessage)
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Construct EventData to send to EventHub.
         /// Typical pattern to create a Sending EventData is:
@@ -41,9 +27,9 @@ namespace Microsoft.Azure.EventHubs
         /// await partitionSender.SendAsync(eventData);
         /// </code>
         /// </example>
-        /// <param name="data">The actual payload of data in bytes to be sent to the EventHub.</param>
-        public EventData(byte[] data)
-            : this(new ArraySegment<byte>(data))
+        /// <param name="array">The actual payload of data in bytes to be sent to the EventHub.</param>
+        public EventData(byte[] array)
+            : this(new ArraySegment<byte>(array))
         {
         }
 
@@ -64,36 +50,25 @@ namespace Microsoft.Azure.EventHubs
         /// </example>
         /// <param name="arraySegment">The payload bytes, offset and length to be sent to the EventHub.</param>
         public EventData(ArraySegment<byte> arraySegment)
-            : this()
         {
+            this.Body = arraySegment;
         }
 
         /// <summary>
         /// Get the actual Payload/Data wrapped by EventData.
         /// This is intended to be used after receiving EventData using <see cref="PartitionReceiver"/>.
         /// </summary>
-        public byte[] Body
+        public ArraySegment<byte> Body
         {
-            // TODO: enforce on-send constructor type 2
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get;
         }
 
         /// <summary>
         /// Application property bag
         /// </summary>
-        public Dictionary<string, string> Properties
+        public IDictionary<string, string> Properties
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
-            set
-            {
-                throw new NotImplementedException();
-            }
+            get; set;
         }
 
         /// <summary>
@@ -102,20 +77,7 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         public SystemPropertiesCollection SystemProperties
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        AmqpMessage ToAmqpMessage()
-        {
-            throw new NotImplementedException();
-        }
-
-        AmqpMessage ToAmqpMessage(string partitionKey)
-        {
-            throw new NotImplementedException();
+            get; internal set;
         }
 
         public sealed class SystemPropertiesCollection
@@ -129,34 +91,22 @@ namespace Microsoft.Azure.EventHubs
 
             public long SequenceNumber
             {
-                get
-                {
-                    throw new NotImplementedException();
-                }
+                get; internal set;
             }
 
             public DateTime EnqueuedTime
             {
-                get
-                {
-                    throw new NotImplementedException();
-                }
+                get; internal set;
             }
 
             public string Offset
             {
-                get
-                {
-                    throw new NotImplementedException();
-                }
+                get; internal set;
             }
 
             public string PartitionKey
             {
-                get
-                {
-                    throw new NotImplementedException();
-                }
+                get; internal set;
             }
         }
     }

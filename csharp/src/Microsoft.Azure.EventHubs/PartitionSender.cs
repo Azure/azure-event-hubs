@@ -16,19 +16,21 @@ namespace Microsoft.Azure.EventHubs
     /// <seealso cref="EventHubClient.Create(string)"/>
     public sealed class PartitionSender : ClientEntity
     {
-        readonly string partitionId;
-
-        private PartitionSender(EventHubClient eventHubClient, string partitionId)
+        internal PartitionSender(EventHubClient eventHubClient, string partitionId)
             : base(null)
         {
-            this.partitionId = partitionId;
-            throw new NotImplementedException();
+            this.EventHubClient = eventHubClient;
+            this.PartitionId = partitionId;
+            this.InnerSender = eventHubClient.CreateEventSender(partitionId);
         }
 
-        internal static Task<PartitionSender> CreateAsync(EventHubClient eventHubClient, string partitionId)
-        {
-            throw new NotImplementedException();
-        }
+        public EventHubClient EventHubClient { get; }
+
+        public string PartitionId { get; }
+
+        EventSender InnerSender { get; }
+
+        object ThisLock { get; } = new object();
 
         /// <summary>
         /// Send <see cref="EventData"/> to a specific EventHub partition. The target partition is pre-determined when this PartitionSender was created.
@@ -47,7 +49,12 @@ namespace Microsoft.Azure.EventHubs
         /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
         public Task SendAsync(EventData data)
         {
-            throw new NotImplementedException();
+            if (data == null)
+            {
+                throw ExceptionUtility.ArgumentNull(nameof(data));
+            }
+
+            return this.InnerSender.SendAsync(new[] { data }, null);
         }
 
         /// <summary>
@@ -91,12 +98,17 @@ namespace Microsoft.Azure.EventHubs
         /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
         public Task SendAsync(IEnumerable<EventData> eventDatas)
         {
-            throw new NotImplementedException();
+            if (eventDatas == null)
+            {
+                throw ExceptionUtility.ArgumentNull(nameof(eventDatas));
+            }
+
+            return this.InnerSender.SendAsync(eventDatas, null);
         }
 
         public override Task CloseAsync()
         {
-            throw new NotImplementedException();
-        }
+            return this.InnerSender.CloseAsync();
+        }       
     }
 }
