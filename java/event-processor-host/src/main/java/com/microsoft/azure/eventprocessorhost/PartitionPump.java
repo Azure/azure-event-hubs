@@ -125,10 +125,10 @@ public abstract class PartitionPump
     	
         try
         {
-        	// Synchronize on the handler object to serialize calls to the processor.
-        	// The handler is not installed until after onOpen returns, so there is no conflict there.
-        	// There could be a conflict between this and onClose, however. All calls to onClose are
-        	// protected by synchronizing on the handler object too.
+        	// Synchronize to serialize calls to the processor.
+        	// The handler is not installed until after onOpen returns, so onEvents cannot conflict with onOpen.
+        	// There could be a conflict between onEvents and onClose, however. All calls to onClose are
+        	// protected by synchronizing too.
         	synchronized(this.processingSynchronizer)
         	{
         		this.processor.onEvents(this.partitionContext, events);
