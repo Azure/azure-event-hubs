@@ -11,22 +11,70 @@ namespace Microsoft.Azure.EventHubs
     /// Anchor class - all EventHub client operations start here.
     /// See <see cref="EventHubClient.Create(string)"/>
     /// </summary>
-    public class EventHubClient : ClientEntity
+    public abstract class EventHubClient : ClientEntity
     {
-        private EventHubClient(ConnectionStringBuilder connectionStringBuilder)
+        EventSender innerSender;
+
+        protected internal EventHubClient(ConnectionStringBuilder connectionStringBuilder)
             : base(StringUtility.GetRandomString())
         {
-            throw new NotImplementedException();
+            this.EventHubName = connectionStringBuilder.EntityPath;
+        }
+
+        public string EventHubName { get; }
+
+        protected object ThisLock { get; } = new object();
+
+        EventSender InnerSender
+        {
+            get
+            {
+                if (this.innerSender == null)
+                {
+                    lock (this.ThisLock)
+                    {
+                        if (this.innerSender == null)
+                        {
+                            this.innerSender = this.CreateEventSender();
+                        }
+                    }
+                }
+
+                return this.innerSender;
+            }
         }
 
         public static EventHubClient Create(string connectionString)
         {
-            return Create(new ConnectionStringBuilder(connectionString));
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(nameof(connectionString));
+            }
+
+            var builder = new ConnectionStringBuilder(connectionString);
+            return Create(builder);
         }
 
         public static EventHubClient Create(ConnectionStringBuilder connectionStringBuilder)
         {
-            return new EventHubClient(connectionStringBuilder);
+            if (connectionStringBuilder == null)
+            {
+                throw ExceptionUtility.ArgumentNull(nameof(connectionStringBuilder));
+            }
+            else if (string.IsNullOrWhiteSpace(connectionStringBuilder.EntityPath))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(nameof(connectionStringBuilder.EntityPath));
+            }
+
+            EventHubsEventSource.Log.EventHubClientCreateStart(connectionStringBuilder.Endpoint.Host, connectionStringBuilder.EntityPath);
+            try
+            {
+                return connectionStringBuilder.CreateEventHubClient();
+            }
+            finally
+            {
+                EventHubsEventSource.Log.EventHubClientCreateStop();
+            }
         }
 
         /// <summary>
@@ -49,7 +97,12 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender.SendAsync(EventData)"/>
         public Task SendAsync(EventData data)
         {
-            throw new NotImplementedException();
+            if (data == null)
+            {
+                throw ExceptionUtility.ArgumentNull(nameof(data));
+            }
+
+            return this.InnerSender.SendAsync(new[] { data }, null);
         }
 
         /// <summary>
@@ -92,9 +145,14 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender.SendAsync(EventData)"/>
         public Task SendAsync(IEnumerable<EventData> eventDatas)
         {
-            throw new NotImplementedException();
+            if (eventDatas == null)
+            {
+                throw ExceptionUtility.ArgumentNull(nameof(eventDatas));
+            }
+
+            return this.InnerSender.SendAsync(eventDatas, null);
         }
-       
+
         /// <summary>
         ///  Sends an '<see cref="EventData"/> with a partitionKey to EventHub. All <see cref="EventData"/>'s with a partitionKey are guaranteed to land on the same partition.
         ///  This send pattern emphasize data correlation over general availability and latency.
@@ -115,7 +173,12 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender.SendAsync(EventData)"/>
         public Task SendAsync(EventData eventData, string partitionKey)
         {
-            throw new NotImplementedException();
+            if (eventData == null || string.IsNullOrEmpty(partitionKey))
+            {
+                throw ExceptionUtility.ArgumentNull(eventData == null ? nameof(eventData) : nameof(partitionKey));
+            }
+
+            return this.InnerSender.SendAsync(new[] { eventData }, partitionKey);
         }
 
         /// <summary>
@@ -136,7 +199,12 @@ namespace Microsoft.Azure.EventHubs
         /// <see cref="PartitionSender.SendAsync(EventData)"/>
         public Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
-            throw new NotImplementedException();
+            if (eventDatas == null || string.IsNullOrEmpty(partitionKey))
+            {
+                throw ExceptionUtility.ArgumentNull(eventDatas == null ? nameof(eventDatas) : nameof(partitionKey));
+            }
+
+            return this.InnerSender.SendAsync(eventDatas, partitionKey);
         }
 
         /// <summary>
@@ -152,7 +220,7 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender"/>
         public PartitionSender CreatePartitionSender(string partitionId)
         {
-            throw new NotImplementedException();
+            return new PartitionSender(this, partitionId);
         }
 
         /// <summary>
@@ -185,7 +253,12 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionReceiver"/>
         public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
+            }
+
+            return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, PartitionReceiver.NullEpoch, false);
         }
 
         /// <summary>
@@ -199,7 +272,12 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionReceiver"/>
         public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, DateTime dateTime)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
+            }
+
+            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, dateTime, PartitionReceiver.NullEpoch, false);
         }
 
         /// <summary>
@@ -240,7 +318,12 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionReceiver"/>
         public PartitionReceiver CreateEpochReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive, long epoch)
         {
-            return PartitionReceiver.Create(this, consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch, true);
+            if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
+            }
+
+            return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch, true);
         }
 
         /// <summary>
@@ -259,12 +342,26 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionReceiver"/>
         public PartitionReceiver CreateEpochReceiver(string consumerGroupName, string partitionId, DateTime dateTime, long epoch)
         {
-            return PartitionReceiver.Create(this, consumerGroupName, partitionId, null, false, dateTime, epoch, true);
+            if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
+            {
+                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
+            }
+
+            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, dateTime, epoch, true);
         }
 
         public override Task CloseAsync()
         {
             throw new NotImplementedException();
         }
+
+        internal EventSender CreateEventSender(string partitionId = null)
+        {
+            return this.OnCreateEventSender(partitionId);
+		}
+
+        internal abstract EventSender OnCreateEventSender(string partitionId);
+
+        protected abstract PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive, DateTime? dateTime, long epoch, bool isEpochReceiver);
     }
 }
