@@ -316,6 +316,7 @@ public final class EventProcessorHost
     	logWithHost(Level.INFO, "Stopping event processing");
     	
         this.partitionManager.stopPartitions();
+        this.checkpointDispatcher.stopCheckpointDispatcher();
         try
         {
 			this.partitionManagerFuture.get();
