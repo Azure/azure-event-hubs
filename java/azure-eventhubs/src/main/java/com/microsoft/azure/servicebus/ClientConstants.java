@@ -38,6 +38,7 @@ public final class ClientConstants
 	public final static int DEFAULT_MAX_RETRY_COUNT = 10;
 	
 	public final static String SERVICEBUS_CLIENT_TRACE = "servicebus.trace";
+	public final static String USER_AGENT_WITH_VERSION = "java-0.6.4";
 	
 	public final static boolean DEFAULT_IS_TRANSIENT = true;
 }
