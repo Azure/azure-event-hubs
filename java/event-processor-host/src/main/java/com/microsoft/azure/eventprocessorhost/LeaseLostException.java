@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 public class LeaseLostException extends Exception

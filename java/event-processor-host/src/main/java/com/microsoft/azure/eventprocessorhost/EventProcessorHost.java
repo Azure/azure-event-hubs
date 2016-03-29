@@ -305,11 +305,8 @@ public final class EventProcessorHost
     /**
      * Stop processing events.
      * 
-     * Returns while the shutdown is still in progress. The returned Future is the same as the one returned by
-     * registerEventProcessor/registerEventProcessorFactory. If the caller cares, it can be used to check whether
-     * shutdown is complete.
+     * Does not return until the shutdown is complete.
      * 
-     * @return	Future that does not complete until the processor host shuts down.
      */
     public void unregisterEventProcessor()
     {

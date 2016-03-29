@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import java.io.IOException;
@@ -85,12 +83,13 @@ class EventHubPartitionPump extends PartitionPump
     
     private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
     {
-    	// Create new client/receiver
+    	// Create new client
     	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH client");
 		this.internalOperationFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString());
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
+		// Create new receiver and set options
     	String startingOffset = this.partitionContext.getInitialOffset();
     	long epoch = this.lease.getEpoch();
     	this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
@@ -194,7 +193,7 @@ class EventHubPartitionPump extends PartitionPump
 		{
 			if (error == null)
 			{
-				error = new Throwable("normal shutdown"); // Is this true?
+				error = new Throwable("normal shutdown"); // TODO -- is this true?
 			}
 			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.INFO, EventHubPartitionPump.this.partitionContext, "EventHub client closed: " + error.toString());
 			if (error instanceof Exception)

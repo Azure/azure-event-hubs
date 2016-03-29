@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.concurrent.ExecutionException;
@@ -59,12 +57,34 @@ public class PartitionContext
     {
         this.lease = lease;
     }
-    
-    public void setOffsetAndSequenceNumber(EventData event)
+
+    /**
+     * Updates the offset/sequenceNumber in the PartitionContext with the values in the received EventData object.
+     *  
+     * Since offset is a string it cannot be compared easily, but sequenceNumber is checked. The new sequenceNumber must be
+     * at least the same as the current value or the entire assignment is aborted. It is assumed that if the new sequenceNumber
+     * is equal or greater, the new offset will be as well.
+     * 
+     * @param event  A received EventData with valid offset and sequenceNumber
+     * @throws IllegalArgumentException  If the sequenceNumber in the provided event is less than the current value
+     */
+    public void setOffsetAndSequenceNumber(EventData event) throws IllegalArgumentException
     {
     	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
     }
     
+    /**
+     * Updates the offset/sequenceNumber in the PartitionContext.
+     * 
+     * These two values are closely tied and must be updated in an atomic fashion, hence the combined setter.
+     * Since offset is a string it cannot be compared easily, but sequenceNumber is checked. The new sequenceNumber must be
+     * at least the same as the current value or the entire assignment is aborted. It is assumed that if the new sequenceNumber
+     * is equal or greater, the new offset will be as well.
+     * 
+     * @param offset  New offset value
+     * @param sequenceNumber  New sequenceNumber value 
+     * @throws IllegalArgumentException  If the new sequenceNumber is less than the current value
+     */
     public void setOffsetAndSequenceNumber(String offset, long sequenceNumber) throws IllegalArgumentException
     {
     	synchronized (this.offset)
@@ -106,6 +126,9 @@ public class PartitionContext
     	return this.offset;
     }
 
+    /**
+     * Writes the current offset and sequenceNumber to the checkpoint store via the checkpoint manager.
+     */
     public void checkpoint()
     {
     	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
@@ -120,7 +143,14 @@ public class PartitionContext
     	this.host.getCheckpointDispatcher().enqueueCheckpoint(capturedCheckpoint);
     }
 
-    public void checkpoint(EventData event)
+    /**
+     * Stores the offset and sequenceNumber from the provided received EventData instance, then writes those
+     * values to the checkpoint store via the checkpoint manager.
+     *  
+     * @param event  A received EventData with valid offset and sequenceNumber
+     * @throws IllegalArgumentException  If the sequenceNumber in the provided event is less than the current value  
+     */
+    public void checkpoint(EventData event) throws IllegalArgumentException
     {
     	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
     	this.host.getCheckpointDispatcher().enqueueCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));

@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Duration;
@@ -18,6 +16,20 @@ public final class EventProcessorOptions
     private Duration receiveTimeOut = Duration.ofMinutes(1);
     private Function<String, String> initialOffsetProvider = null;
 
+    /***
+     * Returns an EventProcessorOptions instance with all options set to the default values.
+     * 
+     * The default values are:
+     * <pre>
+     * MaxBatchSize: 10 -- not currently honored!
+     * ReceiveTimeOut: 1 minute
+     * PrefetchCount: 300
+     * InitialOffsetProvider: uses the last offset checkpointed, or START_OF_STREAM
+     * InvokeProcessorAfterReceiveTimeout: false
+     * </pre>
+     * 
+     * @return an EventProcessorOptions instance with all options set to the default values
+     */
     public static EventProcessorOptions getDefaultOptions()
     {
         return new EventProcessorOptions();
@@ -32,6 +44,14 @@ public final class EventProcessorOptions
     // This version has the user error handler in IEventProcessor.
     //
 
+    /***
+     * Returns the maximum size of an event batch that IEventProcessor.onEvents will be called with
+     * 
+     * Right now this option is hardwired to 10 and cannot be changed, but is not honored
+     * either. The batches are whatever size the underlying client returns. 
+     * 
+     * @return the maximum size of an event batch that IEventProcessor.onEvents will be called with
+     */
     public int getMaxBatchSize()
     {
         return this.maxBatchSize;
@@ -45,6 +65,13 @@ public final class EventProcessorOptions
     }
     */
 
+    /***
+     * Returns the timeout length for receive operations.
+     * 
+     * Right now this option is hardwired to one minute and cannot be changed.
+     * 
+     * @return the timeout length for receive operations
+     */
     public Duration getReceiveTimeOut()
     {
         return this.receiveTimeOut;
@@ -58,26 +85,64 @@ public final class EventProcessorOptions
     }
     */
 
+    /***
+     * Returns the current prefetch count for the underlying client.
+     * 
+     * @return the current prefetch count for the underlying client
+     */
     public int getPrefetchCount()
     {
         return this.prefetchCount;
     }
 
+    /***
+     * Sets the prefetch count for the underlying client.
+     * 
+     * The default is 300.
+     * 
+     * @param prefetchCount  The new prefetch count.
+     */
     public void setPrefetchCount(int prefetchCount)
     {
         this.prefetchCount = prefetchCount;
     }
 
+    /***
+     * Returns the current function used to determine the initial offset at which to start receiving
+     * events for a partition.
+     * 
+     * A null return indicates that it is using the internal provider, which uses the last checkpointed
+     * offset value (if present) or START_OF_STREAM (if not).
+     * 
+     * @return the current offset provider function
+     */
     public Function<String, String> getInitialOffsetProvider()
     {
     	return this.initialOffsetProvider;
     }
     
+    /***
+     * Sets the function used to determine the initial offset at which to start receiving events for a
+     * partition when the EventProcessorHost obtains a new partition.
+     * 
+     * The provider function takes one argument, the partition id (a string), and returns the desired
+     * starting offset (also a string).
+     * 
+     * @param initialOffsetProvider
+     */
     public void setInitialOffsetProvider(Function<String, String> initialOffsetProvider)
     {
     	this.initialOffsetProvider = initialOffsetProvider;
     }
     
+    /***
+     * Returns whether the EventProcessorHost will call IEventProcessor.onEvents(null) when a receive
+     * timeout occurs (true) or not (false).
+     * 
+     * This option is currently hardwired to false and cannot be changed.
+     * 
+     * @return false
+     */
     public Boolean getInvokeProcessorAfterReceiveTimeout()
     {
         return this.invokeProcessorAfterReceiveTimeout;

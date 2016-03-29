@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -19,11 +17,13 @@ import com.microsoft.azure.eventhubs.EventData;
  * some parameters could change, but it will always be the same partition.
  * <p>
  * Although EventProcessorHost is multithreaded, calls to a given instance of an event processor
- * class are serialized. onOpen() is called first, then onEvents() will be called zero or more
+ * class are serialized, except for onError(). onOpen() is called first, then onEvents() will be called zero or more
  * times. When the event processor needs to be shut down, whether because there was a failure
  * somewhere, or the lease for the partition has been lost, or because the entire processor host
  * is being shut down, onClose() is called after the last onEvents() call returns.
- *
+ * <p>
+ * onError() could be called while onEvents() or onClose() is executing. No synchronization is attempted
+ * in order to avoid possibly deadlocking.
  */
 public interface IEventProcessor
 {
@@ -55,5 +55,13 @@ public interface IEventProcessor
      */
     public void onEvents(PartitionContext context, Iterable<EventData> messages) throws Exception;
     
+    /**
+     * Called when the underlying client experiences an error while receiving. EventProcessorHost will take
+     * care of recovering from the error and continuing to pump messages, so no action is required from
+     * your code. This method is provided for informational purposes. 
+     *  
+     * @param context  Information about the partition.
+     * @param error    The error that occured.
+     */
     public void onError(PartitionContext context, Throwable error);
 }

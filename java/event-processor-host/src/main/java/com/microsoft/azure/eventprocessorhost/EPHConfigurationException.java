@@ -3,13 +3,11 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 public class EPHConfigurationException extends RuntimeException
 {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 7042035017304134956L;
 
 	EPHConfigurationException()
 	{

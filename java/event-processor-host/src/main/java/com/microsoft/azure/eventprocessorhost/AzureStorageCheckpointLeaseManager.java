@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import java.io.IOException;
@@ -65,8 +63,6 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.eventHubContainer = this.storageClient.getContainerReference(this.host.getEventHubPath());
         
         this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
-        
-        //this.eventHubInfoBlob = this.eventHubContainer.getBlockBlobReference(AzureStorageCheckpointLeaseManager.eventHubInfoBlobName);
         
         this.gson = new Gson();
 
