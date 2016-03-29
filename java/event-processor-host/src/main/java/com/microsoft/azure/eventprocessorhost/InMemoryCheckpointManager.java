@@ -9,6 +9,13 @@ import java.util.HashMap;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 
+//
+// An ICheckpointManager implementation based on an in-memory store. This is obviously volatile
+// and can only be shared among hosts within a process, but is useful for testing. Overall, its
+// behavior is fairly close to that of AzureStorageCheckpointLeaseManager, but on the other hand
+// it is completely separate from the InMemoryLeaseManager, to allow testing scenarios where
+// the two stores are not combined.
+//
 
 public class InMemoryCheckpointManager implements ICheckpointManager
 {

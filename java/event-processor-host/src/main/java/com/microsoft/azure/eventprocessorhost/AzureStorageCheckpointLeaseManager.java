@@ -35,14 +35,12 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
     private CloudBlobDirectory consumerGroupDirectory;
-    // private CloudBlockBlob eventHubInfoBlob;  // TODO not used?
     
     private Gson gson;
     
     private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
     private final static int leaseIntervalInSeconds = 30;
     private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
-    // private final static String eventHubInfoBlobName = "eventhub.info";  // TODO not used?
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
     public AzureStorageCheckpointLeaseManager(String storageConnectionString)
@@ -65,8 +63,6 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.eventHubContainer = this.storageClient.getContainerReference(this.host.getEventHubPath());
         
         this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
-        
-        //this.eventHubInfoBlob = this.eventHubContainer.getBlockBlobReference(AzureStorageCheckpointLeaseManager.eventHubInfoBlobName);
         
         this.gson = new Gson();
 

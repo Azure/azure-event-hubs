@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.LinkedList;
@@ -36,7 +41,10 @@ public class CheckpointDispatcher
 		this.keepGoing = false;
 		try
 		{
-			this.workThread.get();
+			if (this.workThread != null)
+			{
+				this.workThread.get();
+			}
 		}
 		catch (InterruptedException | ExecutionException e)
 		{
@@ -52,7 +60,7 @@ public class CheckpointDispatcher
 			this.workQueue.addFirst(checkpoint);
 		}
 		// The work thread shuts down if it has nothing to do, so when new work comes in make sure that it
-		// is running. startCheckpointDispatcher() is itempotent and will not start a second thread if one
+		// is running. startCheckpointDispatcher() is idempotent and will not start a second thread if one
 		// is already running, so we can just call it blindly here.
 		startCheckpointDispatcher();
 	}
@@ -65,7 +73,9 @@ public class CheckpointDispatcher
 		
 		while (this.keepGoing)
 		{
-			while ((this.workQueue.size() > 0) && this.keepGoing)
+			// Check for queue size separately so that a shutdown request cannot
+			// stop the thread until all queued checkpoints have been saved.
+			while (this.workQueue.size() > 0)
 			{
 				Checkpoint workToDo = null;
 				synchronized (this.workQueue)

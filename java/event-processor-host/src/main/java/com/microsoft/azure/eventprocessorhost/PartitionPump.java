@@ -103,7 +103,6 @@ public abstract class PartitionPump
             }
             catch (Exception e)
             {
-                // TODO Is there anything we should do here except log it?
             	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failure closing processor", e);
             }
         }
@@ -124,10 +123,10 @@ public abstract class PartitionPump
     	
         try
         {
-        	// Synchronize on the handler object to serialize calls to the processor.
-        	// The handler is not installed until after onOpen returns, so there is no conflict there.
-        	// There could be a conflict between this and onClose, however. All calls to onClose are
-        	// protected by synchronizing on the handler object too.
+        	// Synchronize to serialize calls to the processor.
+        	// The handler is not installed until after onOpen returns, so onEvents cannot conflict with onOpen.
+        	// There could be a conflict between onEvents and onClose, however. All calls to onClose are
+        	// protected by synchronizing too.
         	synchronized(this.processingSynchronizer)
         	{
         		this.processor.onEvents(this.partitionContext, events);
@@ -148,8 +147,10 @@ public abstract class PartitionPump
         }
         catch (Exception e)
         {
-            // TODO
-        	// What do we even do here?
+            // TODO -- do we pass errors from IEventProcessor.onEvents to IEventProcessor.onError?
+        	// Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
+        	// a convenient way of centralizing error handling.
+        	// In the meantime, just trace it.
         	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
         }
 	}

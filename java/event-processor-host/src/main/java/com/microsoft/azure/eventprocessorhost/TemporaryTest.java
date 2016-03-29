@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
+
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.ArrayList;
@@ -125,7 +130,7 @@ public class TemporaryTest
         		}
     			if (!useEH)
     			{
-    				hosts[i].setPumpClass(SyntheticPump.class);
+    				hosts[i].setPumpClass(SyntheticPump.class); // See note in SyntheticPump.produceMessages() -- doesn't work right now
     			}
     		}
     		processMessages(hosts);
@@ -427,6 +432,8 @@ public class TemporaryTest
 				String eventBody = "Event " + eventNumber + " on partition " + this.lease.getPartitionId();
 				eventNumber++;
 				EventData event = new EventData(eventBody.getBytes());
+				// Need a way to set the offset and sequenceNumber on event! Normally they only exist on received instances.
+				// Testing checkpointing won't work without them.
 				//event.fakeReceivedMessage(Integer.toString(eventNumber * 75), eventNumber);
 				events.add(event);
 				onEvents(events);
