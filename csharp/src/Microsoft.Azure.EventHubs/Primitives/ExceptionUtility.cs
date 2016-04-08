@@ -5,21 +5,30 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
 
-    static class ExceptionUtility
-    {        
-        public static ArgumentException Argument(string paramName, string message)
+    class ExceptionUtility
+    {
+        internal ExceptionUtility()
+        {
+        }
+
+        public ArgumentException Argument(string paramName, string message)
         {
             return new ArgumentException(message, paramName);
         }
 
-        public static Exception ArgumentNull(string paramName)
+        public Exception ArgumentNull(string paramName)
         {
             return new ArgumentNullException(paramName);
         }
 
-        public static ArgumentException ArgumentNullOrWhiteSpace(string paramName)
+        public ArgumentException ArgumentNullOrWhiteSpace(string paramName)
         {
             return Argument(paramName, Resources.ArgumentNullOrWhiteSpace.FormatForUser(paramName));
+        }
+
+        public ArgumentOutOfRangeException ArgumentOutOfRange(string paramName, object actualValue, string message)
+        {
+            return new ArgumentOutOfRangeException(paramName, actualValue, message);
         }
     }
 }

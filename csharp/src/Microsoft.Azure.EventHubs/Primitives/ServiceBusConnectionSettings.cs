@@ -7,7 +7,7 @@ namespace Microsoft.Azure.EventHubs
     using System.Text;
 
     /// <summary>
-    /// ConnectionStringBuilder can be used to construct a connection string which can establish communication with ServiceBus entities.
+    /// ServiceBusConnectionSettings can be used to construct a connection string which can establish communication with ServiceBus entities.
     /// It can also be used to perform basic validation on an existing connection string.
     /// <para/>
     /// A connection string is basically a string consisted of key-value pair separated by ";". 
@@ -20,15 +20,15 @@ namespace Microsoft.Azure.EventHubs
     /// <example>
     /// Sample code:
     /// <code>
-    /// ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(
+    /// var connectionSettings = new ServiceBusConnectionSettings(
     ///     "ServiceBusNamespaceName", 
     ///     "ServiceBusEntityName", // eventHub, queue, or topic name 
     ///     "SharedAccessSignatureKeyName", 
     ///     "SharedAccessSignatureKey");
-    ///  string connectionString = connectionStringBuilder.toString();
+    ///  string connectionString = connectionSettings.ToString();
     /// </code>
     /// </example>
-    public class ConnectionStringBuilder
+    public class ServiceBusConnectionSettings
     {
         static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(1);
         static readonly string EndpointFormat = "amqps://{0}.servicebus.windows.net";
@@ -46,12 +46,12 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="entityPath">Entity path. For eventHubs case specify eventHub name.</param>
         /// <param name="sharedAccessKeyName">Shared Access Key name</param>
         /// <param name="sharedAccessKey">Shared Access Key</param>
-        public ConnectionStringBuilder(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
+        public ServiceBusConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
             : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicy.Default)
         {
         }
 
-        ConnectionStringBuilder(
+        ServiceBusConnectionSettings(
             string namespaceName,
             string entityPath,
             string sharedAccessKeyName,
@@ -61,15 +61,15 @@ namespace Microsoft.Azure.EventHubs
         {
             if (string.IsNullOrWhiteSpace(namespaceName) || string.IsNullOrWhiteSpace(entityPath))
             {
-                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(namespaceName) ? nameof(namespaceName) : nameof(entityPath));
+                throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(namespaceName) ? nameof(namespaceName) : nameof(entityPath));
             }
             else if (string.IsNullOrWhiteSpace(sharedAccessKeyName) || string.IsNullOrWhiteSpace(sharedAccessKey))
             {
-                throw ExceptionUtility.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : nameof(sharedAccessKey));
+                throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : nameof(sharedAccessKey));
             }
             else if (retryPolicy == null)
             {
-                throw ExceptionUtility.ArgumentNull(nameof(retryPolicy));
+                throw Fx.Exception.ArgumentNull(nameof(retryPolicy));
             }
 
             this.Endpoint = new Uri(EndpointFormat.FormatInvariant(namespaceName));
@@ -85,13 +85,14 @@ namespace Microsoft.Azure.EventHubs
         /// Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
         /// </summary>
         /// <param name="connectionString">ServiceBus ConnectionString</param>
-        public ConnectionStringBuilder(string connectionString)
+        public ServiceBusConnectionSettings(string connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                throw ExceptionUtility.ArgumentNullOrWhiteSpace(nameof(connectionString));
+                throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(connectionString));
             }
 
+            this.OperationTimeout = DefaultOperationTimeout;
             this.ParseConnectionString(connectionString);
         }
 
@@ -170,7 +171,7 @@ namespace Microsoft.Azure.EventHubs
                 string key = keyAndValue[0];
                 if (keyAndValue.Length != 2)
                 {
-                    throw ExceptionUtility.Argument(nameof(connectionString), $"Value for the connection string parameter name '{key}' was not found.");
+                    throw Fx.Exception.Argument(nameof(connectionString), $"Value for the connection string parameter name '{key}' was not found.");
                 }
 
                 string value = keyAndValue[1];
@@ -192,7 +193,7 @@ namespace Microsoft.Azure.EventHubs
                 }
                 else
                 {
-                    throw ExceptionUtility.Argument(nameof(connectionString), $"Illegal connection string parameter name '{key}'");
+                    throw Fx.Exception.Argument(nameof(connectionString), $"Illegal connection string parameter name '{key}'");
                 }
             }
         }

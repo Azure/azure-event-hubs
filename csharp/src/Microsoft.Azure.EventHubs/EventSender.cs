@@ -11,14 +11,18 @@ namespace Microsoft.Azure.EventHubs
 
     abstract class EventSender : ClientEntity
     {
-        public EventSender()
+        protected EventSender(string partitionId)
             : base(nameof(EventSender) + StringUtility.GetRandomString())
         {
+            this.PartitionId = partitionId;
         }
+
+        protected string PartitionId { get; }
 
         public async Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
-            EventHubsEventSource.Log.EventSendStart(eventDatas.Count(), partitionKey);
+            int count = this.ValidateEvents(eventDatas, partitionKey);
+            EventHubsEventSource.Log.EventSendStart(count, partitionKey);
             try
             {
                 await this.OnSendAsync(eventDatas, partitionKey);
@@ -35,5 +39,20 @@ namespace Microsoft.Azure.EventHubs
         }
 
         protected abstract Task OnSendAsync(IEnumerable<EventData> eventDatas, string partitionKey);
+
+        int ValidateEvents(IEnumerable<EventData> eventDatas, string partitionKey)
+        {
+            int count;
+            if (eventDatas == null || (count = eventDatas.Count()) == 0)
+            {
+                throw Fx.Exception.Argument(nameof(eventDatas), Resources.EventDataListIsNullOrEmpty);
+            }
+            else if (this.PartitionId != null && partitionKey != null)
+            {
+                throw Fx.Exception.Argument(nameof(partitionKey), Resources.PartitionInvalidPartitionKey.FormatForUser(partitionKey, this.PartitionId));
+            }
+
+            return count;
+        }
     }
 }

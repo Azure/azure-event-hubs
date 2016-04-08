@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Microsoft.Azure.EventHubs": {
+      "commandName": "Microsoft.Azure.EventHubs",
+      "sdkVersion": "dnx-coreclr-win-x64.1.0.0-rc2-20221"
+    }
+  }
+}

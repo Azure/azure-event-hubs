@@ -76,5 +76,41 @@ namespace Microsoft.Azure.EventHubs {
                 return ResourceManager.GetString("CannotSendAnEmptyEvent", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///    Looks up a localized string similar to There are no event data supplied. Please make sure input events are not empty..
+        /// </summary>
+        internal static string EventDataListIsNullOrEmpty {
+            get {
+                return ResourceManager.GetString("EventDataListIsNullOrEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///    Looks up a localized string similar to The specified partitionKey &apos;{0}&apos; is invalid for partition &apos;{1}&apos;. Do not specify a partitionKey when sending using a PartitionedSender.  Instead use EventHubClient.Send..
+        /// </summary>
+        internal static string PartitionInvalidPartitionKey {
+            get {
+                return ResourceManager.GetString("PartitionInvalidPartitionKey", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///    Looks up a localized string similar to Argument {0} must be a non-negative timeout value. The provided value was {1}..
+        /// </summary>
+        internal static string TimeoutMustBeNonNegative {
+            get {
+                return ResourceManager.GetString("TimeoutMustBeNonNegative", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///    Looks up a localized string similar to Argument {0} must be a positive timeout value. The provided value was {1}..
+        /// </summary>
+        internal static string TimeoutMustBePositive {
+            get {
+                return ResourceManager.GetString("TimeoutMustBePositive", resourceCulture);
+            }
+        }
     }
 }
