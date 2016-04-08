@@ -47,14 +47,14 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that completes when the send operations is done.</returns>
         /// <exception cref="PayloadSizeExceedeedException">the total size of the <see cref="EventData"/> exceeds a pre-defined limit set by the service. Default is 256k bytes.</exception>
         /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
-        public Task SendAsync(EventData data)
+        public Task SendAsync(EventData eventData)
         {
-            if (data == null)
+            if (eventData == null)
             {
-                throw ExceptionUtility.ArgumentNull(nameof(data));
+                throw Fx.Exception.ArgumentNull(nameof(eventData));
             }
 
-            return this.InnerSender.SendAsync(new[] { data }, null);
+            return this.InnerSender.SendAsync(new[] { eventData }, null);
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Microsoft.Azure.EventHubs
         {
             if (eventDatas == null)
             {
-                throw ExceptionUtility.ArgumentNull(nameof(eventDatas));
+                throw Fx.Exception.ArgumentNull(nameof(eventDatas));
             }
 
             return this.InnerSender.SendAsync(eventDatas, null);

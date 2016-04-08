@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0-*",
+  "frameworks": {
+    "net46": {
+      "bin": {
+        "assembly": "../../lib/net46/Microsoft.Azure.Amqp.dll"
+      }
+    }
+  }
+}
