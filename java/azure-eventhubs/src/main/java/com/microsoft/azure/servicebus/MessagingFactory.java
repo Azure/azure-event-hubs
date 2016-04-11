@@ -4,20 +4,28 @@
  */
 package com.microsoft.azure.servicebus;
 
+import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
+import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
+import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
+import com.microsoft.azure.servicebus.amqp.ProtonUtil;
+import com.microsoft.azure.servicebus.amqp.ReactorHandler;
+import org.apache.qpid.proton.amqp.transport.ErrorCondition;
+import org.apache.qpid.proton.engine.BaseHandler;
+import org.apache.qpid.proton.engine.Connection;
+import org.apache.qpid.proton.engine.EndpointState;
+import org.apache.qpid.proton.engine.Event;
+import org.apache.qpid.proton.engine.Handler;
+import org.apache.qpid.proton.engine.HandlerException;
+import org.apache.qpid.proton.engine.Link;
+import org.apache.qpid.proton.reactor.Reactor;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.concurrent.*;
-import java.util.logging.*;
-
-import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.amqp.transport.ErrorCondition;
-import org.apache.qpid.proton.engine.*;
-import org.apache.qpid.proton.engine.Handler;
-import org.apache.qpid.proton.reactor.*;
-
-import com.microsoft.azure.servicebus.amqp.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -25,11 +33,12 @@ import com.microsoft.azure.servicebus.amqp.*;
  */
 public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory
 {
-	
-	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
-	
+
+	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60);
+	public static final Duration DefaultReactorTimeout = Duration.ofMillis(10);
+
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-	
+
 	private final Object connectionLock = new Object();
 	private final String hostName;
 	
@@ -45,15 +54,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private CompletableFuture<Connection> openConnection;
 	private LinkedList<Link> registeredLinks;
 	private TimeoutTracker connectionCreateTracker;
-	
-	/**
-	 * @param reactor parameter reactor is purely for testing purposes and the SDK code should always set it to null
-	 */
+	private final Duration reactorTimeout;
+
 	MessagingFactory(final ConnectionStringBuilder builder) throws IOException
 	{
 		super("MessagingFactory".concat(StringUtil.getRandomString()));
 		this.hostName = builder.getEndpoint().getHost();
-		
+		this.reactorTimeout = DefaultReactorTimeout;
+
 		this.startReactor(new ReactorHandler()
 		{
 			@Override
@@ -63,9 +71,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				MessagingFactory.this.onReactorError(new ServiceBusException(true, "Reactor finalized."));
 		    }
 		});
-		
-		this.operationTimeout = builder.getOperationTimeout();
+
 		this.retryPolicy = builder.getRetryPolicy();
+		this.operationTimeout = builder.getOperationTimeout();
 		this.registeredLinks = new LinkedList<Link>();
 	}
 	
@@ -88,7 +96,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private void startReactor(ReactorHandler reactorHandler) throws IOException
 	{
 		this.reactor = ProtonUtil.reactor(reactorHandler);
-		this.reactorThread = new Thread(new RunReactor(this.reactor));
+		this.reactorThread = new Thread(new RunReactor(this.reactor, reactorTimeout));
 		this.reactorThread.start();
 	}
 	
@@ -305,11 +313,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 	private class RunReactor implements Runnable
 	{
-		private Reactor r;
-		
-		public RunReactor(Reactor r)
+		private final Reactor r;
+		private final Duration reactorTimeout;
+
+		public RunReactor(Reactor r, Duration reactorTimeout)
 		{
 			this.r = r;
+			this.reactorTimeout = reactorTimeout;
 		}
 		
 		public void run()
@@ -321,7 +331,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			
 			try
 			{
-				this.r.run();
+				r.setTimeout(reactorTimeout.toMillis());
+				r.start();
+				while(r.process()) {}
+				r.stop();
 			}
 			catch (HandlerException handlerException)
 			{
