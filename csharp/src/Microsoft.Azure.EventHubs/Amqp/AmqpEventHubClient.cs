@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace Microsoft.Azure.EventHubs
+namespace Microsoft.Azure.EventHubs.Amqp
 {
     using System;
+    using System.Linq;
     using System.Net;
     using System.Net.Security;
     using System.Security.Cryptography.X509Certificates;
@@ -15,81 +16,73 @@ namespace Microsoft.Azure.EventHubs
     sealed class AmqpEventHubClient : EventHubClient
     {
         const string CbsSaslMechanismName = "MSSBCBS";
-        readonly string containerId;
 
         public AmqpEventHubClient(ServiceBusConnectionSettings connectionSettings)
             : base(connectionSettings)
         {
-            this.containerId = Guid.NewGuid().ToString("N");
+            this.ContainerId = Guid.NewGuid().ToString("N");
             this.AmqpVersion = new Version(1, 0, 0, 0);
-            this.UseSslStreamSecurity = true;
-            this.MaxFrameSize = (int)AmqpConstants.DefaultMaxFrameSize;
+            this.MaxFrameSize = AmqpConstants.DefaultMaxFrameSize;
+            var tokenProvider = connectionSettings.CreateTokenProvider();
+            this.CbsTokenProvider = new TokenProviderAdapter(tokenProvider, connectionSettings.OperationTimeout);
             this.ConnectionManager = new AmqpConnectionManager(this);
         }
 
+        internal ICbsTokenProvider CbsTokenProvider { get; }
+
         internal AmqpConnectionManager ConnectionManager { get; }
+
+        internal string ContainerId { get; }
 
         Version AmqpVersion { get; }
 
-        int MaxFrameSize { get; }
+        uint MaxFrameSize { get; }
 
-        bool UseSslStreamSecurity { get; }
-
-        internal override EventSender OnCreateEventSender(string partitionId)
+        internal override EventDataSender OnCreateEventSender(string partitionId)
         {
-            return new AmqpEventSender(this, partitionId);
+            return new AmqpEventDataSender(this, partitionId);
         }
 
-        protected override PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive, DateTime? dateTime, long epoch, bool isEpochReceiver)
+        protected override PartitionReceiver OnCreateReceiver(
+            string consumerGroupName, string partitionId, string startOffset, bool offsetInclusive, DateTime? startTime, long? epoch)
         {
             return new AmqpPartitionReceiver(
-                this, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver);
+                this, consumerGroupName, partitionId, startOffset, offsetInclusive, startTime, epoch);
         }
 
         public override async Task CloseAsync()
         {
+            // Closing the Connection will also close all Links associated with it.
             await this.ConnectionManager.CloseAsync();
         }
 
-        static string GetDomainName(string hostName)
-        {
-            string domainName = hostName;
-            int colonIndex = domainName.IndexOf(':');
-            if (colonIndex > 0)
-            {
-                domainName = domainName.Substring(0, colonIndex);
-            }
-
-            return domainName;
-        }
-
         internal static AmqpSettings CreateAmqpSettings(
-            string sslHostName,
-            bool useSslStreamSecurity,
-            bool useWebSockets,
-            bool sslStreamUpgrade,
-            bool hasTokenProvider,
-            NetworkCredential networkCredential,
             Version amqpVersion,
-            RemoteCertificateValidationCallback certificateValidationCallback,
-            bool forceTokenProvider = false)
+            bool useSslStreamSecurity,
+            bool hasTokenProvider,
+            string sslHostName = null,
+            bool useWebSockets = false,
+            bool sslStreamUpgrade = false,
+            NetworkCredential networkCredential = null,
+            RemoteCertificateValidationCallback certificateValidationCallback = null,
+            bool forceTokenProvider = true)
         {
             var settings = new AmqpSettings();
             if (useSslStreamSecurity && !useWebSockets && sslStreamUpgrade)
             {
-                TlsTransportSettings tlsSettings = new TlsTransportSettings();
+                var tlsSettings = new TlsTransportSettings();
                 tlsSettings.CertificateValidationCallback = certificateValidationCallback;
                 tlsSettings.TargetHost = sslHostName;
 
-                TlsTransportProvider tlsProvider = new TlsTransportProvider(tlsSettings);
-                tlsProvider.Versions.Add(new AmqpVersion(1, 0, 0));
+                var tlsProvider = new TlsTransportProvider(tlsSettings);
+                tlsProvider.Versions.Add(new AmqpVersion(amqpVersion));
                 settings.TransportProviders.Add(tlsProvider);
             }
 
             if (hasTokenProvider || networkCredential != null)
             {
-                SaslTransportProvider saslProvider = new SaslTransportProvider();
-                saslProvider.Versions.Add(new AmqpVersion(1, 0, 0));
+                var saslProvider = new SaslTransportProvider();
+                saslProvider.Versions.Add(new AmqpVersion(amqpVersion));
                 settings.TransportProviders.Add(saslProvider);
 
                 if (forceTokenProvider)
@@ -98,7 +91,7 @@ namespace Microsoft.Azure.EventHubs
                 }
                 else if (networkCredential != null)
                 {
-                    SaslPlainHandler plainHandler = new SaslPlainHandler();
+                    var plainHandler = new SaslPlainHandler();
                     plainHandler.AuthenticationIdentity = networkCredential.UserName;
                     plainHandler.Password = networkCredential.Password;
                     saslProvider.AddHandler(plainHandler);
@@ -110,7 +103,7 @@ namespace Microsoft.Azure.EventHubs
                 }
             }
 
-            AmqpTransportProvider amqpProvider = new AmqpTransportProvider();
+            var amqpProvider = new AmqpTransportProvider();
             amqpProvider.Versions.Add(new AmqpVersion(amqpVersion));
             settings.TransportProviders.Add(amqpProvider);
 
@@ -122,43 +115,49 @@ namespace Microsoft.Azure.EventHubs
             string hostName,
             int port,
             bool useSslStreamSecurity,
-            bool sslStreamUpgrade,
-            string sslHostName,
-            X509Certificate2 certificate,
-            RemoteCertificateValidationCallback validateCertificate)
+            bool sslStreamUpgrade = false,
+            string sslHostName = null,
+            X509Certificate2 certificate = null,
+            RemoteCertificateValidationCallback certificateValidationCallback = null)
         {
-            TcpTransportSettings tcpSettings = new TcpTransportSettings();
-            tcpSettings.Host = networkHost;
-            tcpSettings.Port = port < 0 ? AmqpConstants.DefaultSecurePort : port;
-            tcpSettings.ReceiveBufferSize = AmqpConstants.TransportBufferSize;
-            tcpSettings.SendBufferSize = AmqpConstants.TransportBufferSize;
+            TcpTransportSettings tcpSettings = new TcpTransportSettings
+            {
+                Host = networkHost,
+                Port = port < 0 ? AmqpConstants.DefaultSecurePort : port,
+                ReceiveBufferSize = AmqpConstants.TransportBufferSize,
+                SendBufferSize = AmqpConstants.TransportBufferSize
+            };
 
             TransportSettings tpSettings = tcpSettings;
             if (useSslStreamSecurity && !sslStreamUpgrade)
             {
-                TlsTransportSettings tlsSettings = new TlsTransportSettings(tcpSettings);
-                tlsSettings.TargetHost = sslHostName ?? GetDomainName(hostName);
-                tlsSettings.Certificate = certificate;
-                tlsSettings.CertificateValidationCallback = validateCertificate;
+                TlsTransportSettings tlsSettings = new TlsTransportSettings(tcpSettings)
+                {
+                    TargetHost = sslHostName ?? hostName,
+                    Certificate = certificate,
+                    CertificateValidationCallback = certificateValidationCallback
+                };
                 tpSettings = tlsSettings;
             }
 
             return tpSettings;
         }
 
-        static AmqpConnectionSettings CreateAmqpConnectionSettings(int maxFrameSize, string containerId, string hostName)
+        static AmqpConnectionSettings CreateAmqpConnectionSettings(uint maxFrameSize, string containerId, string hostName)
         {
-            var connectionSettings = new AmqpConnectionSettings();
-            connectionSettings.MaxFrameSize = checked((uint)maxFrameSize);
-            connectionSettings.ContainerId = containerId;
-            connectionSettings.HostName = hostName;
+            var connectionSettings = new AmqpConnectionSettings
+            {
+                MaxFrameSize = maxFrameSize,
+                ContainerId = containerId,
+                HostName = hostName
+            };
             return connectionSettings;
         }
 
         /// <summary>
         /// This class is responsible for getting or creating the AmqpConnection for use.
         /// </summary>
-        sealed internal class AmqpConnectionManager
+        internal sealed class AmqpConnectionManager
         {
             readonly AmqpEventHubClient eventHubClient;
             Task<AmqpConnection> createConnectionTask;
@@ -210,39 +209,32 @@ namespace Microsoft.Azure.EventHubs
                 string hostName = this.eventHubClient.ConnectionSettings.Endpoint.Host;
                 string networkHost = this.eventHubClient.ConnectionSettings.Endpoint.Host;
                 int port = this.eventHubClient.ConnectionSettings.Endpoint.Port;
-                string sslHostName = null;
 
                 var timeoutHelper = new TimeoutHelper(this.eventHubClient.ConnectionSettings.OperationTimeout);
                 var amqpSettings = CreateAmqpSettings(
-                    sslHostName: sslHostName,
-                    useSslStreamSecurity: this.eventHubClient.UseSslStreamSecurity,
-                    useWebSockets: false,
-                    sslStreamUpgrade: false,
-                    hasTokenProvider: true,
-                    networkCredential: null,
                     amqpVersion: this.eventHubClient.AmqpVersion,
-                    certificateValidationCallback: null,
-                    forceTokenProvider: false);
+                    useSslStreamSecurity: true,
+                    hasTokenProvider: true);
 
                 TransportSettings tpSettings = CreateTcpTransportSettings(
                     networkHost: networkHost,
                     hostName: hostName,
                     port: port,
-                    useSslStreamSecurity: this.eventHubClient.UseSslStreamSecurity,
-                    sslStreamUpgrade: false,
-                    sslHostName: sslHostName,
-                    certificate: null,
-                    validateCertificate: null);
+                    useSslStreamSecurity: true);
 
                 var initiator = new AmqpTransportInitiator(amqpSettings, tpSettings);
                 var transport = await initiator.ConnectTaskAsync(timeoutHelper.RemainingTime());
 
-                var connectionSettings = CreateAmqpConnectionSettings(this.eventHubClient.MaxFrameSize, this.eventHubClient.containerId, hostName);
+                var connectionSettings = CreateAmqpConnectionSettings(this.eventHubClient.MaxFrameSize, this.eventHubClient.ContainerId, hostName);
                 var connection = new AmqpConnection(transport, amqpSettings, connectionSettings);
                 await connection.OpenAsync(timeoutHelper.RemainingTime());
 
-                // Always create the CBS Link + Session as well (.ctor adds it to AmqpConnection.Extensions for easy access).
+                // Always create the CBS Link + Session
                 var cbsLink = new AmqpCbsLink(connection);
+                if (connection.Extensions.Find<AmqpCbsLink>() == null)
+                {
+                    connection.Extensions.Add(cbsLink);
+                }
 
                 return connection;
             }
@@ -256,6 +248,29 @@ namespace Microsoft.Azure.EventHubs
                     var connection = await localCreateTask;
                     await connection.CloseAsync(timeoutHelper.RemainingTime());
                 }
+            }
+        }
+
+        /// <summary>
+        /// Provides an adapter from TokenProvider to ICbsTokenProvider for AMQP CBS usage.
+        /// </summary>
+        sealed class TokenProviderAdapter : ICbsTokenProvider
+        {
+            readonly TokenProvider tokenProvider;
+            readonly TimeSpan operationTimeout;
+
+            public TokenProviderAdapter(TokenProvider tokenProvider, TimeSpan operationTimeout)
+            {
+                Fx.Assert(tokenProvider != null, "tokenProvider cannot be null");
+                this.tokenProvider = tokenProvider;
+                this.operationTimeout = operationTimeout;
+            }
+
+            public async Task<CbsToken> GetTokenAsync(Uri namespaceAddress, string appliesTo, string[] requiredClaims)
+            {
+                string claim = requiredClaims?.FirstOrDefault();
+                var token = await this.tokenProvider.GetTokenAsync(appliesTo, claim, this.operationTimeout);
+                return new CbsToken(token.TokenValue, CbsConstants.ServiceBusSasTokenType, token.ExpiresAtUtc);
             }
         }
     }

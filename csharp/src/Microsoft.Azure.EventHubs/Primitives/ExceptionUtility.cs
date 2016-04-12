@@ -30,5 +30,11 @@ namespace Microsoft.Azure.EventHubs
         {
             return new ArgumentOutOfRangeException(paramName, actualValue, message);
         }
+
+        public Exception AsError(Exception exception)
+        {
+            EventHubsEventSource.Log.ThrowingExceptionError(exception.ToString());
+            return exception;
+        }
     }
 }

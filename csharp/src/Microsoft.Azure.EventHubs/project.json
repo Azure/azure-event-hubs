@@ -12,9 +12,6 @@
         "net46": {
             "dependencies": {
                 "Microsoft.Azure.Amqp": "1.0.0-*"
-            },
-            "frameworkAssemblies": {
-                "System.ServiceModel": "4.0.0.0"
             }
         },
         "dnxcore50": {

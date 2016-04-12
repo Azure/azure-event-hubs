@@ -5,17 +5,19 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics.Tracing;
     using System.Linq;
     using System.Threading.Tasks;
 
-    abstract class EventSender : ClientEntity
+    abstract class EventDataSender : ClientEntity
     {
-        protected EventSender(string partitionId)
-            : base(nameof(EventSender) + StringUtility.GetRandomString())
+        protected EventDataSender(EventHubClient eventHubClient, string partitionId)
+            : base(nameof(EventDataSender) + StringUtility.GetRandomString())
         {
+            this.EventHubClient = eventHubClient;
             this.PartitionId = partitionId;
         }
+
+        protected EventHubClient EventHubClient { get; }
 
         protected string PartitionId { get; }
 

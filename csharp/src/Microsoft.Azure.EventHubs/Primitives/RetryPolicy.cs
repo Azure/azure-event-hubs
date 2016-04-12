@@ -5,20 +5,12 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
 
-    // TODO: SIMPLIFY retryPolicy - ConcurrentHashMap is not needed
     public abstract class RetryPolicy
     {
-        static readonly TimeSpan DEFAULT_RERTRY_MIN_BACKOFF = TimeSpan.Zero;
-        static readonly TimeSpan DEFAULT_RERTRY_MAX_BACKOFF = TimeSpan.FromSeconds(30);
-
-        const int DEFAULT_MAX_RETRY_COUNT = 10;
-
-        static readonly RetryPolicy NO_RETRY = new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0);
-
-        protected RetryPolicy()
-        {
-            throw new NotImplementedException();
-        }
+        public static readonly RetryPolicy NoRetry = new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0);
+        static readonly TimeSpan DefaultRetryMinBackoff = TimeSpan.Zero;
+        static readonly TimeSpan DefaultRetryMaxBackoff = TimeSpan.FromSeconds(30);
+        const int DefaultRetryMaxCount = 10;
 
         public void IncrementRetryCount(string clientId)
         {
@@ -39,18 +31,7 @@ namespace Microsoft.Azure.EventHubs
         {
             get
             {
-                return new RetryExponential(
-                    DEFAULT_RERTRY_MIN_BACKOFF,
-                    DEFAULT_RERTRY_MAX_BACKOFF,
-                    DEFAULT_MAX_RETRY_COUNT);
-            }
-        }
-
-        public static RetryPolicy NoRetry
-        {
-            get
-            {
-                return RetryPolicy.NO_RETRY;
+                return new RetryExponential(DefaultRetryMinBackoff, DefaultRetryMaxBackoff, DefaultRetryMaxCount);
             }
         }
 

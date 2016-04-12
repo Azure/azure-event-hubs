@@ -5,6 +5,7 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
     using System.Text;
+    using Microsoft.Azure.EventHubs.Amqp;
 
     /// <summary>
     /// ServiceBusConnectionSettings can be used to construct a connection string which can establish communication with ServiceBus entities.
@@ -67,17 +68,13 @@ namespace Microsoft.Azure.EventHubs
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : nameof(sharedAccessKey));
             }
-            else if (retryPolicy == null)
-            {
-                throw Fx.Exception.ArgumentNull(nameof(retryPolicy));
-            }
-
+            
             this.Endpoint = new Uri(EndpointFormat.FormatInvariant(namespaceName));
             this.EntityPath = entityPath;
             this.SasKey = sharedAccessKey;
             this.SasKeyName = sharedAccessKeyName;
             this.OperationTimeout = operationTimeout;
-            this.RetryPolicy = retryPolicy;
+            this.RetryPolicy = retryPolicy ?? RetryPolicy.Default;
         }
 
         /// <summary>
@@ -93,6 +90,7 @@ namespace Microsoft.Azure.EventHubs
             }
 
             this.OperationTimeout = DefaultOperationTimeout;
+            this.RetryPolicy = RetryPolicy.Default;
             this.ParseConnectionString(connectionString);
         }
 
@@ -123,6 +121,23 @@ namespace Microsoft.Azure.EventHubs
         /// Get the retry policy instance that was created as part of this builder's creation.
         /// </summary>
         public RetryPolicy RetryPolicy { get; set; }
+
+        public ServiceBusConnectionSettings Clone()
+        {
+            var clone = new ServiceBusConnectionSettings(this.ToString());
+            clone.OperationTimeout = this.OperationTimeout;
+            clone.RetryPolicy = this.RetryPolicy;
+            return clone;
+        }
+
+        /// <summary>
+        /// Creates a TokenProvider given the credentials in this ServiceBusConnectionSettings.
+        /// </summary>
+        /// <returns></returns>
+        public TokenProvider CreateTokenProvider()
+        {
+            return TokenProvider.CreateSharedAccessSignatureTokenProvider(this.SasKeyName, this.SasKey);
+        }
 
         /// <summary>
         /// Returns an interoperable connection string that can be used to connect to ServiceBus Namespace
@@ -157,7 +172,7 @@ namespace Microsoft.Azure.EventHubs
         internal EventHubClient CreateEventHubClient()
         {
             // In the future to support other protocols add that logic here.
-            return new AmqpEventHubClient(this);
+            return new AmqpEventHubClient(this.Clone());
         }
 
         void ParseConnectionString(string connectionString)
