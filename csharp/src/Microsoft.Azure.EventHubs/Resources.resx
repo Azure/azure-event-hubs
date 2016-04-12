@@ -117,14 +117,26 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AmqpMessageSizeExceeded" xml:space="preserve">
+    <value>The received message (delivery-id:{0}, size:{1} bytes) exceeds the limit ({2} bytes) currently allowed on the link.</value>
+  </data>
   <data name="ArgumentNullOrWhiteSpace" xml:space="preserve">
     <value>The argument {0} is null or white space.</value>
+  </data>
+  <data name="ArgumentStringTooBig" xml:space="preserve">
+    <value>The argument '{0}' cannot exceed {1} characters.</value>
   </data>
   <data name="CannotSendAnEmptyEvent" xml:space="preserve">
     <value>Sending empty {0} is not a valid operation.</value>
   </data>
   <data name="EventDataListIsNullOrEmpty" xml:space="preserve">
     <value>There are no event data supplied. Please make sure input events are not empty.</value>
+  </data>
+  <data name="FailedToSerializeUnsupportedType" xml:space="preserve">
+    <value>Serialization operation failed due to unsupported type {0}.</value>
+  </data>
+  <data name="InvalidEncoding" xml:space="preserve">
+    <value>The string has an invalid encoding format.</value>
   </data>
   <data name="PartitionInvalidPartitionKey" xml:space="preserve">
     <value>The specified partitionKey '{0}' is invalid for partition '{1}'. Do not specify a partitionKey when sending using a PartitionedSender.  Instead use EventHubClient.Send.</value>
@@ -134,5 +146,11 @@
   </data>
   <data name="TimeoutMustBePositive" xml:space="preserve">
     <value>Argument {0} must be a positive timeout value. The provided value was {1}.</value>
+  </data>
+  <data name="TokenMissingAudience" xml:space="preserve">
+    <value>The provided token does not specify the 'Audience' value.</value>
+  </data>
+  <data name="TokenMissingExpiresOn" xml:space="preserve">
+    <value>The provided token does not specify the 'ExpiresOn' value.</value>
   </data>
 </root>

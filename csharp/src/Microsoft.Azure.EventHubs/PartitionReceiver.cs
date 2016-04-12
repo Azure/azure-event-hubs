@@ -25,7 +25,11 @@ namespace Microsoft.Azure.EventHubs
         /// This is a constant defined to represent the start of a partition stream in EventHub.
         /// </summary>
         public static readonly string StartOfStream = "-1";
-        internal const long NullEpoch = 0;
+
+        /// <summary>
+        /// The default consumer group name: $Default.
+        /// </summary>
+        public static readonly string DefaultConsumerGroupName = "$Default";
 
         const int MinPrefetchCount = 10;
         const int MaxPrefetchCount = 999;
@@ -35,16 +39,31 @@ namespace Microsoft.Azure.EventHubs
             EventHubClient eventHubClient,
             string consumerGroupName,
             string partitionId,
-            string startingOffset,
+            string startOffset,
             bool offsetInclusive,
-            DateTime? dateTime,
-            long epoch,
-            bool isEpochReceiver)
-            : base(nameof(EventSender) + StringUtility.GetRandomString())
+            DateTime? startTime,
+            long? epoch)
+            : base(nameof(EventDataSender) + StringUtility.GetRandomString())
         {
+            this.EventHubClient = eventHubClient;
+            this.ConsumerGroupName = consumerGroupName;
             this.PartitionId = partitionId;
+            this.StartOffset = startOffset;
+            this.OffsetInclusive = offsetInclusive;
+            this.StartTime = startTime;
             this.PrefetchCount = DefaultPrefetchCount;
+            this.Epoch = epoch;
         }
+
+        /// <summary>
+        /// The EventHubClient this PartitionReceiver was created from.
+        /// </summary>
+        public EventHubClient EventHubClient { get; }
+
+        /// <summary>
+        /// The Consumer Group Name
+        /// </summary>
+        public string ConsumerGroupName { get; }
 
         /// <summary>
         /// Get the EventHub partition identifier.
@@ -60,13 +79,16 @@ namespace Microsoft.Azure.EventHubs
 
         /// <summary>
         /// Get the epoch value that this receiver is currently using for partition ownership.
-        /// <para>A value of 0 means this receiver is not an epoch-based receiver.</para>
+        /// <para>A value of null means this receiver is not an epoch-based receiver.</para>
         /// </summary>
         /// <value>the epoch value that this receiver is currently using for partition ownership.</value>
-        public long Epoch
-        {
-            get; private set;
-        }
+        public long? Epoch { get; }
+
+        protected DateTime? StartTime { get; private set; }
+
+        protected bool OffsetInclusive { get; }
+
+        protected string StartOffset { get; private set; }
 
         /// <summary>
         /// Receive a batch of <see cref="EventData"/>'s from an EventHub partition
@@ -100,9 +122,18 @@ namespace Microsoft.Azure.EventHubs
         /// </code>
         /// </example>
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
-        public Task<IEnumerable<EventData>> ReceiveAsync()
+        public async Task<IEnumerable<EventData>> ReceiveAsync()
         {
-            return this.OnReceiveAsync();
+            IEnumerable<EventData> events = await this.OnReceiveAsync();
+            EventData lastEvent = events?.LastOrDefault();
+            if (lastEvent != null)
+            {
+                // Store the current position in the stream of messages
+                this.StartOffset = lastEvent.SystemProperties.Offset;
+                this.StartTime = lastEvent.SystemProperties.EnqueuedTimeUtc;
+            }
+
+            return events;
         }
 
         public void SetReceiveHandler(IPartitionReceiveHandler receiveHandler)

@@ -66,6 +66,15 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
+        [Event(6, Level = EventLevel.Error, Message = "Throwing Exception: {0}")]
+        public void ThrowingExceptionError(string error)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(6, error);
+            }
+        }
+
         // TODO: Add Keywords if desired.
         //public class Keywords   // This is a bitvector
         //{

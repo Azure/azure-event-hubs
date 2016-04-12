@@ -13,7 +13,7 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     public abstract class EventHubClient : ClientEntity
     {
-        EventSender innerSender;
+        EventDataSender innerSender;
 
         internal EventHubClient(ServiceBusConnectionSettings connectionSettings)
             : base(StringUtility.GetRandomString())
@@ -28,7 +28,7 @@ namespace Microsoft.Azure.EventHubs
 
         protected object ThisLock { get; } = new object();
 
-        EventSender InnerSender
+        EventDataSender InnerSender
         {
             get
             {
@@ -254,19 +254,19 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         /// <param name="consumerGroupName">the consumer group name that this receiver should be grouped under.</param>
         /// <param name="partitionId">the partition Id that the receiver belongs to. All data received will be from this partition only.</param>
-        /// <param name="startingOffset">the offset to start receiving the events from. To receive from start of the stream use: <see cref="PartitionReceiver.StartOfStream"/></param>
+        /// <param name="startOffset">the offset to start receiving the events from. To receive from start of the stream use: <see cref="PartitionReceiver.StartOfStream"/></param>
         /// <param name="offsetInclusive">if set to true, the startingOffset is treated as an inclusive offset - meaning the first event returned is the
         /// one that has the starting offset. Normally first event returned is the event after the starting offset.</param>
         /// <returns>The created PartitionReceiver</returns>
         /// <seealso cref="PartitionReceiver"/>
-        public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive)
+        public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, string startOffset, bool offsetInclusive)
         {
             if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
             }
 
-            return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, PartitionReceiver.NullEpoch, false);
+            return this.OnCreateReceiver(consumerGroupName, partitionId, startOffset, offsetInclusive, null, null);
         }
 
         /// <summary>
@@ -275,17 +275,17 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         /// <param name="consumerGroupName">the consumer group name that this receiver should be grouped under.</param>
         /// <param name="partitionId">the partition Id that the receiver belongs to. All data received will be from this partition only.</param>
-        /// <param name="dateTime">the DateTime instant that receive operations will start receive events from. Events received will have <see cref="EventData.SystemProperties.EnqueuedTime"/> later than this Instant.</param>
+        /// <param name="startTime">the DateTime instant that receive operations will start receive events from. Events received will have <see cref="EventData.SystemProperties.EnqueuedTime"/> later than this Instant.</param>
         /// <returns>The created PartitionReceiver</returns>
         /// <seealso cref="PartitionReceiver"/>
-        public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, DateTime dateTime)
+        public PartitionReceiver CreateReceiver(string consumerGroupName, string partitionId, DateTime startTime)
         {
             if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
             }
 
-            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, dateTime, PartitionReceiver.NullEpoch, false);
+            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, startTime, null);
         }
 
         /// <summary>
@@ -331,7 +331,7 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
             }
 
-            return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch, true);
+            return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch);
         }
 
         /// <summary>
@@ -344,27 +344,27 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         /// <param name="consumerGroupName">the consumer group name that this receiver should be grouped under.</param>
         /// <param name="partitionId">the partition Id that the receiver belongs to. All data received will be from this partition only.</param>
-        /// <param name="dateTime">the date time instant that receive operations will start receive events from. Events received will have <see cref="EventData.SystemProperties.EnqueuedTime"/> later than this instant.</param>
+        /// <param name="startTime">the date time instant that receive operations will start receive events from. Events received will have <see cref="EventData.SystemProperties.EnqueuedTime"/> later than this instant.</param>
         /// <param name="epoch">a unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.</param>
         /// <returns>The created PartitionReceiver</returns>
         /// <seealso cref="PartitionReceiver"/>
-        public PartitionReceiver CreateEpochReceiver(string consumerGroupName, string partitionId, DateTime dateTime, long epoch)
+        public PartitionReceiver CreateEpochReceiver(string consumerGroupName, string partitionId, DateTime startTime, long epoch)
         {
             if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
             }
 
-            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, dateTime, epoch, true);
+            return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, startTime, epoch);
         }
 
-        internal EventSender CreateEventSender(string partitionId = null)
+        internal EventDataSender CreateEventSender(string partitionId = null)
         {
             return this.OnCreateEventSender(partitionId);
 		}
 
-        internal abstract EventSender OnCreateEventSender(string partitionId);
+        internal abstract EventDataSender OnCreateEventSender(string partitionId);
 
-        protected abstract PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startingOffset, bool offsetInclusive, DateTime? dateTime, long epoch, bool isEpochReceiver);
+        protected abstract PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startOffset, bool offsetInclusive, DateTime? startTime, long? epoch);
     }
 }

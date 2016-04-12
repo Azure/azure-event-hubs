@@ -1932,6 +1932,15 @@
           "lib/DNXCore50/Microsoft.Win32.Registry.dll": {}
         }
       },
+      "runtime.any.System.IO/4.0.10-rc2-23805": {
+        "type": "package",
+        "compile": {
+          "ref/dotnet/_._": {}
+        },
+        "runtime": {
+          "lib/dotnet5.4/System.IO.dll": {}
+        }
+      },
       "runtime.any.System.Linq.Expressions/4.0.11-rc2-23712": {
         "type": "package",
         "dependencies": {
@@ -4652,6 +4661,15 @@
           "lib/DNXCore50/Microsoft.Win32.Registry.dll": {}
         }
       },
+      "runtime.any.System.IO/4.0.10-rc2-23805": {
+        "type": "package",
+        "compile": {
+          "ref/dotnet/_._": {}
+        },
+        "runtime": {
+          "lib/dotnet5.4/System.IO.dll": {}
+        }
+      },
       "runtime.any.System.Linq.Expressions/4.0.11-rc2-23712": {
         "type": "package",
         "dependencies": {
@@ -7153,11 +7171,11 @@
   "libraries": {
     "Microsoft.Azure.Amqp/1.0.0": {
       "type": "project",
-      "path": "wrap/Microsoft.Azure.Amqp/project.json"
+      "path": "../../wrap/Microsoft.Azure.Amqp/project.json"
     },
     "Microsoft.Azure.Amqp.Dnx/1.0.0": {
       "type": "project",
-      "path": "wrap/Microsoft.Azure.Amqp.Dnx/project.json"
+      "path": "../../wrap/Microsoft.Azure.Amqp.Dnx/project.json"
     },
     "Microsoft.CSharp/4.0.1-rc2-23712": {
       "type": "package",
@@ -7383,6 +7401,30 @@
         "ref/dotnet5.4/zh-hans/Microsoft.Win32.Registry.xml",
         "ref/dotnet5.4/zh-hant/Microsoft.Win32.Registry.xml",
         "ref/net46/Microsoft.Win32.Registry.dll"
+      ]
+    },
+    "runtime.any.System.IO/4.0.10-rc2-23805": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "4Vq4fiQvkojwjD3KJluXCMLMawu884UyQwbzRXrpYEDanvLHRZOl9PXBbzAVanUOJ4SW9EGqoPVd+LHrHZc2lg==",
+      "files": [
+        "dotnet_library_license.txt",
+        "lib/dotnet5.4/System.IO.dll",
+        "lib/MonoAndroid10/_._",
+        "lib/MonoTouch10/_._",
+        "lib/net45/_._",
+        "lib/netcore50/System.IO.dll",
+        "lib/win8/_._",
+        "lib/wp80/_._",
+        "lib/wpa81/_._",
+        "lib/xamarinios10/_._",
+        "lib/xamarinmac20/_._",
+        "ref/dotnet/_._",
+        "runtime.any.System.IO.4.0.10-rc2-23805.nupkg",
+        "runtime.any.System.IO.4.0.10-rc2-23805.nupkg.sha512",
+        "runtime.any.System.IO.nuspec",
+        "runtimes/aot/lib/netcore50/_._",
+        "ThirdPartyNotices.txt"
       ]
     },
     "runtime.any.System.Linq.Expressions/4.0.11-rc2-23712": {
@@ -12745,8 +12787,7 @@
   "projectFileDependencyGroups": {
     "": [],
     ".NETFramework,Version=v4.6": [
-      "Microsoft.Azure.Amqp >= 1.0.0-*",
-      "fx/System.ServiceModel >= 4.0.0"
+      "Microsoft.Azure.Amqp >= 1.0.0-*"
     ],
     "DNXCore,Version=v5.0": [
       "Microsoft.Azure.Amqp.Dnx >= 1.0.0-*",

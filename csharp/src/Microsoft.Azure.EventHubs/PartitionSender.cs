@@ -28,7 +28,7 @@ namespace Microsoft.Azure.EventHubs
 
         public string PartitionId { get; }
 
-        EventSender InnerSender { get; }
+        EventDataSender InnerSender { get; }
 
         object ThisLock { get; } = new object();
 

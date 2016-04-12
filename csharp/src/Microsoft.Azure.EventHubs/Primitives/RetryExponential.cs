@@ -15,9 +15,18 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     public sealed class RetryExponential : RetryPolicy
     {
+        readonly TimeSpan minimumBackoff;
+        readonly TimeSpan maximumBackoff;
+        readonly int maximumRetryCount;
+
         public RetryExponential(TimeSpan minimumBackoff, TimeSpan maximumBackoff, int maximumRetryCount)
         {
-            throw new NotImplementedException();
+            TimeoutHelper.ThrowIfNegativeArgument(minimumBackoff, nameof(minimumBackoff));
+            TimeoutHelper.ThrowIfNegativeArgument(maximumBackoff, nameof(maximumBackoff));
+
+            this.minimumBackoff = minimumBackoff;
+            this.maximumBackoff = maximumBackoff;
+            this.maximumRetryCount = maximumRetryCount;
         }
 
         public override TimeSpan? GetNextRetryInterval(string clientId, Exception lastException, TimeSpan remainingTime)

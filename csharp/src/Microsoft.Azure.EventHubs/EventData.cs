@@ -66,7 +66,7 @@ namespace Microsoft.Azure.EventHubs
         /// <summary>
         /// Application property bag
         /// </summary>
-        public IDictionary<string, string> Properties
+        public IDictionary<string, object> Properties
         {
             get; set;
         }
@@ -82,11 +82,8 @@ namespace Microsoft.Azure.EventHubs
 
         public sealed class SystemPropertiesCollection
         {
-            EventData eventData;
-
-            SystemPropertiesCollection(EventData eventData)
+            internal SystemPropertiesCollection()
             {
-                this.eventData = eventData;
             }
 
             public long SequenceNumber
@@ -94,7 +91,7 @@ namespace Microsoft.Azure.EventHubs
                 get; internal set;
             }
 
-            public DateTime EnqueuedTime
+            public DateTime EnqueuedTimeUtc
             {
                 get; internal set;
             }
