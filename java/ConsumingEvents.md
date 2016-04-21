@@ -30,7 +30,7 @@ following dependency declaration inside of your Maven project file:
     <dependency> 
    		<groupId>com.microsoft.azure</groupId> 
    		<artifactId>azure-eventhubs-clients</artifactId> 
-   		<version>0.6.0</version> 
+   		<version>0.6.7</version> 
    	</dependency>   
  ```
  
@@ -51,7 +51,13 @@ Azure Service Bus Messaging client.
 The receiver code creates an *EventHubClient* from a given connecting string
       
 ```Java
-    EventHubClient ehClient = EventHubClient.createFromConnectionString(str).get();
+    final String namespaceName = "----ServiceBusNamespaceName-----";
+    final String eventHubName = "----EventHubName-----";
+    final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
+    final String sasKey = "---SharedAccessSignatureKey----";
+    ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
+		
+    EventHubClient ehClient = EventHubClient.createFromConnectionString(connStr.toString()).get();
 ```           
 
 The receiver code then creates (at least) one *PartitionReceiver* that will receive the data. The receiver is seeded with 

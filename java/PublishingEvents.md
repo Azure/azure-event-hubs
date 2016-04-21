@@ -12,12 +12,12 @@ following dependency declaration inside of your Maven project file:
     <dependency> 
    		<groupId>com.microsoft.azure</groupId> 
    		<artifactId>azure-eventhubs-clients</artifactId> 
-   		<version>0.6.0</version> 
+   		<version>0.6.7</version> 
    	</dependency>   
  ```
  
  For different types of build environments, the latest released JAR files can also be [explicitly obtained from the 
- Maven Central Repository]() or from [the Release distribution point on GitHub]().  
+ Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Ca%3A%22azure-eventhubs%22) or from [the Release distribution point on GitHub](https://github.com/Azure/azure-event-hubs/releases).  
 
 
 For a simple event publisher, you'll need to import the *com.microsoft.azure.eventhubs* package for the Event Hub client classes
@@ -34,7 +34,13 @@ Using an Event Hub connection string, which holds all required connection inform
 (see [Connection Strings](#connection-strings)), you then create an *EventHubClient* instance.   
    
 ```Java
-    EventHubClient ehClient = EventHubClient.createFromConnectionString(str).get();
+    final String namespaceName = "----ServiceBusNamespaceName-----";
+    final String eventHubName = "----EventHubName-----";
+    final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
+    final String sasKey = "---SharedAccessSignatureKey----";
+    ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
+		
+    EventHubClient ehClient = EventHubClient.createFromConnectionString(connStr.toString()).get();
 ```
 
 Once you have the client in hands, you can package any arbitrary payload as a plain array of bytes and send it. The samples 
@@ -46,7 +52,7 @@ we use to illustrate the functionality send a UTF-8 encoded JSON data, but you c
 ```
          
 The entire client API is built for Java 8's concurrent task model, generally returning 
-[*CompleteableFuture<T>*](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html), so the 
+[*CompletableFuture<T>*](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html), so the 
 *.get()* suffixing the operations in the snippets above just wait until the respective operation is complete.
 
 ##AMQP 1.0

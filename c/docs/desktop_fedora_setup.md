@@ -15,12 +15,12 @@
   ms.topic="article"
   ms.date="05/29/2015"
   ms.author="dobett"/>
+  
+  > This document is known to be outdated
 
 # How to build the samples in Fedora
 
 The following procedure describes the process of building and running the Event Hubs SDK samples (**send** and **send_batch**) in a Fedora desktop environment. The samples enable your Fedora machine to act as a device that can connect to an Azure Event Hub.
-
-The client library depends on Apache Qpid Proton.
 
 ## Requirements
 
@@ -74,13 +74,7 @@ Now, configure the sample:
 
 ## Build the samples
 
-1. On the board, run the following command to build and install the Apache Proton libraries:
-
-  ```
-	sudo ~/azure-event-hubs/c/build_all/linux/build_proton.sh --install /usr
-	```
-
-5. Assuming build\_proton.sh completed successfully, you can now build the SDK samples using the following command:
+You can now build the SDK samples using the following command:
 
 	```
   ~/azure-event-hubs/c/build_all/linux/build.sh

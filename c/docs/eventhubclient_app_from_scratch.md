@@ -1,3 +1,5 @@
+> This document is known to be outdated
+
 # How to create an Azure EventHub client application from scratch
 
 This document describes how to create a client application that uses the *Microsoft Azure Event Hub Client for C* to communicate with the Azure Event Hub service. It uses a garage door opener as the example device to implement and shows you how to create a Visual Studio project to build a client to run on Windows and an Eclipse project to build a client to run on Ubuntu.
@@ -11,7 +13,6 @@ This section shows you how to use Visual Studio to build an Event Hub client app
 Before you begin, you should ensure that your local development environment meets these prerequisites:
 
 - Clone the latest version of the [azure-event-hubs](https://github.com/Azure/azure-event-hubs) repository to your local machine.
-- Build the _proton_ libraries on your local machine. For more information, see [Windows Setup](https://github.com/Azure/azure-iot-suite-sdks/blob/master/doc/windows_setup.md).
 - Ensure the Windows samples in the [azure-event-hubs](https://github.com/Azure/azure-event-hubs) repository build successfully:
   - Open a Visual Studio command prompt on your local machine.
   - Navigate to the folder **build_all\Windows** in your local copy of the repository.
@@ -29,18 +30,15 @@ The following steps show you how to create an Event Hub client application proje
 5. Expand **Linker** and then click **General**. Add  **..\c\eventhub_client\build\windows\$(Platform)\$(Configuration)** to **Additional Library Directories**.
 ![General linker properties](./media/eventhub_app_from_scratch/vsgenerallinkerproperties.png)
 6. Click **Input** and add **eventhubclient.lib** to **Additional Dependencies**.
-7. If you are using AMQP as your communications transport:
-  - Add **qpid-proton.lib** to **Addition Dependencies** (or **qpid-protond.lib** for a debug build).
-  - Click **General** and add **$(PROTON_PATH)\qpid-proton\build\proton-c\$(Configuration)** to **Additional Library Directories**.
-8. Click **Save** to save your project configuration changes.
-9. Open the file **stdafx.h** and add references to the iothub client header files:
+7. Click **Save** to save your project configuration changes.
+8. Open the file **stdafx.h** and add references to the iothub client header files:
 
 		#include "eventhubclient.h"
 		#include "eventdata.h"
 
-10. Save the changes to **stdafx.h**. (At this point it's a good idea to compile your project to make sure includes and link configuration are working properly).
-11. Open the file **GarageOpener.cpp**.
-12. See the "Appendix: Garage Door Opener code sample" for the domain specific code you need to add to **GarageOpener.cpp** to implement the garage door opening behavior.
+9. Save the changes to **stdafx.h**. (At this point it's a good idea to compile your project to make sure includes and link configuration are working properly).
+10. Open the file **GarageOpener.cpp**.
+11. See the "Appendix: Garage Door Opener code sample" for the domain specific code you need to add to **GarageOpener.cpp** to implement the garage door opening behavior.
 
 ## Eclipse
 
@@ -55,12 +53,6 @@ Before you begin, you should ensure that your local development environment meet
 
 		sudo apt-get install uuid uuid-dev cmake libcurl4-openssl-dev g++
 
-- Build the _proton_ libraries on your local machine:
-  - Open a terminal window and navigate to **build_all/linux/** in your local copy of the repository.
-  - Run the following command:
-
-			sudo ./build_proton.sh -i /usr
-
 - Ensure the Linux samples in the [azure-event-hubs](https://github.com/Azure/azure-event-hubs) repository build successfully:
   - Open a terminal window and navigate to **build_all/linux/** in your local copy of the repository.
   - Run the **build.sh** script.
@@ -73,20 +65,19 @@ Before you begin, you should ensure that your local development environment meet
 ![Eclipse includes](./media/eventhub_app_from_scratch/eclipseincludes.png)
 4. Expand **Cross C++ Linker**, then click **Libraries**. Add **../../c/eventhub_client/build/linux** and  **../../c/common/build/linux** to the **Library search path**.
 5. Add **eventhub_client**, **common**, and **pthread** to **Libraries**.
-6. Add **qpid-proton** to **Libraries**.
 ![Eclipse libraries](./media/eventhub_app_from_scratch/eclipselibraries.png)
-8. Click **OK** to save your changes.
-9. Open the file **GarageOpener.cpp** and add **include** statements for the event hub client header files:
+6. Click **OK** to save your changes.
+7. Open the file **GarageOpener.cpp** and add **include** statements for the event hub client header files:
 
 		#include "eventhubclient.h"
 		#include "eventdata.h"
 
-10. Add the following standard **include** statement:
+8. Add the following standard **include** statement:
 
 		#include <crt_abstractions.h>
 
-11. Save the changes to **GarageOpener.cpp**. At this point it's a good idea to try to compile the project to check if the **include** statements and library paths are correct.
-12. See the "Appendix: Garage Door Opener code sample" for the domain specific code you need to add to **GarageOpener.cpp** to implement the garage door opening behavior.
+9. Save the changes to **GarageOpener.cpp**. At this point it's a good idea to try to compile the project to check if the **include** statements and library paths are correct.
+10. See the "Appendix: Garage Door Opener code sample" for the domain specific code you need to add to **GarageOpener.cpp** to implement the garage door opening behavior.
 
 ## Appendix: Garage Door Opener code sample
 

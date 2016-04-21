@@ -15,8 +15,10 @@
 	ms.topic="article"
 	ms.date="05/28/2015"
 	ms.author="sethm"/>
+    
+> This document is known to be outdated    
 
-# Event Hubs SDK: BeagleBone Black setup
+#Azure Event Hubs Client for C: BeagleBone Black setup
 
 The following procedure describes the process of connecting a [BeagleBone Black](http://beagleboard.org/black) device and building the Event Hubs SDK samples (**send** and **send_batch**).
 
@@ -96,11 +98,7 @@ Now, configure the sample:
 
 ## Build the samples
 
-1. On the board, run the following command to build/install Apache Proton:
-
-		sudo ~/azure-event-hubs/c/build_all/linux/build_proton.sh --install /usr
-
-5. Assuming build\_proton.sh completed successfully, you can now build the SDK code using the following command:
+You can now build the SDK code using the following command:
 
 		~/azure-event-hubs/c/build_all/linux/build.sh
 

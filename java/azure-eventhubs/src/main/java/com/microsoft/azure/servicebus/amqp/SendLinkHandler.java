@@ -71,12 +71,8 @@ public class SendLinkHandler extends BaseLinkHandler
             		"], delivery.isBuffered[" + delivery.isBuffered() +"], delivery.id[" + delivery.getTag() + "]");
         }
 		
-		while (delivery != null)
-		{
-			msgSender.onSendComplete(delivery.getTag(), delivery.getRemoteState());
-			delivery.settle();
-			delivery = sender.current();
-		}
+		msgSender.onSendComplete(delivery.getTag(), delivery.getRemoteState());
+		delivery.settle();
 	}
 
 	@Override
@@ -94,10 +90,12 @@ public class SendLinkHandler extends BaseLinkHandler
 			}
 		}
 		
-		if(TRACE_LOGGER.isLoggable(Level.FINE))
+		this.msgSender.onFlow();
+		
+		if(TRACE_LOGGER.isLoggable(Level.FINEST))
         {
-			Sender sender = (Sender) event.getLink();
-			TRACE_LOGGER.log(Level.FINE, "linkName[" + sender.getName() + "], unsettled[" + sender.getUnsettled() + "], credit[" + sender.getCredit()+ "]");
+			Sender sender = event.getSender();
+			TRACE_LOGGER.log(Level.FINEST, "linkName[" + sender.getName() + "], unsettled[" + sender.getUnsettled() + "], credit[" + sender.getCredit()+ "]");
         }
 	}
 	

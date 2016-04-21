@@ -6,14 +6,15 @@
 	
 	<groupId>com.microsoft.azure</groupId>
 	<artifactId>azure-eventhubs-clients</artifactId>
-	<version>0.6.0-SNAPSHOT</version>
+	<version>${client-current-version}</version>
 	<packaging>pom</packaging>
 	
 	<url>https://github.com/Azure/azure-event-hubs</url>
 	
 	<properties>
-		<proton-j-version>0.12.0</proton-j-version>
+		<proton-j-version>0.12.2</proton-j-version>
 	  	<junit-version>4.10</junit-version>
+		<client-current-version>0.6.8</client-current-version>
 	</properties>
 	
 	<build>
@@ -34,26 +35,27 @@
 	</build>
 
 	 <dependencies>
-	   <dependency>
-	 		<groupId>org.apache.qpid</groupId>
-	 		<artifactId>proton-j</artifactId>
+	 	<dependency>
+	 	    <groupId>org.apache.qpid</groupId>
+	 	    <artifactId>proton-j</artifactId>
 	 	    <version>${proton-j-version}</version>
 	 	</dependency>
-	 	<dependency> 
-	  		<groupId>org.bouncycastle</groupId> 
-	  		<artifactId>bcpkix-jdk15on</artifactId> 
-	  		<version>1.47</version> 
+	 	<dependency>
+	 	    <groupId>org.bouncycastle</groupId> 
+	 	    <artifactId>bcpkix-jdk15on</artifactId> 
+	 	    <version>1.47</version> 
 	  	</dependency>   	
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit-version}</version>
-			<scope>test</scope>
+	 	    <groupId>junit</groupId>
+	 	    <artifactId>junit</artifactId>
+	 	    <version>${junit-version}</version>
+	 	    <scope>test</scope>
 		</dependency>
 	</dependencies>
 	
 	 <modules> 
 	    <module>azure-eventhubs</module>
+	    <module>azure-eventhubs-log4j-appender</module>
 	    <module>azure-eventhubs-samples</module>
 	 </modules>
 
