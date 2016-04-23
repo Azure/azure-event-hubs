@@ -128,8 +128,11 @@ public class PartitionContext
 
     /**
      * Writes the current offset and sequenceNumber to the checkpoint store via the checkpoint manager.
+     * @throws IllegalArgumentException  If this.sequenceNumber is less than the last checkpointed value  
+     * @throws ExecutionException 
+     * @throws InterruptedException 
      */
-    public void checkpoint()
+    public void checkpoint() throws IllegalArgumentException, InterruptedException, ExecutionException
     {
     	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
     	// instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
@@ -140,7 +143,7 @@ public class PartitionContext
     	{
     		capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
     	}
-    	this.host.getCheckpointDispatcher().enqueueCheckpoint(capturedCheckpoint);
+    	persistCheckpoint(capturedCheckpoint);
     }
 
     /**
@@ -148,11 +151,34 @@ public class PartitionContext
      * values to the checkpoint store via the checkpoint manager.
      *  
      * @param event  A received EventData with valid offset and sequenceNumber
-     * @throws IllegalArgumentException  If the sequenceNumber in the provided event is less than the current value  
+     * @throws IllegalArgumentException  If the sequenceNumber in the provided event is less than the last checkpointed value  
+     * @throws ExecutionException 
+     * @throws InterruptedException 
      */
-    public void checkpoint(EventData event) throws IllegalArgumentException
+    public void checkpoint(EventData event) throws IllegalArgumentException, InterruptedException, ExecutionException
     {
     	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
-    	this.host.getCheckpointDispatcher().enqueueCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    }
+    
+    private void persistCheckpoint(Checkpoint persistThis) throws IllegalArgumentException, InterruptedException, ExecutionException
+    {
+    	this.host.logWithHostAndPartition(Level.FINE, persistThis.getPartitionId(), "Saving checkpoint: " +
+    			persistThis.getOffset() + "//" + persistThis.getSequenceNumber());
+		
+    	Checkpoint inStoreCheckpoint = this.host.getCheckpointManager().getCheckpoint(persistThis.getPartitionId()).get();
+    	if (persistThis.getSequenceNumber() >= inStoreCheckpoint.getSequenceNumber())
+    	{
+	    	inStoreCheckpoint.setOffset(persistThis.getOffset());
+	    	inStoreCheckpoint.setSequenceNumber(persistThis.getSequenceNumber());
+	        this.host.getCheckpointManager().updateCheckpoint(inStoreCheckpoint).get();
+    	}
+    	else
+    	{
+    		String msg = "Ignoring out of date checkpoint " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber() +
+        			" because store is at " + inStoreCheckpoint.getOffset() + "//" + inStoreCheckpoint.getSequenceNumber(); 
+    		this.host.logWithHostAndPartition(Level.SEVERE, persistThis.getPartitionId(), msg);
+    		throw new IllegalArgumentException(msg);
+    	}
     }
 }
