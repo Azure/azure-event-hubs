@@ -32,7 +32,6 @@ public final class EventProcessorHost
     private ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false; 
     private PartitionManager partitionManager;
-    private CheckpointDispatcher checkpointDispatcher;
     private Future<?> partitionManagerFuture = null;
     private IEventProcessorFactory<?> processorFactory;
     private EventProcessorOptions processorOptions;
@@ -82,6 +81,35 @@ public final class EventProcessorHost
         this.initializeLeaseManager = true;
     }
 
+    /**
+     * Create a new host to process events from an Event Hub.
+     * 
+     * <p>
+     * This overload of the constructor uses the default, built-in lease and checkpoint managers, but
+     * uses a non-default storage container name.
+	 *
+     * @param namespaceName
+     * @param eventHubPath
+     * @param sharedAccessKeyName
+     * @param sharedAccessKey
+     * @param consumerGroupName
+     * @param storageConnectionString
+     * @param storageContainerName	Azure Storage container name in which all leases and checkpointing will occur.
+     */
+    public EventProcessorHost(
+            final String namespaceName,
+            final String eventHubPath,
+            final String sharedAccessKeyName,
+            final String sharedAccessKey,
+            final String consumerGroupName,
+            final String storageConnectionString,
+            final String storageContainerName)
+    {
+        this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
+                new AzureStorageCheckpointLeaseManager(storageConnectionString, storageContainerName));
+        this.initializeLeaseManager = true;
+    }
+    
     // Because Java won't let you do ANYTHING before calling another constructor. In particular, you can't
     // new up an object and pass it as two parameters of the other constructor.
     private EventProcessorHost(
@@ -155,7 +183,6 @@ public final class EventProcessorHost
         }
 
         this.partitionManager = new PartitionManager(this);
-        this.checkpointDispatcher = new CheckpointDispatcher(this);
         
         logWithHost(Level.INFO, "New EventProcessorHost created");
     }
@@ -202,7 +229,6 @@ public final class EventProcessorHost
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
     PartitionManager getPartitionManager() { return this.partitionManager; }
-    CheckpointDispatcher getCheckpointDispatcher() { return this.checkpointDispatcher; }
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
@@ -313,7 +339,6 @@ public final class EventProcessorHost
     	logWithHost(Level.INFO, "Stopping event processing");
     	
         this.partitionManager.stopPartitions();
-        this.checkpointDispatcher.stopCheckpointDispatcher();
         try
         {
 			this.partitionManagerFuture.get();

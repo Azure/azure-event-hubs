@@ -103,13 +103,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public Future<Void> updateCheckpoint(Checkpoint checkpoint)
     {
-    	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
-    }
-
-    @Override
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), offset, sequenceNumber));
+        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), checkpoint.getOffset(), checkpoint.getSequenceNumber()));
     }
 
     private Void updateCheckpointSync(String partitionId, String offset, long sequenceNumber)

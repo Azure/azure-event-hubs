@@ -31,6 +31,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 {
     private EventProcessorHost host;
     private String storageConnectionString;
+    private String storageContainerName = null;
     
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
@@ -48,19 +49,29 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         this.storageConnectionString = storageConnectionString;
     }
 
+    public AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
+    {
+        this.storageConnectionString = storageConnectionString;
+        this.storageContainerName = storageContainerName;
+    }
+
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
     // because it is still being constructed. Do other initialization here also because it might throw and
     // hence we don't want it in the constructor.
     public void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
     {
         this.host = host;
+        if (this.storageContainerName == null)
+        {
+        	this.storageContainerName = this.host.getEventHubPath();
+        }
         
         this.storageClient = CloudStorageAccount.parse(this.storageConnectionString).createCloudBlobClient();
         BlobRequestOptions options = new BlobRequestOptions();
         options.setMaximumExecutionTimeInMs(AzureStorageCheckpointLeaseManager.storageMaximumExecutionTimeInMs);
         this.storageClient.setDefaultRequestOptions(options);
         
-        this.eventHubContainer = this.storageClient.getContainerReference(this.host.getEventHubPath());
+        this.eventHubContainer = this.storageClient.getContainerReference(this.storageContainerName);
         
         this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
         
@@ -122,22 +133,16 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     @Override
     public Future<Void> updateCheckpoint(Checkpoint checkpoint)
     {
-    	return updateCheckpoint(checkpoint, checkpoint.getOffset(), checkpoint.getSequenceNumber());
+    	return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint));
     }
     
-    @Override
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber)
-    {
-        return EventProcessorHost.getExecutorService().submit(() -> updateCheckpointSync(checkpoint, offset, sequenceNumber));
-    }
-    
-    private Void updateCheckpointSync(Checkpoint checkpoint, String offset, long sequenceNumber) throws Exception
+    private Void updateCheckpointSync(Checkpoint checkpoint) throws Exception
     {
     	// Need to fetch the most current lease data so that we can update it correctly.
     	AzureBlobLease lease = getLeaseSync(checkpoint.getPartitionId());
-    	this.host.logWithHostAndPartition(Level.FINE, checkpoint.getPartitionId(), "Checkpointing at " + offset + " // " + sequenceNumber);
-    	lease.setOffset(offset);
-    	lease.setSequenceNumber(sequenceNumber);
+    	this.host.logWithHostAndPartition(Level.FINE, checkpoint.getPartitionId(), "Checkpointing at " + checkpoint.getOffset() + " // " + checkpoint.getSequenceNumber());
+    	lease.setOffset(checkpoint.getOffset());
+    	lease.setSequenceNumber(checkpoint.getSequenceNumber());
     	updateLeaseSync(lease);
     	return null;
     }
@@ -218,7 +223,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     		returnLease = new AzureBlobLease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId, leaseBlob);
     		String jsonLease = this.gson.toJson(returnLease);
     		this.host.logWithHostAndPartition(Level.INFO, partitionId,
-    				"CreateLeaseIfNotExist - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName());
+    				"CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName());
     		leaseBlob.uploadText(jsonLease, null, AccessCondition.generateIfNoneMatchCondition("*"), null, null);
     	}
     	catch (StorageException se)
@@ -237,7 +242,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     			System.out.println("errorCode " + extendedErrorInfo.getErrorCode());
     			System.out.println("errorString " + extendedErrorInfo.getErrorMessage());
     			this.host.logWithHostAndPartition(Level.SEVERE, partitionId,
-    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.host.getEventHubPath() + " consumerGroupName: " + this.host.getConsumerGroupName(),
+    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName(),
     				se);
     			throw se;
     		}

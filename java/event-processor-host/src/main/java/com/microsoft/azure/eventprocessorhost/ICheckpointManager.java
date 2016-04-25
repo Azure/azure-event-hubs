@@ -65,16 +65,6 @@ public interface ICheckpointManager
     public Future<Void> updateCheckpoint(Checkpoint checkpoint);
 
     /***
-     * Update the checkpoint in the store with the offset/sequenceNumber explicitly provided.
-     * 
-     * @param checkpoint  Only used to get the partition id -- TODO just make this a partition id instead?
-     * @param offset  update the store with this offset
-     * @param sequenceNumber  update the store with this sequenceNumber
-     * @return  Void
-     */
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint, String offset, long sequenceNumber);
-
-    /***
      * Delete the stored checkpoint for the given partition. If there is no stored checkpoint for the
      * given partition, that is treated as success.
      * 
