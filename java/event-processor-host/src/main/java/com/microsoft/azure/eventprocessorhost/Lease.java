@@ -7,18 +7,14 @@ package com.microsoft.azure.eventprocessorhost;
 
 public class Lease
 {
-    private String eventHubPath;
-    private String consumerGroup;
     private String partitionId;
 
     private long epoch;
     private String owner;
     private String token;
 
-    public Lease(String eventHub, String consumerGroup, String partitionId)
+    public Lease(String partitionId)
     {
-        this.eventHubPath = eventHub;
-        this.consumerGroup = consumerGroup;
         this.partitionId = partitionId;
 
         this.epoch = 0;
@@ -28,8 +24,6 @@ public class Lease
 
     public Lease(Lease source)
     {
-        this.eventHubPath = source.eventHubPath;
-        this.consumerGroup = source.consumerGroup;
         this.partitionId = source.partitionId;
 
         this.epoch = source.epoch;
@@ -66,16 +60,6 @@ public class Lease
     public String getPartitionId()
     {
         return this.partitionId;
-    }
-
-    public String getEventHubPath()
-    {
-        return this.eventHubPath;
-    }
-
-    public String getConsumerGroup()
-    {
-        return this.consumerGroup;
     }
 
     public String getToken()
