@@ -347,64 +347,42 @@ class PartitionManager implements Runnable
     {
     	HashMap<String, Integer> countsByOwner = countLeasesByOwner(stealableLeases);
     	String biggestOwner = findBiggestOwner(countsByOwner);
-    	int totalLeases = stealableLeases.size() + haveLeaseCount;
-    	int hostCount = countsByOwner.size() + 1; // stealableLeases does not include anything owned by this host, so add 1
-    	int desiredToHave = calculateDesiredLeases(totalLeases, hostCount, countsByOwner.get(biggestOwner));
+    	int biggestCount = countsByOwner.get(biggestOwner);
     	ArrayList<Lease> stealTheseLeases = null;
-    	if (haveLeaseCount < desiredToHave)
+    	
+    	// If the number of leases is a multiple of the number of hosts, then the desired configuration is
+    	// that all hosts own the name number of leases, and the difference between the "biggest" owner and
+    	// any other is 0.
+    	//
+    	// If the number of leases is not a multiple of the number of hosts, then the most even configuration
+    	// possible is for some hosts to have (leases/hosts) leases and others to have ((leases/hosts) + 1).
+    	// For example, for 16 partitions distributed over five hosts, the distribution would be 4, 3, 3, 3, 3,
+    	// or any of the possible reorderings.
+    	//
+    	// In either case, if the difference between this host and the biggest owner is 2 or more, then the
+    	// system is not in the most evenly-distributed configuration, so steal one lease from the biggest.
+    	// If there is a tie for biggest, findBiggestOwner() picks whichever appears first in the list because
+    	// it doesn't really matter which "biggest" is trimmed down.
+    	//
+    	// Stealing one at a time prevents flapping because it reduces the difference between the biggest and
+    	// this host by two at a time. If the starting difference is two or greater, then the difference cannot
+    	// end up below 0. This host may become tied for biggest, but it cannot become larger than the host that
+    	// it is stealing from.
+    	
+    	if ((biggestCount - haveLeaseCount) >= 2)
     	{
-    		this.host.logWithHost(Level.FINE, "Has " + haveLeaseCount + " leases, wants " + desiredToHave);
     		stealTheseLeases = new ArrayList<Lease>();
-    		this.host.logWithHost(Level.FINE, "Proposed to steal leases from " + biggestOwner);
     		for (Lease l : stealableLeases)
     		{
     			if (l.getOwner().compareTo(biggestOwner) == 0)
     			{
     				stealTheseLeases.add(l);
-    				this.host.logWithHost(Level.FINE, "Proposed to steal lease for partition " + l.getPartitionId());
-    				haveLeaseCount++;
-    				if (haveLeaseCount >= desiredToHave)
-    				{
-    					break;
-    				}
+    				this.host.logWithHost(Level.FINE, "Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner);
+  					break;
     			}
     		}
     	}
     	return stealTheseLeases;
-    }
-    
-    private int calculateDesiredLeases(int totalLeases, int hostCount, int biggestOwnerHas)
-    {
-    	int desiredToHave = 0;
-    	
-    	if ((totalLeases % hostCount) == 0)
-    	{
-    		// Total leases is a multiple of the number of hosts. The only balanced configuration is for all hosts to have
-    		// exactly totalLeases/hostCount leases. Once that configuration is reached by stealing, it is stable until the
-    		// number of hosts changes, because for all hosts haveLeaseCount==desiredToHave. There is no problem with flapping.
-    		desiredToHave = totalLeases / hostCount;
-    	}
-    	else
-    	{
-    		// Total leases is not a multiple of the number of hosts. Therefore the most even possible distribution is for
-    		// some hosts to have totalLeases/hostCount leases, while others (totaLeases%hostCount of them) have
-    		// totalLeases/hostCount + 1 leases. In this case it is important to prevent the hosts with the lower number
-    		// from stealing a lease, because then the lease distribution will never stabilize. There will always be at least
-    		// one host with the lower number of leases, and when it steals a lease it will create another host with the lower
-    		// number of leases, which will steal a lease, etc. This flapping would slow down processing by constantly switching
-    		// partitions between hosts.
-    		
-    		desiredToHave = totalLeases / hostCount;
-    		if (biggestOwnerHas > (desiredToHave + 1))
-    		{
-    			// The biggest owner has more than their fair share of partitions. Return the higher number instead of
-    			// the lower number. Eventually this will happen on a host that has the lower number, prompting it
-    			// to steal, and the distribution will gradually even out.
-    			desiredToHave++;
-    		}
-    	}
-    	
-    	return desiredToHave;
     }
     
     private String findBiggestOwner(HashMap<String, Integer> countsByOwner)
