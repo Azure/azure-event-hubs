@@ -12,7 +12,7 @@ import com.microsoft.azure.eventhubs.EventData;
 
 abstract class PartitionPump
 {
-	protected EventProcessorHost host = null;
+	protected final EventProcessorHost host;
 	protected Lease lease = null;
 	
 	protected PartitionPumpStatus pumpStatus = PartitionPumpStatus.PP_UNINITIALIZED;
@@ -20,9 +20,9 @@ abstract class PartitionPump
     protected IEventProcessor processor = null;
     protected PartitionContext partitionContext = null;
     
-    protected Object processingSynchronizer = null;
-	
-	void initialize(EventProcessorHost host, Lease lease)
+    protected final Object processingSynchronizer;
+    
+	PartitionPump(EventProcessorHost host, Lease lease)
 	{
 		this.host = host;
 		this.lease = lease;

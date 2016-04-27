@@ -10,7 +10,7 @@ class ExceptionWithAction extends Exception
 {
 	private static final long serialVersionUID = 7480590197418857145L;
 	
-	private String action = "";
+	private final String action;
 
 	// This class is only ever instantiated to wrap an already existing exception with an action string,
 	// so this is the only constructor needed.

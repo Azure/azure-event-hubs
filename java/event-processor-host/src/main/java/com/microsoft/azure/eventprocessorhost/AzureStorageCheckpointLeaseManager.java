@@ -30,7 +30,7 @@ import com.microsoft.azure.storage.blob.LeaseState;
 class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
-    private String storageConnectionString;
+    private final String storageConnectionString;
     private String storageContainerName = null;
     
     private CloudBlobClient storageClient;

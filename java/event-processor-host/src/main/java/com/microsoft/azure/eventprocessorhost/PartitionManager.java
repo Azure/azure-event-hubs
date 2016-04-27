@@ -42,8 +42,8 @@ import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 class PartitionManager implements Runnable
 {
-    private EventProcessorHost host;
-    private Pump pump;
+    private final EventProcessorHost host;
+    private final Pump pump;
 
     private List<String> partitionIds = null;
     
@@ -53,11 +53,6 @@ class PartitionManager implements Runnable
     {
         this.host = host;
         this.pump = new Pump(this.host);
-    }
-    
-    <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
-    {
-    	this.pump.setPumpClass(pumpClass);
     }
     
     Iterable<String> getPartitionIds()

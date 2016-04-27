@@ -203,15 +203,6 @@ public final class EventProcessorHost
      * FOR TESTING USE ONLY
      * 
      */
-    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
-    {
-    	this.partitionManager.setPumpClass(pumpClass);
-    }
-
-    /**
-     * FOR TESTING USE ONLY
-     * 
-     */
     public static ExecutorService getExecutorService()
     {
     	return EventProcessorHost.executorService;

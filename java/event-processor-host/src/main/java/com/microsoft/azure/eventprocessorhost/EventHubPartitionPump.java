@@ -25,9 +25,10 @@ class EventHubPartitionPump extends PartitionPump
 	private PartitionReceiver partitionReceiver = null;
     private InternalReceiveHandler internalReceiveHandler = null;
 
-    //
-    // The base initialize() is fine as-is, no need to override.
-    //
+	EventHubPartitionPump(EventProcessorHost host, Lease lease)
+	{
+		super(host, lease);
+	}
 
     @Override
     void specializedStartPump()

@@ -14,11 +14,12 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class PartitionContext
 {
-	private EventProcessorHost host;
-    private String consumerGroupName;
-    private String eventHubPath;
+	private final EventProcessorHost host;
+    private final String partitionId;
+    private final String eventHubPath;
+    private final String consumerGroupName;
+    
     private Lease lease;
-    private String partitionId;
     private String offset = PartitionReceiver.START_OF_STREAM;
     private long sequenceNumber = 0;;
     

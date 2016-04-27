@@ -9,7 +9,7 @@ public class LeaseLostException extends Exception
 {
 	private static final long serialVersionUID = -4625001822439809869L;
 	
-	private Lease lease = null;
+	private final Lease lease;
 	
 	LeaseLostException(Lease lease, Throwable cause)
 	{

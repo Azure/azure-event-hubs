@@ -11,9 +11,9 @@ package com.microsoft.azure.eventprocessorhost;
  */
 public final class ExceptionReceivedEventArgs
 {
-	private String hostname;
-	private Exception exception;
-	private String action;
+	private final String hostname;
+	private final Exception exception;
+	private final String action;
 	
 	ExceptionReceivedEventArgs(String hostname, Exception exception, String action)
 	{

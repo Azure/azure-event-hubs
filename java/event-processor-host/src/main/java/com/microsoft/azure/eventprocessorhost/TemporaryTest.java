@@ -131,7 +131,7 @@ public class TemporaryTest
         		}
     			if (!useEH)
     			{
-    				hosts[i].setPumpClass(SyntheticPump.class); // See note in SyntheticPump.produceMessages() -- doesn't work right now
+    				//hosts[i].setPumpClass(SyntheticPump.class); // See note in SyntheticPump.produceMessages() -- doesn't work right now
     			}
     		}
     		processMessages(hosts);
@@ -398,6 +398,7 @@ public class TemporaryTest
 		}
     }
     
+    /*
     public static class SyntheticPump extends PartitionPump
     {
     	Future<Void> producer = null;
@@ -454,6 +455,7 @@ public class TemporaryTest
 			return null;
 		}
     }
+    */
 
     public static class EventProcessor implements IEventProcessor
     {

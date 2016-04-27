@@ -7,7 +7,7 @@ package com.microsoft.azure.eventprocessorhost;
 
 class Lease
 {
-    private String partitionId;
+    private final String partitionId;
 
     private long epoch;
     private String owner;
