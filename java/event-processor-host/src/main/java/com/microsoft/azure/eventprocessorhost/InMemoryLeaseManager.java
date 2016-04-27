@@ -119,7 +119,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         else
         {
         	this.host.logWithHostAndPartition(Level.INFO, partitionId, "createLeaseIfNotExists() creating new lease");
-        	InMemoryLease storeLease = new InMemoryLease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId);
+        	InMemoryLease storeLease = new InMemoryLease(partitionId);
             storeLease.setEpoch(0L);
             storeLease.setOwner("");
             InMemoryLeaseStore.singleton.inMemoryLeases.put(partitionId, storeLease);
@@ -300,9 +300,9 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
     	private long expirationTimeMillis = 0;
     	
-		public InMemoryLease(String eventHub, String consumerGroup, String partitionId)
+		public InMemoryLease(String partitionId)
 		{
-			super(eventHub, consumerGroup, partitionId);
+			super(partitionId);
 		}
 		
 		public InMemoryLease(InMemoryLease source)

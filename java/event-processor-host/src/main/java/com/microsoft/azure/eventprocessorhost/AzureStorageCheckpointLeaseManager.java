@@ -220,7 +220,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     	try
     	{
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
-    		returnLease = new AzureBlobLease(this.host.getEventHubPath(), this.host.getConsumerGroupName(), partitionId, leaseBlob);
+    		returnLease = new AzureBlobLease(partitionId, leaseBlob);
     		String jsonLease = this.gson.toJson(returnLease);
     		this.host.logWithHostAndPartition(Level.INFO, partitionId,
     				"CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName());

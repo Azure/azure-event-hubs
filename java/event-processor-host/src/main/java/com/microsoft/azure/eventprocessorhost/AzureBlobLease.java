@@ -17,9 +17,9 @@ public class AzureBlobLease extends Lease
 	private String offset = PartitionReceiver.START_OF_STREAM;
 	private long sequenceNumber = 0;
 	
-	public AzureBlobLease(String eventHub, String consumerGroup, String partitionId, CloudBlockBlob blob)
+	public AzureBlobLease(String partitionId, CloudBlockBlob blob)
 	{
-		super(eventHub, consumerGroup, partitionId);
+		super(partitionId);
 		this.blob = blob;
 	}
 	
