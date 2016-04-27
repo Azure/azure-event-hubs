@@ -3,8 +3,6 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-// BLAH
-
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
@@ -86,14 +84,8 @@ public final class EventProcessorHost
      * 
      * <p>
      * This overload of the constructor uses the default, built-in lease and checkpoint managers, but
-     * uses a non-default storage container name.
+     * uses a non-default storage container name. The first parameters are the same as the other overloads.
 	 *
-     * @param namespaceName
-     * @param eventHubPath
-     * @param sharedAccessKeyName
-     * @param sharedAccessKey
-     * @param consumerGroupName
-     * @param storageConnectionString
      * @param storageContainerName	Azure Storage container name in which all leases and checkpointing will occur.
      */
     public EventProcessorHost(
@@ -323,7 +315,6 @@ public final class EventProcessorHost
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);
-        // Don't need to start the checkpointDispatcher here -- it auto-starts when work is added to its queue.
         
         return this.partitionManagerFuture;
     }
@@ -334,7 +325,7 @@ public final class EventProcessorHost
      * Does not return until the shutdown is complete.
      * 
      */
-    public void unregisterEventProcessor()
+    public void unregisterEventProcessor() throws InterruptedException, ExecutionException
     {
     	logWithHost(Level.INFO, "Stopping event processing");
     	
@@ -358,6 +349,7 @@ public final class EventProcessorHost
         {
         	// Log the failure but nothing really to do about it.
         	logWithHost(Level.SEVERE, "Failure shutting down", e);
+        	throw e;
 		}
     }
     
@@ -397,7 +389,7 @@ public final class EventProcessorHost
     	log(logLevel, "host " + this.hostName + ": " + logMessage);
     }
     
-    void logWithHost(Level logLevel, String logMessage, Exception e)
+    void logWithHost(Level logLevel, String logMessage, Throwable e)
     {
     	log(logLevel, "host " + this.hostName + ": " + logMessage);
     	logWithHost(logLevel, "Caught " + e.toString());
@@ -424,7 +416,7 @@ public final class EventProcessorHost
     	logWithHost(logLevel, "partition " + partitionId + ": " + logMessage);
     }
     
-    void logWithHostAndPartition(Level logLevel, String partitionId, String logMessage, Exception e)
+    void logWithHostAndPartition(Level logLevel, String partitionId, String logMessage, Throwable e)
     {
     	logWithHostAndPartition(logLevel, partitionId, logMessage);
     	logWithHostAndPartition(logLevel, partitionId, "Caught " + e.toString());
@@ -451,7 +443,7 @@ public final class EventProcessorHost
     	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage);
     }
     
-    void logWithHostAndPartition(Level logLevel, PartitionContext context, String logMessage, Exception e)
+    void logWithHostAndPartition(Level logLevel, PartitionContext context, String logMessage, Throwable e)
     {
     	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage, e);
     }

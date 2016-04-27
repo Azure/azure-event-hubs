@@ -6,10 +6,12 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Duration;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public final class EventProcessorOptions
 {
+	private Consumer<ExceptionReceivedEventArgs> exceptionNotificationHandler = null;
     private Boolean invokeProcessorAfterReceiveTimeout = false;
     private int maxBatchSize = 10;
     private int prefetchCount = 300;
@@ -39,10 +41,20 @@ public final class EventProcessorOptions
     {
     }
     
-    //
-    // The .NET library sets the user error handler here.
-    // This version has the user error handler in IEventProcessor.
-    //
+	/**
+	 * Sets a handler which receives notification of general exceptions.
+	 * 
+	 * Exceptions which occur while processing events from a particular Event Hub partition are delivered
+	 * to the onError method of the event processor for that partition. This handler is called on occasions
+	 * when there is no event processor associated with the throwing activity, or the event processor could
+	 * not be created.
+	 * 
+	 * @param notificationHandler  Handler which is called when an exception occurs. Set to null to stop handling.  
+	 */
+    public void setExceptionNotification(Consumer<ExceptionReceivedEventArgs> notificationHandler)
+    {
+    	this.exceptionNotificationHandler = notificationHandler;
+    }
 
     /***
      * Returns the maximum size of an event batch that IEventProcessor.onEvents will be called with
@@ -158,4 +170,14 @@ public final class EventProcessorOptions
         this.invokeProcessorAfterReceiveTimeout = invokeProcessorAfterReceiveTimeout;
     }
     */
+    
+    void notifyOfException(String hostname, Exception exception, String action)
+    {
+    	// Capture handler so it doesn't get set to null between test and use
+    	Consumer<ExceptionReceivedEventArgs> handler = this.exceptionNotificationHandler;
+    	if (handler != null)
+    	{
+    		handler.accept(new ExceptionReceivedEventArgs(hostname, exception, action));
+    	}
+    }
 }

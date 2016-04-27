@@ -34,6 +34,7 @@ class EventHubPartitionPump extends PartitionPump
     {
     	boolean openedOK = false;
     	int retryCount = 0;
+    	Exception lastException = null;
     	do
     	{
 	        try
@@ -43,23 +44,27 @@ class EventHubPartitionPump extends PartitionPump
 			}
 	        catch (Exception e)
 	        {
+	        	lastException = e;
 	        	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
 	        	{
 	        		// TODO Assuming this is due to a receiver with a higher epoch.
 	        		// Is there a way to be sure without checking the exception text?
 	        		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
-	        		// If it's a bad epoch, then retrying isn't going to help. Make retryCount huge to force an immediate bail.
-	        		retryCount = 999999;
+	        		// If it's a bad epoch, then retrying isn't going to help.
+	        		break;
 	        	}
 	        	else
 	        	{
-					this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Failure creating client or receiver", e);
+					this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Failure creating client or receiver, retrying", e);
 					retryCount++;
 	        	}
 			}
     	} while (!openedOK && (retryCount < 5));
     	if (!openedOK)
     	{
+            // IEventProcessor.onOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
+    		// so we can report this error to it instead of the general error handler.
+    		this.processor.onError(this.partitionContext, lastException);
 			this.pumpStatus = PartitionPumpStatus.PP_OPENFAILED;
     	}
 
