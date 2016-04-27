@@ -8,6 +8,7 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import com.microsoft.azure.eventhubs.EventData;
 
@@ -266,7 +267,9 @@ public class TemporaryTest
     	for (int i = 0; i < hostCount; i++)
     	{
     		System.out.println("Registering host " + i + " named " + hosts[i].getHostName());
-    		hosts[i].registerEventProcessor(EventProcessor.class);
+    		EventProcessorOptions options = EventProcessorOptions.getDefaultOptions();
+    		options.setExceptionNotification(new GeneralErrorHandler());
+    		hosts[i].registerEventProcessor(EventProcessor.class, options);
     		try
     		{
     			Thread.sleep(3000);
@@ -498,5 +501,14 @@ public class TemporaryTest
     	{
     		System.out.println("SAMPLE: Partition " + context.getPartitionId() + " onError: " + error.toString());
     	}
+    }
+    
+    public static class GeneralErrorHandler implements Consumer<ExceptionReceivedEventArgs>
+    {
+		@Override
+		public void accept(ExceptionReceivedEventArgs t)
+		{
+			System.out.println("SAMPLE ERROR HANDLER for host " + t.getHostname() + ": " + t.getAction() + ": " + t.getException().toString());
+		}
     }
 }

@@ -46,17 +46,20 @@ public abstract class PartitionPump
         
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
+        	String action = EventProcessorHostActionStrings.CREATING_EVENT_PROCESSOR;
         	try
         	{
 				this.processor = this.host.getProcessorFactory().createEventProcessor(this.partitionContext);
+				action = EventProcessorHostActionStrings.OPENING_EVENT_PROCESSOR;
 	            this.processor.onOpen(this.partitionContext);
         	}
             catch (Exception e)
             {
             	// If the processor won't create or open, only thing we can do here is pass the buck.
             	// Null it out so we don't try to operate on it further.
-            	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failed creating or opening processor", e);
             	this.processor = null;
+            	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failed " + action, e);
+            	this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, action);
             	
             	this.pumpStatus = PartitionPumpStatus.PP_OPENFAILED;
             }
@@ -104,6 +107,9 @@ public abstract class PartitionPump
             catch (Exception e)
             {
             	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Failure closing processor", e);
+            	// If closing the processor has failed, the state of the processor is suspect.
+            	// Report the failure to the general error handler instead.
+            	this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, "Closing Event Processor");
             }
         }
         

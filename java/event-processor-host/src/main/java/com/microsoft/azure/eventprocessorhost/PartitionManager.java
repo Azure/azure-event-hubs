@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -116,61 +117,87 @@ class PartitionManager implements Runnable
     
     public void run()
     {
+    	boolean initializedOK = false;
+    	
     	try
     	{
     		initializeStores();
-    		runLoop();
-    		this.host.logWithHost(Level.INFO, "Partition manager main loop exited normally, shutting down");
+    		initializedOK = true;
+    	}
+    	catch (ExceptionWithAction e)
+    	{
+    		this.host.logWithHost(Level.SEVERE, "Exception while initializing stores, not starting partition manager", e.getCause());
+    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
     	}
     	catch (Exception e)
     	{
-    		this.host.logWithHost(Level.SEVERE, "Exception, shutting down partition manager", e);
+    		this.host.logWithHost(Level.SEVERE, "Exception while initializing stores, not starting partition manager", e);
+    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.INITIALIZING_STORES);
     	}
     	
-    	// Cleanup
-    	this.host.logWithHost(Level.INFO, "Shutting down all pumps");
-    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
-    	
-    	// All of the shutdown threads have been launched, we can shut down the executor now.
-    	// Shutting down the executor only prevents new tasks from being submitted.
-    	// We can't wait for executor termination here because this thread is in the executor.
-    	this.host.stopExecutor();
-    	
-    	// Wait for shutdown threads.
-    	for (Future<?> removal : pumpRemovals)
+    	if (initializedOK)
     	{
-    		try
-    		{
-				removal.get();
-			}
-    		catch (InterruptedException | ExecutionException e)
-    		{
-    			this.host.logWithHost(Level.SEVERE, "Failure during shutdown", e);
-    			// By convention, bail immediately on interrupt, even though we're just cleaning
-    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
-    			// free to bail without serious side effects.
-    			if (e instanceof InterruptedException)
-    			{
-    				Thread.currentThread().interrupt();
-    				throw new RuntimeException(e);
-    			}
-			}
+	    	try
+	    	{
+	    		runLoop();
+	    		this.host.logWithHost(Level.INFO, "Partition manager main loop exited normally, shutting down");
+	    	}
+	    	catch (ExceptionWithAction e)
+	    	{
+	    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e.getCause());
+	    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
+	    	}
+	    	catch (Exception e)
+	    	{
+	    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e);
+	    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, "Partition Manager Main Loop");
+	    	}
+	    	
+	    	// Cleanup
+	    	this.host.logWithHost(Level.INFO, "Shutting down all pumps");
+	    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+	    	
+	    	// All of the shutdown threads have been launched, we can shut down the executor now.
+	    	// Shutting down the executor only prevents new tasks from being submitted.
+	    	// We can't wait for executor termination here because this thread is in the executor.
+	    	this.host.stopExecutor();
+	    	
+	    	// Wait for shutdown threads.
+	    	for (Future<?> removal : pumpRemovals)
+	    	{
+	    		try
+	    		{
+					removal.get();
+				}
+	    		catch (InterruptedException | ExecutionException e)
+	    		{
+	    			this.host.logWithHost(Level.SEVERE, "Failure during shutdown", e);
+	    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
+	    			
+	    			// By convention, bail immediately on interrupt, even though we're just cleaning
+	    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
+	    			// free to bail without serious side effects.
+	    			if (e instanceof InterruptedException)
+	    			{
+	    				Thread.currentThread().interrupt();
+	    				throw new RuntimeException(e);
+	    			}
+				}
+	    	}
     	}
     	
     	this.host.logWithHost(Level.INFO, "Partition manager exiting");
     }
     
-    private void initializeStores() throws InterruptedException, ExecutionException
+    private void initializeStores() throws InterruptedException, ExecutionException, ExceptionWithAction
     {
         ILeaseManager leaseManager = this.host.getLeaseManager();
         
         // Make sure the lease store exists
         if (!leaseManager.leaseStoreExists().get())
         {
-            if (!leaseManager.createLeaseStoreIfNotExists().get())
-            {
-                throw new RuntimeException("Creating lease store returned false");
-            }
+        	retryWrapper(() -> leaseManager.createLeaseStoreIfNotExists(), null, "Failure creating lease store for this Event Hub, retrying",
+        			"Out of retries creating lease store for this Event Hub", EventProcessorHostActionStrings.CREATING_LEASE_STORE, 5);
         }
         // else
         //	lease store already exists, no work needed
@@ -178,26 +205,8 @@ class PartitionManager implements Runnable
         // Now make sure the leases exist
         for (String id : getPartitionIds())
         {
-        	boolean createdOK = false;
-        	int retryCount = 0;
-        	do
-        	{
-	        	try
-	        	{
-	                leaseManager.createLeaseIfNotExists(id).get();
-	                createdOK = true;
-	        	}
-	        	catch (ExecutionException e)
-	        	{
-	        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating lease for this partition, retrying", e);
-	        		retryCount++;
-	        	}
-        	} while (!createdOK && (retryCount < 5));
-        	if (!createdOK)
-        	{
-        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Out of retries creating lease for this partition");
-        		throw new RuntimeException("Out of retries creating lease blob for partition " + id);
-        	}
+        	retryWrapper(() -> leaseManager.createLeaseIfNotExists(id), id, "Failure creating lease for partition, retrying",
+        			"Out of retries creating lease for partition", EventProcessorHostActionStrings.CREATING_LEASE, 5);
         }
         
         ICheckpointManager checkpointManager = this.host.getCheckpointManager();
@@ -205,10 +214,8 @@ class PartitionManager implements Runnable
         // Make sure the checkpoint store exists
         if (!checkpointManager.checkpointStoreExists().get())
         {
-        	if (!checkpointManager.createCheckpointStoreIfNotExists().get())
-        	{
-        		throw new RuntimeException("Creating checkpoint store returned false");
-        	}
+        	retryWrapper(() -> checkpointManager.createCheckpointStoreIfNotExists(), null, "Failure creating checkpoint store for this Event Hub, retrying",
+        			"Out of retries creating checkpoint store for this Event Hub", EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, 5);
         }
         // else
         //	checkpoint store already exists, no work needed
@@ -216,30 +223,51 @@ class PartitionManager implements Runnable
         // Now make sure the checkpoints exist
         for (String id : getPartitionIds())
         {
-        	boolean createdOK = false;
-        	int retryCount = 0;
-        	do
-        	{
-	        	try
-	        	{
-	                checkpointManager.createCheckpointIfNotExists(id).get();
-	                createdOK = true;
-	        	}
-	        	catch (ExecutionException e)
-	        	{
-	        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Failure creating checkpoint for this partition, skipping", e);
-	        		retryCount++;
-	        	}
-        	} while (!createdOK && (retryCount < 5));
-        	if (!createdOK)
-        	{
-        		this.host.logWithHostAndPartition(Level.SEVERE, id, "Out of retries creating checkpoint for this partition");
-        		throw new RuntimeException("Out of retries creating checkpoint blob for partition " + id);
-        	}
+        	retryWrapper(() -> checkpointManager.createCheckpointIfNotExists(id), id, "Failure creating checkpoint for partition, retrying",
+        			"Out of retries creating checkpoint blob for partition", EventProcessorHostActionStrings.CREATING_CHECKPOINT, 5);
         }
     }
     
-    private void runLoop() throws Exception
+    // Throws if it runs out of retries. If it returns, action succeeded.
+    private void retryWrapper(Callable<Future<?>> lambda, String partitionId, String retryMessage, String finalFailureMessage, String action, int maxRetries) throws ExceptionWithAction
+    {
+    	boolean createdOK = false;
+    	int retryCount = 0;
+    	do
+    	{
+    		try
+    		{
+    			lambda.call().get();
+    			createdOK = true;
+    		}
+    		catch (Exception e)
+    		{
+    			if (partitionId != null)
+    			{
+    				this.host.logWithHostAndPartition(Level.WARNING, partitionId, retryMessage, e);
+    			}
+    			else
+    			{
+    				this.host.logWithHost(Level.WARNING, retryMessage, e);
+    			}
+    			retryCount++;
+    		}
+    	} while (!createdOK && (retryCount < maxRetries));
+    	if (!createdOK)
+        {
+    		if (partitionId != null)
+    		{
+    			this.host.logWithHostAndPartition(Level.SEVERE, partitionId, finalFailureMessage);
+    		}
+    		else
+    		{
+    			this.host.logWithHost(Level.SEVERE, finalFailureMessage);
+    		}
+    		throw new ExceptionWithAction(new RuntimeException(finalFailureMessage), action);
+        }
+    }
+    
+    private void runLoop() throws Exception, ExceptionWithAction
     {
     	while (this.keepGoing)
     	{
@@ -281,6 +309,7 @@ class PartitionManager implements Runnable
             	catch (ExecutionException e)
             	{
             		this.host.logWithHost(Level.WARNING, "Failure getting/acquiring/renewing lease, skipping", e);
+            		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.CHECKING_LEASES);
             	}
             }
             
@@ -308,6 +337,7 @@ class PartitionManager implements Runnable
 	            		catch (ExecutionException e)
 	            		{
 	            			this.host.logWithHost(Level.SEVERE, "Exception stealing lease for partition " + stealee.getPartitionId(), e);
+	            			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.STEALING_LEASE);
 	            		}
 	            	}
 	            }
