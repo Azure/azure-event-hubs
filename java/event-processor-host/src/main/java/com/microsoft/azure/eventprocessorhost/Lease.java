@@ -5,7 +5,7 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-public class Lease
+class Lease
 {
     private String partitionId;
 
@@ -13,7 +13,7 @@ public class Lease
     private String owner;
     private String token;
 
-    public Lease(String partitionId)
+    Lease(String partitionId)
     {
         this.partitionId = partitionId;
 
@@ -22,7 +22,7 @@ public class Lease
         this.token = "";
     }
 
-    public Lease(Lease source)
+    Lease(Lease source)
     {
         this.partitionId = source.partitionId;
 
@@ -31,48 +31,48 @@ public class Lease
         this.token = source.token;
     }
 
-    public long getEpoch()
+    long getEpoch()
     {
         return this.epoch;
     }
 
-    public void setEpoch(long epoch)
+    void setEpoch(long epoch)
     {
         this.epoch = epoch;
     }
     
-    public long incrementEpoch()
+    long incrementEpoch()
     {
     	this.epoch++;
     	return this.epoch;
     }
     
-    public String getOwner()
+    String getOwner()
     {
         return this.owner;
     }
 
-    public void setOwner(String owner)
+    void setOwner(String owner)
     {
         this.owner = owner;
     }
 
-    public String getPartitionId()
+    String getPartitionId()
     {
         return this.partitionId;
     }
 
-    public String getToken()
+    String getToken()
     {
         return this.token;
     }
 
-    public void setToken(String token)
+    void setToken(String token)
     {
         this.token = token;
     }
 
-    public boolean isExpired() throws Exception
+    boolean isExpired() throws Exception
     {
     	// this function is meaningless in the base class
     	return false;

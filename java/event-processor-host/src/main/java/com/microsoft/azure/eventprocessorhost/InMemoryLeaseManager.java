@@ -290,9 +290,9 @@ public class InMemoryLeaseManager implements ILeaseManager
 
     private static class InMemoryLeaseStore
     {
-        public final static InMemoryLeaseStore singleton = new InMemoryLeaseStore();
+        final static InMemoryLeaseStore singleton = new InMemoryLeaseStore();
 
-        public HashMap<String, InMemoryLease> inMemoryLeases = null;
+        HashMap<String, InMemoryLease> inMemoryLeases = null;
     }
     
     
@@ -300,24 +300,24 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
     	private long expirationTimeMillis = 0;
     	
-		public InMemoryLease(String partitionId)
+		InMemoryLease(String partitionId)
 		{
 			super(partitionId);
 		}
 		
-		public InMemoryLease(InMemoryLease source)
+		InMemoryLease(InMemoryLease source)
 		{
 			super(source);
 			this.expirationTimeMillis = source.expirationTimeMillis;
 		}
 		
-		public void setExpirationTime(long expireAtMillis)
+		void setExpirationTime(long expireAtMillis)
 		{
 			this.expirationTimeMillis = expireAtMillis;
 		}
 		
 		@Override
-	    public boolean isExpired() throws Exception
+	    boolean isExpired() throws Exception
 	    {
 			return (System.currentTimeMillis() >= this.expirationTimeMillis);
 	    }

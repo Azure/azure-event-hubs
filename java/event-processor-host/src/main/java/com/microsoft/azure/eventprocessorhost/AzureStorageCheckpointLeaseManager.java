@@ -27,7 +27,7 @@ import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
 
 
-public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
+class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
     private String storageConnectionString;
@@ -44,12 +44,12 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString)
+    AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
         this.storageConnectionString = storageConnectionString;
     }
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
+    AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
     {
         this.storageConnectionString = storageConnectionString;
         this.storageContainerName = storageContainerName;
@@ -58,7 +58,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
     // because it is still being constructed. Do other initialization here also because it might throw and
     // hence we don't want it in the constructor.
-    public void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
+    void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
     {
         this.host = host;
         if (this.storageContainerName == null)

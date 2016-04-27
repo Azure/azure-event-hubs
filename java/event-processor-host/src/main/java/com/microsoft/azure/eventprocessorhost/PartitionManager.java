@@ -49,18 +49,18 @@ class PartitionManager implements Runnable
     
     private boolean keepGoing = true;
 
-    public PartitionManager(EventProcessorHost host)
+    PartitionManager(EventProcessorHost host)
     {
         this.host = host;
         this.pump = new Pump(this.host);
     }
     
-    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
+    <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
     {
     	this.pump.setPumpClass(pumpClass);
     }
     
-    public Iterable<String> getPartitionIds()
+    Iterable<String> getPartitionIds()
     {
         if (this.partitionIds == null)
         {
@@ -110,11 +110,12 @@ class PartitionManager implements Runnable
         return this.partitionIds;
     }
     
-    public void stopPartitions()
+    void stopPartitions()
     {
     	this.keepGoing = false;
     }
     
+    @Override
     public void run()
     {
     	boolean initializedOK = false;

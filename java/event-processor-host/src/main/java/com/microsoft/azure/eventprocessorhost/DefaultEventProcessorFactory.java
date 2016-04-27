@@ -10,11 +10,12 @@ class DefaultEventProcessorFactory<T extends IEventProcessor> implements IEventP
 {
     private Class<T> eventProcessorClass = null;
 
-    public void setEventProcessorClass(Class<T> eventProcessorClass)
+    void setEventProcessorClass(Class<T> eventProcessorClass)
     {
         this.eventProcessorClass = eventProcessorClass;
     }
 
+    @Override
     public T createEventProcessor(PartitionContext context) throws Exception
     {
         return this.eventProcessorClass.newInstance();

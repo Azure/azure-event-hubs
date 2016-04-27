@@ -11,30 +11,15 @@ public class LeaseLostException extends Exception
 	
 	private Lease lease = null;
 	
-	public LeaseLostException()
-	{
-		super();
-	}
-	
-	public LeaseLostException(Lease lease)
-	{
-		super();
-		this.lease = lease;
-	}
-	
-	public LeaseLostException(Lease lease, Throwable cause)
+	LeaseLostException(Lease lease, Throwable cause)
 	{
 		super(null, cause);
 		this.lease = lease;
 	}
 	
-	public LeaseLostException(String message, Throwable cause)
+	// We don't want to expose Lease to the public.
+	public String getPartitionId()
 	{
-		super(message, cause);
-	}
-	
-	public Lease getLease()
-	{
-		return this.lease;
+		return this.lease.getPartitionId();
 	}
 }
