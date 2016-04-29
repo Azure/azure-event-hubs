@@ -25,12 +25,13 @@ import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azure.storage.blob.CloudBlobDirectory;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
+import com.microsoft.azure.storage.blob.ListBlobItem;
 
 
-public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
+class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
 {
     private EventProcessorHost host;
-    private String storageConnectionString;
+    private final String storageConnectionString;
     private String storageContainerName = null;
     
     private CloudBlobClient storageClient;
@@ -40,16 +41,16 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     private Gson gson;
     
     private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
-    private final static int leaseIntervalInSeconds = 30;
+    private final static int leaseDurationInSeconds = 30;
     private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString)
+    AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
         this.storageConnectionString = storageConnectionString;
     }
 
-    public AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
+    AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
     {
         this.storageConnectionString = storageConnectionString;
         this.storageContainerName = storageContainerName;
@@ -58,7 +59,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
     // because it is still being constructed. Do other initialization here also because it might throw and
     // hence we don't want it in the constructor.
-    public void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
+    void initialize(EventProcessorHost host) throws InvalidKeyException, URISyntaxException, StorageException
     {
         this.host = host;
         if (this.storageContainerName == null)
@@ -166,6 +167,12 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
     }
     
     @Override
+    public int getLeaseDurationInMilliseconds()
+    {
+    	return AzureStorageCheckpointLeaseManager.leaseDurationInSeconds * 1000;
+    }
+    
+    @Override
     public Future<Boolean> leaseStoreExists()
     {
         return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.exists());
@@ -177,6 +184,50 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
         return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists());
     }
 
+    @Override
+    public Future<Boolean> deleteLeaseStore()
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseStoreSync());
+    }
+    
+    private Boolean deleteLeaseStoreSync()
+    {
+    	boolean retval = true;
+    	
+    	for (ListBlobItem blob : this.eventHubContainer.listBlobs())
+    	{
+    		if (blob instanceof CloudBlobDirectory)
+    		{
+    			try
+    			{
+					for (ListBlobItem subBlob : ((CloudBlobDirectory)blob).listBlobs())
+					{
+						((CloudBlockBlob)subBlob).deleteIfExists();
+					}
+				}
+    			catch (StorageException | URISyntaxException e)
+    			{
+    				this.host.logWithHost(Level.WARNING, "Failure while deleting lease store", e);
+    				retval = false;
+				}
+    		}
+    		else if (blob instanceof CloudBlockBlob)
+    		{
+    			try
+    			{
+					((CloudBlockBlob)blob).deleteIfExists();
+				}
+    			catch (StorageException e)
+    			{
+    				this.host.logWithHost(Level.WARNING, "Failure while deleting lease store", e);
+    				retval = false;
+				}
+    		}
+    	}
+    	
+    	return retval;
+    }
+    
     @Override
     public Future<Lease> getLease(String partitionId)
     {
@@ -289,7 +340,7 @@ public class AzureStorageCheckpointLeaseManager implements ICheckpointManager, I
 	    	else
 	    	{
 	    		this.host.logWithHostAndPartition(Level.FINE, lease.getPartitionId(), "acquireLease");
-	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseIntervalInSeconds, newLeaseId);
+	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseDurationInSeconds, newLeaseId);
 	    	}
 	    	lease.setToken(newToken);
 	    	lease.setOwner(this.host.getHostName());

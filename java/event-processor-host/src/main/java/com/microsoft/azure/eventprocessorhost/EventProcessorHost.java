@@ -158,6 +158,8 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
+    	EventProcessorHost.TRACE_LOGGER.setLevel(Level.SEVERE);
+    	
         this.hostName = hostName;
         this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
@@ -199,23 +201,9 @@ public final class EventProcessorHost
      */
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
     
-    /**
-     * FOR TESTING USE ONLY
-     * 
-     */
-    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
-    {
-    	this.partitionManager.setPumpClass(pumpClass);
-    }
-
-    /**
-     * FOR TESTING USE ONLY
-     * 
-     */
-    public static ExecutorService getExecutorService()
-    {
-    	return EventProcessorHost.executorService;
-    }
+    // TEST USE ONLY
+    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     
     // All of these accessors are for internal use only.
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }

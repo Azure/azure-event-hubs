@@ -25,12 +25,13 @@ class EventHubPartitionPump extends PartitionPump
 	private PartitionReceiver partitionReceiver = null;
     private InternalReceiveHandler internalReceiveHandler = null;
 
-    //
-    // The base initialize() is fine as-is, no need to override.
-    //
+	EventHubPartitionPump(EventProcessorHost host, Lease lease)
+	{
+		super(host, lease);
+	}
 
     @Override
-    public void specializedStartPump()
+    void specializedStartPump()
     {
     	boolean openedOK = false;
     	int retryCount = 0;
@@ -134,7 +135,7 @@ class EventHubPartitionPump extends PartitionPump
     }
 
     @Override
-    public void specializedShutdown(CloseReason reason)
+    void specializedShutdown(CloseReason reason)
     {
     	// If an open operation is stuck, this lets us shut down anyway.
     	CompletableFuture<?> captured = this.internalOperationFuture;

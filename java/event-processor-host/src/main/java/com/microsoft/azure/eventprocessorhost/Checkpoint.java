@@ -9,7 +9,7 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class Checkpoint
 {
-	private String partitionId = "";
+	private final String partitionId;
 	private String offset = PartitionReceiver.START_OF_STREAM;
 	private long sequenceNumber = 0;
 	

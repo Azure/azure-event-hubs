@@ -14,18 +14,21 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class PartitionContext
 {
-	private EventProcessorHost host;
-    private String consumerGroupName;
-    private String eventHubPath;
+	private final EventProcessorHost host;
+    private final String partitionId;
+    private final String eventHubPath;
+    private final String consumerGroupName;
+    
     private Lease lease;
-    private String partitionId;
     private String offset = PartitionReceiver.START_OF_STREAM;
     private long sequenceNumber = 0;;
     
-    PartitionContext(EventProcessorHost host, String partitionId)
+    PartitionContext(EventProcessorHost host, String partitionId, String eventHubPath, String consumerGroupName)
     {
         this.host = host;
         this.partitionId = partitionId;
+        this.eventHubPath = eventHubPath;
+        this.consumerGroupName = consumerGroupName;
     }
 
     public String getConsumerGroupName()
@@ -33,27 +36,18 @@ public class PartitionContext
         return this.consumerGroupName;
     }
 
-    public void setConsumerGroupName(String consumerGroupName)
-    {
-        this.consumerGroupName = consumerGroupName;
-    }
-
     public String getEventHubPath()
     {
         return this.eventHubPath;
     }
 
-    public void setEventHubPath(String eventHubPath)
-    {
-        this.eventHubPath = eventHubPath;
-    }
-
-    public Lease getLease()
+    Lease getLease()
     {
         return this.lease;
     }
 
-    public void setLease(Lease lease)
+    // Unlike other properties which are immutable after creation, the lease is updated dynamically and needs a setter.
+    void setLease(Lease lease)
     {
         this.lease = lease;
     }

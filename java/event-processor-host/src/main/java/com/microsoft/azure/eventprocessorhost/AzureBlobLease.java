@@ -11,19 +11,19 @@ import com.microsoft.azure.storage.blob.BlobProperties;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
 
-public class AzureBlobLease extends Lease
+class AzureBlobLease extends Lease
 {
 	private transient CloudBlockBlob blob; // do not serialize
 	private String offset = PartitionReceiver.START_OF_STREAM;
 	private long sequenceNumber = 0;
 	
-	public AzureBlobLease(String partitionId, CloudBlockBlob blob)
+	AzureBlobLease(String partitionId, CloudBlockBlob blob)
 	{
 		super(partitionId);
 		this.blob = blob;
 	}
 	
-	public AzureBlobLease(AzureBlobLease source)
+	AzureBlobLease(AzureBlobLease source)
 	{
 		super(source);
 		this.offset = source.offset;
@@ -31,7 +31,7 @@ public class AzureBlobLease extends Lease
 		this.blob = source.blob;
 	}
 	
-	public AzureBlobLease(AzureBlobLease source, CloudBlockBlob blob)
+	AzureBlobLease(AzureBlobLease source, CloudBlockBlob blob)
 	{
 		super(source);
 		this.offset = source.offset;
@@ -39,7 +39,7 @@ public class AzureBlobLease extends Lease
 		this.blob = blob;
 	}
 	
-	public AzureBlobLease(Lease source, CloudBlockBlob blob)
+	AzureBlobLease(Lease source, CloudBlockBlob blob)
 	{
 		super(source);
 		this.blob = blob;
@@ -54,8 +54,17 @@ public class AzureBlobLease extends Lease
 	void setSequenceNumber(long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
 	
 	long getSequenceNumber() { return this.sequenceNumber; }
+
+	@Override
+	boolean isExpired() throws Exception
+	{
+		this.blob.downloadAttributes(); // Get the latest metadata
+		LeaseState currentState = this.blob.getProperties().getLeaseState();
+		return (currentState != LeaseState.LEASED); 
+	}
 	
-	public String getStateDebug()
+	@Override
+	String getStateDebug()
 	{
 		String retval = "uninitialized";
 		try
@@ -69,13 +78,5 @@ public class AzureBlobLease extends Lease
 			retval = "downloadAttributes on the blob caught " + e.toString();
 		}
 		return retval; 
-	}
-
-	@Override
-	public boolean isExpired() throws Exception
-	{
-		this.blob.downloadAttributes(); // Get the latest metadata
-		LeaseState currentState = this.blob.getProperties().getLeaseState();
-		return (currentState != LeaseState.LEASED); 
 	}
 }

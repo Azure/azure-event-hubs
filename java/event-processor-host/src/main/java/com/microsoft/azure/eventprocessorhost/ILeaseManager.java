@@ -21,13 +21,21 @@ import java.util.concurrent.Future;
 public interface ILeaseManager
 {
 	/**
-	 * Allows you to specify to PartitionManager how often it should scan leases and renew them.
-	 * In order to redistribute leases in a timely fashion after a host ceases operating, we
-	 * recommend a relatively short interval, such as ten seconds.
+	 * Allows a lease manager implementation to specify to PartitionManager how often it should
+	 * scan leases and renew them. In order to redistribute leases in a timely fashion after a host
+	 * ceases operating, we recommend a relatively short interval, such as ten seconds. Obviously it
+	 * should be less than half of the lease length, to prevent accidental expiration.
 	 * 
 	 * @return  The sleep interval between scans, specified in milliseconds.
 	 */
 	public int getLeaseRenewIntervalInMilliseconds();
+	
+	/**
+	 * Mostly useful for testing.
+	 * 
+	 * @return  Duration of a lease before it expires unless renewed.
+	 */
+	public int getLeaseDurationInMilliseconds();
 	
 	/**
 	 * Does the lease store exist?
@@ -42,6 +50,13 @@ public interface ILeaseManager
      * @return true if the lease store already exists or was created successfully, false if not
      */
     public Future<Boolean> createLeaseStoreIfNotExists();
+    
+    /**
+     * Not used by EventProcessorHost, but a convenient function to have for testing.
+     * 
+     * @return true if the lease store was deleted successfully, false if not
+     */
+    public Future<Boolean> deleteLeaseStore();
 
     /**
      * Return the lease info for the specified partition. Can return null if no lease has been

@@ -13,11 +13,9 @@ import java.util.logging.Level;
 
 class Pump
 {
-    private EventProcessorHost host;
+    private final EventProcessorHost host;
 
     private ConcurrentHashMap<String, PartitionPump> pumpStates;
-    
-    private Class<?> pumpClass = EventHubPartitionPump.class;
     
     public Pump(EventProcessorHost host)
     {
@@ -26,11 +24,6 @@ class Pump
         this.pumpStates = new ConcurrentHashMap<String, PartitionPump>();
     }
     
-    public <T extends PartitionPump> void setPumpClass(Class<T> pumpClass)
-    {
-    	this.pumpClass = pumpClass;
-    }
-
     public void addPump(String partitionId, Lease lease) throws Exception
     {
     	PartitionPump capturedPump = this.pumpStates.get(partitionId);
@@ -59,8 +52,7 @@ class Pump
     
     private void createNewPump(String partitionId, Lease lease) throws Exception
     {
-		PartitionPump newPartitionPump = (PartitionPump)this.pumpClass.newInstance();
-		newPartitionPump.initialize(this.host, lease);
+		PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, lease);
 		EventProcessorHost.getExecutorService().submit(() -> newPartitionPump.startPump());
         this.pumpStates.put(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
 		this.host.logWithHostAndPartition(Level.INFO, partitionId, "created new pump");

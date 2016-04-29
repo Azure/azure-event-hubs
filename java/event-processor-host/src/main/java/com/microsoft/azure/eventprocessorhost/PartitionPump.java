@@ -10,9 +10,9 @@ import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
 
-public abstract class PartitionPump
+abstract class PartitionPump
 {
-	protected EventProcessorHost host = null;
+	protected final EventProcessorHost host;
 	protected Lease lease = null;
 	
 	protected PartitionPumpStatus pumpStatus = PartitionPumpStatus.PP_UNINITIALIZED;
@@ -20,28 +20,26 @@ public abstract class PartitionPump
     protected IEventProcessor processor = null;
     protected PartitionContext partitionContext = null;
     
-    protected Object processingSynchronizer = null;
-	
-	public void initialize(EventProcessorHost host, Lease lease)
+    protected final Object processingSynchronizer;
+    
+	PartitionPump(EventProcessorHost host, Lease lease)
 	{
 		this.host = host;
 		this.lease = lease;
 		this.processingSynchronizer = new Object();
 	}
 	
-	public void setLease(Lease newLease)
+	void setLease(Lease newLease)
 	{
 		this.partitionContext.setLease(newLease);
 	}
 	
 	// return Void so it can be called from a lambda submitted to ExecutorService
-    public Void startPump()
+    Void startPump()
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;
     	
-        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId());
-        this.partitionContext.setEventHubPath(this.host.getEventHubPath());
-        this.partitionContext.setConsumerGroupName(this.host.getConsumerGroupName());
+        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId(), this.host.getEventHubPath(), this.host.getConsumerGroupName());
         this.partitionContext.setLease(this.lease);
         
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
@@ -73,19 +71,19 @@ public abstract class PartitionPump
         return null;
     }
 
-    public abstract void specializedStartPump();
+    abstract void specializedStartPump();
 
-    public PartitionPumpStatus getPumpStatus()
+    PartitionPumpStatus getPumpStatus()
     {
     	return this.pumpStatus;
     }
     
-    public Boolean isClosing()
+    Boolean isClosing()
     {
     	return ((this.pumpStatus == PartitionPumpStatus.PP_CLOSING) || (this.pumpStatus == PartitionPumpStatus.PP_CLOSED));
     }
 
-    public void shutdown(CloseReason reason)
+    void shutdown(CloseReason reason)
     {
     	this.pumpStatus = PartitionPumpStatus.PP_CLOSING;
         this.host.logWithHostAndPartition(Level.INFO, this.partitionContext, "pump shutdown for reason " + reason.toString());
@@ -116,7 +114,7 @@ public abstract class PartitionPump
         this.pumpStatus = PartitionPumpStatus.PP_CLOSED;
     }
     
-    public abstract void specializedShutdown(CloseReason reason);
+    abstract void specializedShutdown(CloseReason reason);
     
     protected void onEvents(Iterable<EventData> events)
 	{
