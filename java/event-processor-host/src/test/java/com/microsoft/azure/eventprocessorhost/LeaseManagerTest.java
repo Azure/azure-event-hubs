@@ -10,7 +10,7 @@ public class LeaseManagerTest
 	//
 	// Setup variables.
 	//
-	private boolean useAzureStorage = false; // false tests InMemoryLeaseManager, true tests AzureStorageCheckpointLeaseManager
+	private boolean useAzureStorage = true; // false tests InMemoryLeaseManager, true tests AzureStorageCheckpointLeaseManager
 	//private String azureStorageConnectionString = ""; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
 	private String azureStorageConnectionString = "DefaultEndpointsProtocol=https;AccountName=jbird4javaeph;AccountKey=GPA8M1kT2iYn1KSUioDNZMjp1r7K8trG8RIYL0U0bxcK91GgrSOMUxWuiP7CHpJYRC0e/jA6VLod4U5gCfPvsg=="; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
 	private int partitionCount = 4;
@@ -23,7 +23,10 @@ public class LeaseManagerTest
 	{
 		this.leaseManagers = new ILeaseManager[1];
 		this.hosts = new EventProcessorHost[1];
-		setupOneManager(0);
+		setupOneManager(0, generateContainerName("0"));
+		
+		System.out.println("singleManagerSmokeTest");
+		System.out.println("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
 
 		Boolean boolret = this.leaseManagers[0].leaseStoreExists().get();
 		assertFalse("lease store should not exist yet", boolret);
@@ -89,20 +92,83 @@ public class LeaseManagerTest
 		{
 			assertEquals("token was not persisted, expected [" + leases[1].getToken() + "] got [" + retrievedLease.getToken() + "]", leases[1].getToken(), retrievedLease.getToken());
 		}
-	
+		
 		// Release for 0 is expected to fail because it has expired
 		boolret = this.leaseManagers[0].releaseLease(leases[0]).get();
 		assertFalse("release lease on 0 succeeded unexpectedly", boolret);
-		for (int i = 1; i < partitionCount; i++)
+		
+		// Renew for 0 succeeds even though it has expired.
+		// This is the behavior of AzureStorageCheckpointLeaseManager, which is dictated by the behavior of Azure Storage leases.
+		boolret = this.leaseManagers[0].renewLease(leases[0]).get();
+		assertTrue("renew lease on 0 failed unexpectedly", boolret);
+
+		for (int i = 0; i < partitionCount; i++)
 		{
 			System.out.println("Partition " + i + " state before: " + leases[i].getStateDebug());
 			boolret = this.leaseManagers[0].releaseLease(leases[i]).get();
 			assertTrue("failed to release lease for " + i, boolret);
 			System.out.println("Partition " + i + " state after: " + leases[i].getStateDebug());
 		}
+		
+		boolret = this.leaseManagers[0].acquireLease(leases[0]).get();
+		assertTrue("failed to acquire previously released 0", boolret);
+		
+		boolret = this.leaseManagers[0].releaseLease(leases[0]).get();
+		assertTrue("failed to release lease for 0", boolret);
+		
+		boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up store", boolret);
+		
+		System.out.println("singleManagerSmokeTest DONE");
+	}
+
+	
+	@Test
+	public void twoManagerLeaseStealingTest() throws Exception
+	{
+		this.leaseManagers = new ILeaseManager[2];
+		this.hosts = new EventProcessorHost[2];
+		String containerName = generateContainerName(null);
+		setupOneManager(0, containerName);
+		setupOneManager(1, containerName);
+		
+		System.out.println("twoManagerLeaseStealingTest");
+		System.out.println("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
+
+		Boolean boolret = this.leaseManagers[0].leaseStoreExists().get();
+		assertFalse("lease store should not exist yet", boolret);
+		
+		boolret = this.leaseManagers[0].createLeaseStoreIfNotExists().get();
+		assertTrue("creating lease store returned false", boolret);
+
+		boolret = this.leaseManagers[0].leaseStoreExists().get();
+		assertTrue("lease store should exist but does not", boolret);
+		
+		boolret = this.leaseManagers[1].leaseStoreExists().get();
+		assertTrue("second manager cannot see lease store", boolret);
+		
+		// TODO
+		
+		boolret = this.leaseManagers[1].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up store", boolret);
+		
+		System.out.println("twoManagerLeaseStealingTest DONE");
 	}
 	
-	private void setupOneManager(int index) throws Exception
+	private String generateContainerName(String infix)
+	{
+		StringBuilder containerName = new StringBuilder(64);
+		containerName.append("leasemgrtest-");
+		if (infix != null)
+		{
+			containerName.append(infix);
+			containerName.append('-');
+		}
+		containerName.append(UUID.randomUUID().toString());
+		return containerName.toString();
+	}
+	
+	private void setupOneManager(int index, String containerName) throws Exception
 	{
 		ILeaseManager leaseMgr = null;
 		ICheckpointManager checkpointMgr = null;
@@ -114,7 +180,6 @@ public class LeaseManagerTest
 		}
 		else
 		{
-			String containerName = "leasemgrtest-" + String.valueOf(index) + "-" + UUID.randomUUID().toString(); 
 			System.out.println("Container name: " + containerName);
 			AzureStorageCheckpointLeaseManager azMgr = new AzureStorageCheckpointLeaseManager(this.azureStorageConnectionString, containerName);
 			leaseMgr = azMgr;

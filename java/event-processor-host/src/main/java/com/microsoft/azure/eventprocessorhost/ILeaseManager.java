@@ -50,6 +50,13 @@ public interface ILeaseManager
      * @return true if the lease store already exists or was created successfully, false if not
      */
     public Future<Boolean> createLeaseStoreIfNotExists();
+    
+    /**
+     * Not used by EventProcessorHost, but a convenient function to have for testing.
+     * 
+     * @return true if the lease store was deleted successfully, false if not
+     */
+    public Future<Boolean> deleteLeaseStore();
 
     /**
      * Return the lease info for the specified partition. Can return null if no lease has been

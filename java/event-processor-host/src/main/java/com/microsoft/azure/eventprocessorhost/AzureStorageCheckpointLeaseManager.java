@@ -25,6 +25,7 @@ import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azure.storage.blob.CloudBlobDirectory;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.microsoft.azure.storage.blob.LeaseState;
+import com.microsoft.azure.storage.blob.ListBlobItem;
 
 
 class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager
@@ -183,6 +184,50 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists());
     }
 
+    @Override
+    public Future<Boolean> deleteLeaseStore()
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseStoreSync());
+    }
+    
+    private Boolean deleteLeaseStoreSync()
+    {
+    	boolean retval = true;
+    	
+    	for (ListBlobItem blob : this.eventHubContainer.listBlobs())
+    	{
+    		if (blob instanceof CloudBlobDirectory)
+    		{
+    			try
+    			{
+					for (ListBlobItem subBlob : ((CloudBlobDirectory)blob).listBlobs())
+					{
+						((CloudBlockBlob)subBlob).deleteIfExists();
+					}
+				}
+    			catch (StorageException | URISyntaxException e)
+    			{
+    				this.host.logWithHost(Level.WARNING, "Failure while deleting lease store", e);
+    				retval = false;
+				}
+    		}
+    		else if (blob instanceof CloudBlockBlob)
+    		{
+    			try
+    			{
+					((CloudBlockBlob)blob).deleteIfExists();
+				}
+    			catch (StorageException e)
+    			{
+    				this.host.logWithHost(Level.WARNING, "Failure while deleting lease store", e);
+    				retval = false;
+				}
+    		}
+    	}
+    	
+    	return retval;
+    }
+    
     @Override
     public Future<Lease> getLease(String partitionId)
     {

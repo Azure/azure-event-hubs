@@ -79,6 +79,18 @@ public class InMemoryLeaseManager implements ILeaseManager
     }
     
     @Override
+    public Future<Boolean> deleteLeaseStore()
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> deleteLeaseStoreSync());
+    }
+    
+    private Boolean deleteLeaseStoreSync()
+    {
+    	InMemoryLeaseStore.singleton.deleteMap();
+    	return true;
+    }
+    
+    @Override
     public Future<Lease> getLease(String partitionId)
     {
         return EventProcessorHost.getExecutorService().submit(() -> getLeaseSync(partitionId));
@@ -213,7 +225,10 @@ public class InMemoryLeaseManager implements ILeaseManager
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(lease.getPartitionId());
         if (leaseInStore != null)
         {
-        	if (!wrapIsExpired(leaseInStore) && (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0))
+        	// CHANGE TO MATCH BEHAVIOR OF AzureStorageCheckpointLeaseManager
+        	// Renewing a lease that has expired succeeds unless some other host has grabbed it already.
+        	// So don't check expiration, just ownership.
+        	if (/* !wrapIsExpired(leaseInStore) && */ (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0))
         	{
                 long newExpiration = System.currentTimeMillis() + InMemoryLeaseManager.leaseDurationInMillieconds;
             	// Make change in both persisted lease and live lease!
@@ -348,6 +363,11 @@ public class InMemoryLeaseManager implements ILeaseManager
         	}
         }
         
+        synchronized void deleteMap()
+        {
+        	this.inMemoryLeasesPrivate = null;
+        }
+        
         synchronized InMemoryLease getLease(String partitionId)
         {
         	return this.inMemoryLeasesPrivate.get(partitionId);
@@ -391,7 +411,10 @@ public class InMemoryLeaseManager implements ILeaseManager
 			boolean hasExpired = (System.currentTimeMillis() >= this.expirationTimeMillis);
 			if (hasExpired)
 			{
-				setOwner("");
+	        	// CHANGE TO MATCH BEHAVIOR OF AzureStorageCheckpointLeaseManager
+				// An expired lease can be renewed by the previous owner. In order to implement that behavior for
+				// InMemory, the owner field has to remain unchanged.
+				//setOwner("");
 			}
 			return hasExpired;
 	    }
