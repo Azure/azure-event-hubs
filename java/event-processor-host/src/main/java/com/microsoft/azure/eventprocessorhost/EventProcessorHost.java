@@ -158,6 +158,8 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
+    	EventProcessorHost.TRACE_LOGGER.setLevel(Level.SEVERE);
+    	
         this.hostName = hostName;
         this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
@@ -366,8 +368,8 @@ public final class EventProcessorHost
     
     void log(Level logLevel, String logMessage)
     {
-  		//EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	System.out.println(logLevel.toString() + ": " + logMessage);
+  		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
+    	//System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)
