@@ -63,7 +63,7 @@ public class TemporaryTest
 			}
 
 	    	final int partitionCount = 8;
-	    	basicLeaseManagerTest(leaseMgr, partitionCount, useInMemory);
+			basicLeaseManagerTest(leaseMgr, partitionCount, useInMemory);
     	}
     	else if (runCase == 2)
     	{

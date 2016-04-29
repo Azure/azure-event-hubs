@@ -40,7 +40,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private Gson gson;
     
     private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
-    private final static int leaseIntervalInSeconds = 30;
+    private final static int leaseDurationInSeconds = 30;
     private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
@@ -163,6 +163,12 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     public int getLeaseRenewIntervalInMilliseconds()
     {
     	return AzureStorageCheckpointLeaseManager.leaseRenewIntervalInMilliseconds;
+    }
+    
+    @Override
+    public int getLeaseDurationInMilliseconds()
+    {
+    	return AzureStorageCheckpointLeaseManager.leaseDurationInSeconds * 1000;
     }
     
     @Override
@@ -289,7 +295,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	else
 	    	{
 	    		this.host.logWithHostAndPartition(Level.FINE, lease.getPartitionId(), "acquireLease");
-	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseIntervalInSeconds, newLeaseId);
+	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseDurationInSeconds, newLeaseId);
 	    	}
 	    	lease.setToken(newToken);
 	    	lease.setOwner(this.host.getHostName());

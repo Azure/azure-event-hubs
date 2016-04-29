@@ -54,7 +54,16 @@ class AzureBlobLease extends Lease
 	void setSequenceNumber(long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
 	
 	long getSequenceNumber() { return this.sequenceNumber; }
+
+	@Override
+	boolean isExpired() throws Exception
+	{
+		this.blob.downloadAttributes(); // Get the latest metadata
+		LeaseState currentState = this.blob.getProperties().getLeaseState();
+		return (currentState != LeaseState.LEASED); 
+	}
 	
+	@Override
 	String getStateDebug()
 	{
 		String retval = "uninitialized";
@@ -69,13 +78,5 @@ class AzureBlobLease extends Lease
 			retval = "downloadAttributes on the blob caught " + e.toString();
 		}
 		return retval; 
-	}
-
-	@Override
-	boolean isExpired() throws Exception
-	{
-		this.blob.downloadAttributes(); // Get the latest metadata
-		LeaseState currentState = this.blob.getProperties().getLeaseState();
-		return (currentState != LeaseState.LEASED); 
 	}
 }

@@ -199,14 +199,9 @@ public final class EventProcessorHost
      */
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
     
-    /**
-     * FOR TESTING USE ONLY
-     * 
-     */
-    public static ExecutorService getExecutorService()
-    {
-    	return EventProcessorHost.executorService;
-    }
+    // TEST USE ONLY
+    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     
     // All of these accessors are for internal use only.
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
@@ -371,8 +366,8 @@ public final class EventProcessorHost
     
     void log(Level logLevel, String logMessage)
     {
-  		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	//System.out.println(logLevel.toString() + ": " + logMessage);
+  		//EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
+    	System.out.println(logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)

@@ -77,4 +77,9 @@ class Lease
     	// this function is meaningless in the base class
     	return false;
     }
+    
+    String getStateDebug()
+    {
+    	return "N/A";
+    }
 }

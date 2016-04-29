@@ -42,8 +42,9 @@ import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 class PartitionManager implements Runnable
 {
-    private final EventProcessorHost host;
-    private final Pump pump;
+	// Protected instead of private for testability
+    protected final EventProcessorHost host;
+    protected Pump pump;
 
     private List<String> partitionIds = null;
     
@@ -52,7 +53,6 @@ class PartitionManager implements Runnable
     PartitionManager(EventProcessorHost host)
     {
         this.host = host;
-        this.pump = new Pump(this.host);
     }
     
     Iterable<String> getPartitionIds()
@@ -104,6 +104,22 @@ class PartitionManager implements Runnable
         
         return this.partitionIds;
     }
+
+    // Testability hook: allows a test subclass to insert dummy pump.
+    Pump createPumpTestHook()
+    {
+        return new Pump(this.host);
+    }
+
+    // Testability hook: called after stores are initialized.
+    void onInitializeCompleteTestHook()
+    {
+    }
+
+    // Testability hook: called at the end of the main loop after all partition checks/stealing is complete.
+    void onPartitionCheckCompleteTestHook()
+    {
+    }
     
     void stopPartitions()
     {
@@ -115,10 +131,13 @@ class PartitionManager implements Runnable
     {
     	boolean initializedOK = false;
     	
+    	this.pump = createPumpTestHook();
+    	
     	try
     	{
     		initializeStores();
     		initializedOK = true;
+    		onInitializeCompleteTestHook();
     	}
     	catch (ExceptionWithAction e)
     	{
@@ -353,6 +372,8 @@ class PartitionManager implements Runnable
             		this.pump.removePump(partitionId, CloseReason.LeaseLost);
             	}
             }
+            
+            onPartitionCheckCompleteTestHook();
     		
             try
             {
