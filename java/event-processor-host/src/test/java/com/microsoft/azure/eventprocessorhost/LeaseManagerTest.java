@@ -11,8 +11,7 @@ public class LeaseManagerTest
 	// Setup variables.
 	//
 	private boolean useAzureStorage = true; // false tests InMemoryLeaseManager, true tests AzureStorageCheckpointLeaseManager
-	//private String azureStorageConnectionString = ""; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
-	private String azureStorageConnectionString = "DefaultEndpointsProtocol=https;AccountName=jbird4javaeph;AccountKey=GPA8M1kT2iYn1KSUioDNZMjp1r7K8trG8RIYL0U0bxcK91GgrSOMUxWuiP7CHpJYRC0e/jA6VLod4U5gCfPvsg=="; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
+	private String azureStorageConnectionString = ""; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
 	private int partitionCount = 4;
 	
 	private ILeaseManager[] leaseManagers;
