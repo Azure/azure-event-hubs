@@ -225,6 +225,16 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		}
     	}
     	
+    	try
+    	{
+			this.eventHubContainer.deleteIfExists();
+		}
+    	catch (StorageException e)
+    	{
+			this.host.logWithHost(Level.WARNING, "Failure while deleting lease store", e);
+			retval = false;
+		}
+    	
     	return retval;
     }
     

@@ -22,7 +22,7 @@ public class LeaseManagerTest
 	{
 		this.leaseManagers = new ILeaseManager[1];
 		this.hosts = new EventProcessorHost[1];
-		setupOneManager(0, generateContainerName("0"));
+		setupOneManager(0, "0", generateContainerName("0"));
 		
 		System.out.println("singleManagerSmokeTest");
 		System.out.println("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
@@ -128,8 +128,8 @@ public class LeaseManagerTest
 		this.leaseManagers = new ILeaseManager[2];
 		this.hosts = new EventProcessorHost[2];
 		String containerName = generateContainerName(null);
-		setupOneManager(0, containerName);
-		setupOneManager(1, containerName);
+		setupOneManager(0, "StealTest", containerName);
+		setupOneManager(1, "StealTest", containerName);
 		
 		System.out.println("twoManagerLeaseStealingTest");
 		System.out.println("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
@@ -145,8 +145,51 @@ public class LeaseManagerTest
 		
 		boolret = this.leaseManagers[1].leaseStoreExists().get();
 		assertTrue("second manager cannot see lease store", boolret);
+
+		Lease mgr1Lease = this.leaseManagers[0].createLeaseIfNotExists("0").get();
+		assertNotNull("first manager failed creating lease for 0", mgr1Lease);
 		
-		// TODO
+		Lease mgr2Lease = this.leaseManagers[1].getLease("0").get();
+		assertNotNull("second manager cannot see lease for 0", mgr2Lease);
+
+		boolret = this.leaseManagers[0].acquireLease(mgr1Lease).get();
+		assertTrue("first manager failed acquiring lease for 0", boolret);
+		System.out.println("Lease token is " + mgr1Lease.getToken());
+		
+		int x = 0;
+		while (!mgr1Lease.isExpired())
+		{
+			assertFalse("lease 0 expiration is overdue", (5000 * x) > (this.leaseManagers[0].getLeaseDurationInMilliseconds() + 10000));
+			Thread.sleep(5000);
+			System.out.println("Still waiting for lease on 0 to expire: " + (5 * ++x));
+		}
+
+		boolret = this.leaseManagers[1].acquireLease(mgr2Lease).get();
+		assertTrue("second manager failed acquiring expired lease for 0", boolret);
+		System.out.println("Lease token is " + mgr2Lease.getToken());
+
+		boolret = this.leaseManagers[0].renewLease(mgr1Lease).get();
+		assertFalse("first manager unexpected success renewing lease for 0", boolret);
+		
+		mgr1Lease = this.leaseManagers[0].getLease(mgr1Lease.getPartitionId()).get();
+		assertNotNull("first manager cannot see lease for 0", mgr1Lease);
+		
+		boolret = this.leaseManagers[0].acquireLease(mgr1Lease).get();
+		assertTrue("first manager failed stealing lease 0", boolret);
+		System.out.println("Lease token is " + mgr1Lease.getToken());
+		
+		mgr2Lease = this.leaseManagers[1].getLease("0").get();
+		assertNotNull("second manager cannot see lease for 0", mgr2Lease);
+		
+		boolret = this.leaseManagers[1].acquireLease(mgr2Lease).get();
+		assertTrue("second manager failed stealing lease 0", boolret);
+		System.out.println("Lease token is " + mgr2Lease.getToken());
+		
+		boolret = this.leaseManagers[1].releaseLease(mgr2Lease).get();
+		assertTrue("second manager failed to release lease 0", boolret);
+
+		boolret = this.leaseManagers[0].releaseLease(mgr1Lease).get();
+		assertFalse("first manager unexpected success releasing lease 0", boolret);
 		
 		boolret = this.leaseManagers[1].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up store", boolret);
@@ -167,7 +210,7 @@ public class LeaseManagerTest
 		return containerName.toString();
 	}
 	
-	private void setupOneManager(int index, String containerName) throws Exception
+	private void setupOneManager(int index, String suffix, String containerName) throws Exception
 	{
 		ILeaseManager leaseMgr = null;
 		ICheckpointManager checkpointMgr = null;
@@ -185,8 +228,9 @@ public class LeaseManagerTest
 			checkpointMgr = azMgr;
 		}
 		
-		String suffix = String.valueOf(index);
-    	EventProcessorHost host = new EventProcessorHost("dummyHost" + suffix, "dummyNamespace" + suffix, "dummyEventHub" + suffix, "dummyKeyName" + suffix,
+		// Host name needs to be unique per host so use index. Namespace, event hub, etc. frequently should be the same for all hosts in a test, so
+		// use the supplied suffix.
+    	EventProcessorHost host = new EventProcessorHost("dummyHost" + String.valueOf(index), "dummyNamespace" + suffix, "dummyEventHub" + suffix, "dummyKeyName" + suffix,
 				"dummyKey" + suffix, "dummyConsumerGroup" + suffix, checkpointMgr, leaseMgr);
     	
     	try
