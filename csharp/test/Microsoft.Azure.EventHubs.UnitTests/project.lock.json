@@ -20,6 +20,13 @@
         "runtime": {
           "lib/net451/Microsoft.Azure.Amqp.Dnx.dll": {}
         }
+      },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": ".NETFramework,Version=v4.6",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0"
+        }
       }
     },
     "DNXCore,Version=v5.0": {
@@ -38,6 +45,14 @@
         },
         "runtime": {
           "lib/dnxcore50/Microsoft.Azure.Amqp.Dnx.dll": {}
+        }
+      },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": "DNXCore,Version=v5.0",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0",
+          "Microsoft.NETCore.Console": "1.0.0-rc2-23712"
         }
       },
       "Microsoft.CSharp/4.0.1-rc2-23712": {
@@ -1767,6 +1782,13 @@
         "runtime": {
           "lib/net451/Microsoft.Azure.Amqp.Dnx.dll": {}
         }
+      },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": ".NETFramework,Version=v4.6",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0"
+        }
       }
     },
     ".NETFramework,Version=v4.6/win7-x64": {
@@ -1787,6 +1809,13 @@
         "runtime": {
           "lib/net451/Microsoft.Azure.Amqp.Dnx.dll": {}
         }
+      },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": ".NETFramework,Version=v4.6",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0"
+        }
       }
     },
     "DNXCore,Version=v5.0/win7-x86": {
@@ -1805,6 +1834,14 @@
         },
         "runtime": {
           "lib/dnxcore50/Microsoft.Azure.Amqp.Dnx.dll": {}
+        }
+      },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": "DNXCore,Version=v5.0",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0",
+          "Microsoft.NETCore.Console": "1.0.0-rc2-23712"
         }
       },
       "Microsoft.CSharp/4.0.1-rc2-23712": {
@@ -4540,6 +4577,14 @@
           "lib/dnxcore50/Microsoft.Azure.Amqp.Dnx.dll": {}
         }
       },
+      "Microsoft.Azure.EventHubs/1.0.0": {
+        "type": "project",
+        "framework": "DNXCore,Version=v5.0",
+        "dependencies": {
+          "Microsoft.Azure.Amqp.Dnx": "1.0.0",
+          "Microsoft.NETCore.Console": "1.0.0-rc2-23712"
+        }
+      },
       "Microsoft.CSharp/4.0.1-rc2-23712": {
         "type": "package",
         "dependencies": {
@@ -7257,6 +7302,10 @@
     }
   },
   "libraries": {
+    "Microsoft.Azure.EventHubs/1.0.0": {
+      "type": "project",
+      "path": "../../src/Microsoft.Azure.EventHubs/project.json"
+    },
     "Microsoft.Azure.Amqp.Dnx/1.0.0": {
       "type": "package",
       "sha512": "QfdGEsj8bjFm4h31uE/TkXRovxFFes51clTb7YOY4W9bXcplpkX+CdwmGra8qCtdsEfgioFq/9VPUw6GQkoPnw==",
@@ -12855,9 +12904,11 @@
   },
   "projectFileDependencyGroups": {
     "": [
-      "Microsoft.Azure.Amqp.Dnx >= 1.0.0"
+      "Microsoft.Azure.EventHubs >= 1.0.0-*"
     ],
-    ".NETFramework,Version=v4.6": [],
+    ".NETFramework,Version=v4.6": [
+      "fx/System.Runtime"
+    ],
     "DNXCore,Version=v5.0": [
       "Microsoft.NETCore.Console >= 1.0.0-rc2-23712"
     ]

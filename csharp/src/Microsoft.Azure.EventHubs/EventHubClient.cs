@@ -24,7 +24,7 @@ namespace Microsoft.Azure.EventHubs
 
         public string EventHubName { get; }
 
-        protected internal ServiceBusConnectionSettings ConnectionSettings { get; }
+        public ServiceBusConnectionSettings ConnectionSettings { get; }
 
         protected object ThisLock { get; } = new object();
 

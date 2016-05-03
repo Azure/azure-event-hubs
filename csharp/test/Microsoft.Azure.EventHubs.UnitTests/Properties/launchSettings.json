@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Microsoft.Azure.EventHubs.UnitTests": {
+      "commandName": "Microsoft.Azure.EventHubs.UnitTests",
+      "sdkVersion": "dnx-coreclr-win-x64.1.0.0-rc2-20221"
+    }
+  }
+}
