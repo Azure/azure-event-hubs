@@ -99,6 +99,12 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     {
         return createLeaseStoreIfNotExists();
     }
+    
+    @Override
+    public Future<Boolean> deleteCheckpointStore()
+    {
+    	return deleteLeaseStore();
+    }
 
     @Override
     public Future<Checkpoint> getCheckpoint(String partitionId)

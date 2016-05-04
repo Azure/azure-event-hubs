@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 
+
 //
 // An ICheckpointManager implementation based on an in-memory store. This is obviously volatile
 // and can only be shared among hosts within a process, but is useful for testing. Overall, its
@@ -48,7 +49,6 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     {
     	return InMemoryCheckpointStore.singleton.existsMap();
     }
-    
 
     @Override
     public Future<Boolean> createCheckpointStoreIfNotExists()
@@ -60,6 +60,18 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     {
         InMemoryCheckpointStore.singleton.initializeMap();
         return true;
+    }
+    
+    @Override
+    public Future<Boolean> deleteCheckpointStore()
+    {
+    	return EventProcessorHost.getExecutorService().submit(() -> deleteCheckpointStoreSync());
+    }
+    
+    private Boolean deleteCheckpointStoreSync()
+    {
+    	InMemoryCheckpointStore.singleton.deleteMap();
+    	return true;
     }
     
     @Override
@@ -161,6 +173,11 @@ public class InMemoryCheckpointManager implements ICheckpointManager
         	{
         		this.inMemoryCheckpointsPrivate = new ConcurrentHashMap<String, Checkpoint>();
         	}
+        }
+        
+        synchronized void deleteMap()
+        {
+        	this.inMemoryCheckpointsPrivate = null;
         }
         
         synchronized Checkpoint getCheckpoint(String partitionId)

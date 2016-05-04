@@ -33,6 +33,13 @@ public interface ICheckpointManager
      * @return true if the checkpoint store already exists or was created OK, false if there was a failure
      */
     public Future<Boolean> createCheckpointStoreIfNotExists();
+    
+    /**
+     * Not used by EventProcessorHost, but a convenient function to have for testing.
+     * 
+     * @return true if the checkpoint store was deleted successfully, false if not
+     */
+    public Future<Boolean> deleteCheckpointStore();
 
     /***
      * Get the checkpoint data associated with the given partition. Could return null if no checkpoint has
