@@ -18,13 +18,13 @@ public class LeaseManagerTest
 	private EventProcessorHost[] hosts;
 	
 	@Test
-	public void singleManagerSmokeTest() throws Exception
+	public void singleManagerLeaseSmokeTest() throws Exception
 	{
 		this.leaseManagers = new ILeaseManager[1];
 		this.hosts = new EventProcessorHost[1];
 		setupOneManager(0, "0", generateContainerName("0"));
 		
-		System.out.println("singleManagerSmokeTest");
+		System.out.println("singleManagerLeaseSmokeTest");
 		System.out.println("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
 
 		Boolean boolret = this.leaseManagers[0].leaseStoreExists().get();
@@ -118,7 +118,7 @@ public class LeaseManagerTest
 		boolret = this.leaseManagers[0].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up store", boolret);
 		
-		System.out.println("singleManagerSmokeTest DONE");
+		System.out.println("singleManagerLeaseSmokeTest DONE");
 	}
 
 	
