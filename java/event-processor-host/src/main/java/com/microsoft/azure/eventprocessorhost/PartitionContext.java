@@ -23,12 +23,16 @@ public class PartitionContext
     private String offset = PartitionReceiver.START_OF_STREAM;
     private long sequenceNumber = 0;;
     
+    private Object offsetSynchronizer;
+    
     PartitionContext(EventProcessorHost host, String partitionId, String eventHubPath, String consumerGroupName)
     {
         this.host = host;
         this.partitionId = partitionId;
         this.eventHubPath = eventHubPath;
         this.consumerGroupName = consumerGroupName;
+        
+        this.offsetSynchronizer = new Object();
     }
 
     public String getConsumerGroupName()
@@ -81,7 +85,7 @@ public class PartitionContext
      */
     public void setOffsetAndSequenceNumber(String offset, long sequenceNumber) throws IllegalArgumentException
     {
-    	synchronized (this.offset)
+    	synchronized (this.offsetSynchronizer)
     	{
     		if (sequenceNumber >= this.sequenceNumber)
     		{
@@ -129,11 +133,13 @@ public class PartitionContext
     public void checkpoint() throws IllegalArgumentException, InterruptedException, ExecutionException
     {
     	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
-    	// instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
-    	// task runs, the fields in this object may have changed, but we should only write to store what the user
-    	// has directed us to write.
+    	// instead of catching an update halfway through. The capturing may not be strictly necessary,
+    	// since checkpoint() is called from the user's event processor which also controls the retrieval
+    	// of events, and no other thread should be updating this PartitionContext, unless perhaps the
+    	// event processor is itself multithreaded... Whether it's required or not, the amount of work
+    	// required is trivial, so we might as well do it to be sure.
     	Checkpoint capturedCheckpoint = null;
-    	synchronized (this.offset)
+    	synchronized (this.offsetSynchronizer)
     	{
     		capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
     	}
