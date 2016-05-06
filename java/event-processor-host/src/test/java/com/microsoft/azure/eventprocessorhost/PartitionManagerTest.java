@@ -1,7 +1,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
@@ -15,16 +15,28 @@ public class PartitionManagerTest
 	private TestPartitionManager[] partitionManagers;
 	private Future<?>[] managerFutures;
 	
-	private boolean keepGoing;
 	private int countOfChecks;
+	private int desiredDistributionDetected;
+	
+	private boolean keepGoing;
+	private boolean expectEqualDistribution;
+	private boolean ignoreZeroes;
+	private int maxChecks;
 	
 	@Test
-	public void testPartitionBalancingExactMultiples() throws InterruptedException
+	public void partitionBalancingExactMultipleTest() throws InterruptedException
 	{
-		setup(2, 4);
-		this.keepGoing = true;
+		System.out.println("partitionBalancingExactMultipleTest");
+		
+		setup(2, 4); // two hosts, four partitions
 		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = true;
+		this.ignoreZeroes = false;
+		this.maxChecks = 20;
 		startManagers();
+		
 		// Poll until checkPartitionDistribution() declares that it's time to stop.
 		while (this.keepGoing)
 		{
@@ -39,28 +51,216 @@ public class PartitionManagerTest
 				throw e;
 			}
 		}
+		
 		stopManagers();
 		
-		assertEquals(1,1);
+		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+		
+		System.out.println("DONE");
 	}
 	
-	synchronized void checkPartitionDistribution()
+	@Test
+	public void partitionBalancingUnevenTest() throws InterruptedException
+	{
+		System.out.println("partitionBalancingUnevenTest");
+		
+		setup(5, 16); // five hosts, sixteen partitions
+		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = false;
+		this.ignoreZeroes = false;
+		this.maxChecks = 35;
+		startManagers();
+		
+		// Poll until checkPartitionDistribution() declares that it's time to stop.
+		while (this.keepGoing)
+		{
+			try
+			{
+				Thread.sleep(15000);
+			}
+			catch (InterruptedException e)
+			{
+				System.out.println("Sleep interrupted, emergency bail");
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		
+		stopManagers();
+		
+		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+		
+		System.out.println("DONE");
+	}
+	
+	@Test
+	public void partitionRebalancingTest() throws InterruptedException
+	{
+		System.out.println("partitionRebalancingTest");
+		
+		setup(3,8); // three hosts, eight partitions
+		
+		//
+		// Start two hosts of three, expect 4/4/0.
+		//
+		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = true; // only going to start two of the three hosts
+		this.ignoreZeroes = true; // third host will be stuck at 0 because it's not started
+		this.maxChecks = 20;
+		startManagers(2);
+		while (this.keepGoing)
+		{
+			try
+			{
+				Thread.sleep(15000);
+			}
+			catch (InterruptedException e)
+			{
+				System.out.println("Sleep interrupted, emergency bail");
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		assertTrue("Desired distribution 4/4/0 never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+		
+		//
+		// Start up the third host and wait for rebalance
+		//
+		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = false;
+		this.ignoreZeroes = false;
+		this.maxChecks = 30;
+		startSingleManager(2);
+		while (this.keepGoing)
+		{
+			try
+			{
+				Thread.sleep(15000);
+			}
+			catch (InterruptedException e)
+			{
+				System.out.println("Sleep interrupted, emergency bail");
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+		
+		//
+		// Now stop host 0 and wait for 0/4/4
+		//
+		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = true; // only two of the three hosts running
+		this.ignoreZeroes = true; // first host will be stuck at 0 because it's stopped
+		this.maxChecks = 20;
+		stopSingleManager(0);
+		while (this.keepGoing)
+		{
+			try
+			{
+				Thread.sleep(15000);
+			}
+			catch (InterruptedException e)
+			{
+				System.out.println("Sleep interrupted, emergency bail");
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		assertTrue("Desired distribution 4/4/0 never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+
+		stopManagers();
+		
+		System.out.println("DONE");
+	}
+	
+	synchronized void checkPartitionDistribution(boolean ignoreStopped)
 	{
 		System.out.println("Partitions redistributed");
+		int[] countsPerHost = new int[this.partitionManagers.length];
 		for (int i = 0; i < this.partitionManagers.length; i++)
 		{
-			Iterable<String> ownedPartitions = this.partitionManagers[i].getOwnedPartitions();
-			System.out.print("\tHost " + this.hosts[i].getHostName() + " has ");
-			for (String id : ownedPartitions)
+			this.partitionManagers[i].cleanStolen();
+		}
+		for (int i = 0; i < this.partitionManagers.length; i++)
+		{
+			StringBuilder blah = new StringBuilder();
+			blah.append("\tHost ");
+			blah.append(this.hosts[i].getHostName());
+			blah.append(" has ");
+			countsPerHost[i] = 0;
+			for (String id : this.partitionManagers[i].getOwnedPartitions())
 			{
-				System.out.print(id + ", ");
+				blah.append(id);
+				blah.append(", ");
+				countsPerHost[i]++;
 			}
-			System.out.println();
+			System.out.println(blah.toString());
+		}
+		
+		boolean desired = true;
+		int highest = Integer.MIN_VALUE;
+		int lowest = Integer.MAX_VALUE;
+		for (int i = 0; i < countsPerHost.length; i++)
+		{
+			if ((this.managerFutures[i] == null) && ignoreStopped)
+			{
+				// Skip
+			}
+			else
+			{
+				highest = Integer.max(highest, countsPerHost[i]);
+				lowest = Integer.min(lowest, countsPerHost[i]);
+			}
+		}
+		System.out.println("Check " + this.countOfChecks + "  Highest " + highest + "  Lowest " + lowest + "  Descnt " + this.desiredDistributionDetected);
+		if (this.expectEqualDistribution)
+		{
+			// All hosts should have exactly equal counts, so highest == lowest
+			desired = (highest == lowest);
+		}
+		else
+		{
+			// An equal distribution isn't possible, but the maximum difference between counts should be 1. 
+			// Max(counts[]) - Min(counts[]) == 1
+			desired = ((highest - lowest) == 1);
+		}
+		if (desired)
+		{
+			System.out.println("Evenest distribution detected");
+			this.desiredDistributionDetected++;
+			if (this.desiredDistributionDetected > this.partitionManagers.length)
+			{
+				// Every partition manager has looked at the current distribution and
+				// it has not changed. The algorithm is stable once it reaches the desired state.
+				// No need to keep iterating.
+				System.out.println("Desired distribution is stable");
+				this.keepGoing = false;
+			}
+		}
+		else
+		{
+			if (this.desiredDistributionDetected > 0)
+			{
+				// If we have detected the desired distribution on previous iterations
+				// but not on this one, then the algorithm is unstable. Bail and fail.
+				System.out.println("Desired distribution was not stable");
+				this.keepGoing = false;
+			}
 		}
 	
 		this.countOfChecks++;
-		if (this.countOfChecks > 20)
+		if (this.countOfChecks > this.maxChecks)
 		{
+			// Ran out of iterations without reaching the desired distribution. Bail and fail.
 			this.keepGoing = false;
 		}
 	}
@@ -78,9 +278,10 @@ public class PartitionManagerTest
 			InMemoryLeaseManager lm = new InMemoryLeaseManager(); 
 			InMemoryCheckpointManager cm = new InMemoryCheckpointManager();
 			
-			String suffix = String.valueOf(i);
-			this.hosts[i] = new EventProcessorHost("dummyHost" + suffix, "dummyNamespace" + suffix, "dummyEventHub" + suffix, "dummyKeyName" + suffix,
-					"dummyKey" + suffix, "dummyConsumerGroup" + suffix, cm, lm);
+			// In order to test hosts competing for partitions, each host must have a unique name, but they must share the
+			// target eventhub/consumer group.
+			this.hosts[i] = new EventProcessorHost("dummyHost" + String.valueOf(i), "dummyNamespace", "dummyEventHub", "dummyKeyName",
+					"dummyKey", "dummyConsumerGroup", cm, lm);
 			
 			lm.initialize(this.hosts[i]);
 			this.leaseManagers[i] = lm;
@@ -94,27 +295,62 @@ public class PartitionManagerTest
 	
 	private void startManagers()
 	{
-		for (int i = 0; i < this.partitionManagers.length; i++)
+		startManagers(this.partitionManagers.length);
+	}
+	
+	private void startManagers(int maxIndex)
+	{
+		for (int i = 0; i < maxIndex; i++)
 		{
-			this.managerFutures[i] = EventProcessorHost.getExecutorService().submit(this.partitionManagers[i]);
+			startSingleManager(i);
 		}
+	}
+	
+	private void startSingleManager(int index)
+	{
+		this.managerFutures[index] = EventProcessorHost.getExecutorService().submit(this.partitionManagers[index]);
 	}
 	
 	private void stopManagers()
 	{
 		for (int i = 0; i < this.partitionManagers.length; i++)
 		{
-			this.partitionManagers[i].stopPartitions();
+			if (this.managerFutures[i] != null)
+			{
+				this.partitionManagers[i].stopPartitions();
+			}
 		}
 		for (int i = 0; i < this.partitionManagers.length; i++)
 		{
+			if (this.managerFutures[i] != null)
+			{
+				try
+				{
+					this.managerFutures[i].get();
+					this.managerFutures[i] = null;
+				}
+				catch (InterruptedException | ExecutionException e)
+				{
+					System.out.println("Error stopping manager " + i + ": " + e.toString());
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	private void stopSingleManager(int index)
+	{
+		if (this.managerFutures[index] != null)
+		{
+			this.partitionManagers[index].stopPartitions();
 			try
 			{
-				this.managerFutures[i].get();
+				this.managerFutures[index].get();
+				this.managerFutures[index] = null;
 			}
 			catch (InterruptedException | ExecutionException e)
 			{
-				System.out.println("Error stopping manager " + i + ": " + e.toString());
+				System.out.println("Error stopping manager " + index + ": " + e.toString());
 				e.printStackTrace();
 			}
 		}
@@ -132,7 +368,26 @@ public class PartitionManagerTest
 		
 		Iterable<String> getOwnedPartitions()
 		{
-			return ((DummyPump)this.pump).getPumpsList();
+			Iterable<String> retval = null;
+			if (this.pump != null)
+			{
+				retval = ((DummyPump)this.pump).getPumpsList();
+			}
+			else
+			{
+				// If the manager isn't started, return an empty list.
+				retval = new ArrayList<String>();
+			}
+			return retval;
+		}
+		
+		void cleanStolen()
+		{
+			// Skip cleanup if the manager isn't started.
+			if (this.pump != null)
+			{
+				((DummyPump)this.pump).fastCleanup(); // fast cleanup of stolen partitions
+			}
 		}
 
 		@Override
@@ -161,7 +416,7 @@ public class PartitionManagerTest
 		@Override
 		void onPartitionCheckCompleteTestHook()
 		{
-			PartitionManagerTest.this.checkPartitionDistribution();
+			PartitionManagerTest.this.checkPartitionDistribution(PartitionManagerTest.this.ignoreZeroes);
 		}
 	}
 }

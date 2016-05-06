@@ -13,7 +13,7 @@ import java.util.logging.Level;
 
 class Pump
 {
-    private final EventProcessorHost host;
+    protected final EventProcessorHost host; // protected for testability
 
     private ConcurrentHashMap<String, PartitionPump> pumpStates;
     

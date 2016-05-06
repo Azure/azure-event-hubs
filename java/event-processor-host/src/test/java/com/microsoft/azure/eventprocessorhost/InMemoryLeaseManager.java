@@ -178,29 +178,34 @@ public class InMemoryLeaseManager implements ILeaseManager
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(lease.getPartitionId());
         if (leaseInStore != null)
         {
-            if (wrapIsExpired(leaseInStore) || (leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
+        	InMemoryLease wasUnowned = InMemoryLeaseStore.singleton.atomicAquireUnowned(lease.getPartitionId(), this.host.getHostName());
+            if (wasUnowned != null)
             {
-            	// Make change in both persisted lease and live lease!
-                leaseInStore.setOwner(this.host.getHostName());
+            	// atomicAcquireUnowned already set ownership of the persisted lease, just update the live lease.
                 lease.setOwner(this.host.getHostName());
             	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() acquired lease");
-            }
-            else if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
-            {
-            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() already hold lease");
+            	leaseInStore = wasUnowned;
+            	lease.setExpirationTime(leaseInStore.getExpirationTime());
             }
             else
             {
-            	String oldOwner = leaseInStore.getOwner();
-            	// Make change in both persisted lease and live lease!
-            	leaseInStore.setOwner(this.host.getHostName());
-            	lease.setOwner(this.host.getHostName());
-            	this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
+	            if (leaseInStore.getOwner().compareTo(this.host.getHostName()) == 0)
+	            {
+	            	this.host.logWithHostAndPartition(Level.INFO, lease.getPartitionId(), "acquireLease() already hold lease");
+	            }
+	            else
+	            {
+	            	String oldOwner = leaseInStore.getOwner();
+	            	// Make change in both persisted lease and live lease!
+	            	leaseInStore.setOwner(this.host.getHostName());
+	            	lease.setOwner(this.host.getHostName());
+	            	this.host.logWithHostAndPartition(Level.WARNING, lease.getPartitionId(), "acquireLease() stole lease from " + oldOwner);
+	            }
+	            long newExpiration = System.currentTimeMillis() + InMemoryLeaseManager.leaseDurationInMillieconds;
+	        	// Make change in both persisted lease and live lease!
+	            leaseInStore.setExpirationTime(newExpiration);
+	            lease.setExpirationTime(newExpiration);
             }
-            long newExpiration = System.currentTimeMillis() + InMemoryLeaseManager.leaseDurationInMillieconds;
-        	// Make change in both persisted lease and live lease!
-            leaseInStore.setExpirationTime(newExpiration);
-            lease.setExpirationTime(newExpiration);
         }
         else
         {
@@ -373,6 +378,30 @@ public class InMemoryLeaseManager implements ILeaseManager
         	return this.inMemoryLeasesPrivate.get(partitionId);
         }
         
+        synchronized InMemoryLease atomicAquireUnowned(String partitionId, String newOwner)
+        {
+        	InMemoryLease leaseInStore = getLease(partitionId);
+            try
+            {
+				if (leaseInStore.isExpired() || (leaseInStore.getOwner() == null) || (leaseInStore.getOwner().length() == 0))
+				{
+					leaseInStore.setOwner(newOwner);
+	                leaseInStore.setExpirationTime(System.currentTimeMillis() + InMemoryLeaseManager.leaseDurationInMillieconds);
+				}
+				else
+				{
+					// Return null if it was already owned
+					leaseInStore = null;
+				}
+			}
+            catch (Exception e)
+            {
+        		// InMemoryLease.isExpired cannot actually throw
+        		// This only exists to keep the compiler happy
+			}
+        	return leaseInStore;
+        }
+        
         synchronized void setOrReplaceLease(InMemoryLease newLease)
         {
         	this.inMemoryLeasesPrivate.put(newLease.getPartitionId(), newLease);
@@ -403,6 +432,11 @@ public class InMemoryLeaseManager implements ILeaseManager
 		void setExpirationTime(long expireAtMillis)
 		{
 			this.expirationTimeMillis = expireAtMillis;
+		}
+		
+		long getExpirationTime()
+		{
+			return this.expirationTimeMillis;
 		}
 		
 		@Override
