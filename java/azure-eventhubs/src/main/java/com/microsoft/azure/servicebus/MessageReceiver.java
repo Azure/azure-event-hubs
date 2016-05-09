@@ -4,20 +4,40 @@
  */
 package com.microsoft.azure.servicebus;
 
-import java.time.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
-import java.util.logging.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.apache.qpid.proton.amqp.*;
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.amqp.messaging.Source;
 import org.apache.qpid.proton.amqp.messaging.Target;
-import org.apache.qpid.proton.amqp.transport.*;
-import org.apache.qpid.proton.engine.*;
-import org.apache.qpid.proton.message.*;
+import org.apache.qpid.proton.amqp.transport.ErrorCondition;
+import org.apache.qpid.proton.amqp.transport.ReceiverSettleMode;
+import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
+import org.apache.qpid.proton.engine.BaseHandler;
+import org.apache.qpid.proton.engine.Connection;
+import org.apache.qpid.proton.engine.EndpointState;
+import org.apache.qpid.proton.engine.Receiver;
+import org.apache.qpid.proton.engine.Session;
+import org.apache.qpid.proton.message.Message;
 
-import com.microsoft.azure.servicebus.amqp.*;
+import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.servicebus.amqp.IAmqpReceiver;
+import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
+import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
 /**
  * Common Receiver that abstracts all amqp related details
@@ -26,16 +46,11 @@ import com.microsoft.azure.servicebus.amqp.*;
 public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErrorContextProvider
 {
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-	private static final int PING_FLOW_THRESHOLD = 2;
-	private static final Duration RECEIVE_BATCH_INTERVAL = Duration.ofMillis(5);
-	private static final double FLOW_THRESHOLD_PERCENT = (double) 1 / 3;
-	private static final int MAX_FLOW_DEFAULT = 32;
 	private static final Duration MINIMUM_RECEIVE_TIMER = Duration.ofSeconds(2);
-	private static final int LINK_RESET_THRESHOLD = 3;
-	
-	private final ConcurrentLinkedQueue<WorkItem<Collection<Message>>> pendingReceives;
+
+	private final ConcurrentLinkedQueue<ReceiveWorkItem> pendingReceives;
 	private final MessagingFactory underlyingFactory;
-	private final String name;
+	private final ITimeoutErrorHandler stuckTransportHandler;
 	private final String receivePath;
 	private final Runnable onOperationTimedout;
 	private final Duration operationTimeout;
@@ -46,6 +61,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private WorkItem<MessageReceiver> linkOpen;
 	private CompletableFuture<Void> linkClose;
 	private boolean closeCalled;
+	private Duration receiveTimeout;
 	
 	private long epoch;
 	private boolean isEpochReceiver;
@@ -53,18 +69,16 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private boolean offsetInclusive;
 	
 	private String lastReceivedOffset;
-	private AtomicInteger pingFlowCount;
-	private AtomicInteger currentFlow;
-	private Instant lastCommunicatedAt;
 	
 	private boolean linkCreateScheduled;
 	private Object linkCreateLock;
 	private Exception lastKnownLinkError;
-	private boolean onDeliveryTimerSet;
-	private Object deliverySync;
-	private int linkResetCount;
 	
-	private MessageReceiver(final MessagingFactory factory, 
+	private int nextCreditToFlow;
+	private Object flowSync;
+	
+	private MessageReceiver(final MessagingFactory factory,
+			final ITimeoutErrorHandler stuckTransportHandler,
 			final String name, 
 			final String recvPath, 
 			final String offset,
@@ -75,23 +89,21 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			final boolean isEpochReceiver)
 	{
 		super(name);
+		
 		this.underlyingFactory = factory;
+		this.stuckTransportHandler = stuckTransportHandler;
 		this.operationTimeout = factory.getOperationTimeout();
-		this.name = name;
 		this.receivePath = recvPath;
 		this.prefetchCount = prefetchCount;
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
-		this.pingFlowCount = new AtomicInteger();
 		this.linkCreateLock = new Object();
 		this.linkClose = new CompletableFuture<Void>();
 		this.lastKnownLinkError = null;
-		this.currentFlow = new AtomicInteger(0);
-		this.onDeliveryTimerSet = false;
-		this.deliverySync = new Object();
-		this.linkResetCount = 0;
-		
+		this.flowSync = new Object();
+		this.receiveTimeout = factory.getOperationTimeout();
+
 		if (offset != null)
 		{
 			this.lastReceivedOffset = offset;
@@ -102,7 +114,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			this.dateTime = dateTime;
 		}
 		
-		this.pendingReceives = new ConcurrentLinkedQueue<WorkItem<Collection<Message>>>();
+		this.pendingReceives = new ConcurrentLinkedQueue<ReceiveWorkItem>();
 		
 		// onOperationTimeout delegate - per receive call
 		this.onOperationTimedout = new Runnable()
@@ -110,18 +122,36 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			public void run()
 			{
 				WorkItem<Collection<Message>> topWorkItem = null;
+				boolean workItemTimedout = false;
 				while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
 				{
 					if (topWorkItem.getTimeoutTracker().remaining().getSeconds() <= 0)
 					{
 						WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
-						dequedWorkItem.getWork().complete(null);
+						if (dequedWorkItem != null)
+						{
+							workItemTimedout = true;
+							dequedWorkItem.getWork().complete(null);
+						}
+						else
+							break;
 					}
 					else
 					{
 						MessageReceiver.this.scheduleOperationTimer(topWorkItem.getTimeoutTracker());
-						return;
+						break;
 					}
+				}
+				
+				if (workItemTimedout)
+				{
+					// workaround to push the sendflow-performative to reactor
+					MessageReceiver.this.receiveLink.flow(0);
+					
+					// we have a known issue with proton libraries where transport layer is stuck while Sending Flow
+					// to workaround this - we built a mechanism to reset the transport whenever we encounter this
+					// https://issues.apache.org/jira/browse/PROTON-1185
+					MessageReceiver.this.stuckTransportHandler.reportTimeoutError();
 				}
 			}
 		};
@@ -142,7 +172,8 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			final boolean isEpochReceiver)
 	{
 		MessageReceiver msgReceiver = new MessageReceiver(
-			factory, 
+			factory,
+			factory,
 			name, 
 			recvPath, 
 			offset, 
@@ -177,25 +208,51 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	
 	public void setPrefetchCount(final int value)
 	{
-		int oldPrefetchCount = this.prefetchCount;
 		this.prefetchCount = value;
-		this.sendFlowInternal(value - oldPrefetchCount);
 	}
 	
-	public final int getInitialPrefetchCount()
+	public Duration getReceiveTimeout()
 	{
-		return (this.prefetchCount > MessageReceiver.PING_FLOW_THRESHOLD) 
-				? this.prefetchCount - MessageReceiver.PING_FLOW_THRESHOLD 
-				: this.prefetchCount;
+		return this.receiveTimeout;
+	}
+	
+	public void setReceiveTimeout(final Duration value)
+	{
+		this.receiveTimeout = value;
 	}
 		
-	public CompletableFuture<Collection<Message>> receive()
+	public CompletableFuture<Collection<Message>> receive(final int maxMessageCount)
 	{
-		if (this.receiveLink.getLocalState() == EndpointState.CLOSED)
+		if (maxMessageCount <= 0 || maxMessageCount > this.prefetchCount)
 		{
-			this.scheduleRecreate(Duration.ofMillis(1));
+			throw new IllegalArgumentException(String.format(Locale.US, "parameter 'maxMessageCount' should be a positive number and should be less than prefetchCount(%s)", this.prefetchCount));
 		}
 		
+		List<Message> returnMessages = this.receiveCore(maxMessageCount);
+		
+		if (returnMessages != null)
+		{
+			return CompletableFuture.completedFuture((Collection<Message>) returnMessages);				
+		}
+		
+		if (this.receiveTimeout.compareTo(MessageReceiver.MINIMUM_RECEIVE_TIMER) <= 0)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+		
+		if (this.pendingReceives.isEmpty())
+		{
+			this.scheduleOperationTimer(TimeoutTracker.create(this.receiveTimeout));
+		}
+		
+		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<Collection<Message>>();
+		this.pendingReceives.offer(new ReceiveWorkItem(onReceive, this.receiveTimeout, maxMessageCount));
+		
+		return onReceive;
+	}
+	
+	public List<Message> receiveCore(final int messageCount)
+	{
 		List<Message> returnMessages = null;
 		Message currentMessage = null;
 		while ((currentMessage = this.pollPrefetchQueue()) != null) 
@@ -206,46 +263,19 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			}
 			
 			returnMessages.add(currentMessage);
-			if (returnMessages.size() >= this.getInitialPrefetchCount())
+			if (returnMessages.size() >= messageCount)
 			{
 				break;
 			}
 		}
 		
-		if (returnMessages != null)
-		{
-			this.sendFlow(returnMessages.size());
-			return CompletableFuture.completedFuture((Collection<Message>) returnMessages);				
-		}
-		
-		if (this.operationTimeout.compareTo(MessageReceiver.MINIMUM_RECEIVE_TIMER) <= 0)
-		{
-			return CompletableFuture.completedFuture(null);
-		}		
-		
-		if (this.pendingReceives.isEmpty())
-		{
-			this.scheduleOperationTimer(TimeoutTracker.create(this.operationTimeout));
-		}
-		
-		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<Collection<Message>>();
-		this.pendingReceives.offer(new WorkItem<Collection<Message>>(onReceive, this.operationTimeout));
-		
-		this.sendPingFlow();
-		
-		return onReceive;
-	}
-	
-	public int getPingFlowThreshold()
-	{
-		return (this.prefetchCount > MessageReceiver.PING_FLOW_THRESHOLD) ? MessageReceiver.PING_FLOW_THRESHOLD : 0; 
+		return returnMessages;
 	}
 	
 	public void onOpenComplete(Exception exception)
 	{
 		if (exception == null)
 		{
-			this.lastCommunicatedAt = Instant.now();
 			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
 			{
 				this.linkOpen.getWork().complete(this);
@@ -259,8 +289,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			
 			if (this.receiveLink.getCredit() == 0)
 			{
-				int pendingPrefetch = this.getInitialPrefetchCount() - this.prefetchedMessages.size();
-				this.pingFlowCount.set(0);
+				int pendingPrefetch = this.prefetchCount - this.prefetchedMessages.size();
 				this.sendFlow(pendingPrefetch);
 			}
 		}
@@ -273,71 +302,29 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			
 			this.lastKnownLinkError = exception;
 		}
-		
+
+		this.stuckTransportHandler.resetTimeoutErrorTracking();
 		synchronized (this.linkCreateLock)
 		{
 			this.linkCreateScheduled = false;
 		}
 	}
 	
-	// intended to be called by proton reactor handler 
+	// intended to be invoked by proton reactor handler - upon delivery 
 	public void onReceiveComplete(Message message)
 	{
-		this.lastCommunicatedAt = Instant.now();
 		this.prefetchedMessages.add(message);
 		
-		if (!this.onDeliveryTimerSet)
-		{
-			synchronized(this.deliverySync)
-			{
-				if (!this.onDeliveryTimerSet && !this.pendingReceives.isEmpty())
-				{
-					this.onDeliveryTimerSet = true;
-			
-					Timer.schedule(new Runnable() 
-					{
-						@Override
-						public void run()
-						{
-							if (MessageReceiver.this.prefetchedMessages.size() == 0)
-							{
-								return;
-							}
-							
-							WorkItem<Collection<Message>> currentReceive = MessageReceiver.this.pendingReceives.poll();
-							LinkedList<Message> returnMessages = null;
-							if (currentReceive != null)
-							{
-								// Receive Api contract is to return null if no messages
-								Message message = MessageReceiver.this.pollPrefetchQueue();
-								if (message != null)
-								{
-									returnMessages = new LinkedList<Message>();
-									
-									do 
-									{
-										returnMessages.add(message);	
-									}while(returnMessages.size() < MessageReceiver.this.getInitialPrefetchCount()
-											&& (message = MessageReceiver.this.pollPrefetchQueue()) != null);
-									
-									MessageReceiver.this.sendFlow(returnMessages.size());
-								}
-								
-								CompletableFuture<Collection<Message>> future = currentReceive.getWork();
-								future.complete(returnMessages);
-							}
-							
-							synchronized(MessageReceiver.this.deliverySync)
-							{
-								MessageReceiver.this.onDeliveryTimerSet = false;
-							}
-						}
-					}, MessageReceiver.RECEIVE_BATCH_INTERVAL, TimerType.OneTimeRun);
-				}
-			}
-		}
-	
 		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
+		this.stuckTransportHandler.resetTimeoutErrorTracking();
+		
+		ReceiveWorkItem currentReceive = this.pendingReceives.poll();
+		if (currentReceive != null)
+		{
+			List<Message> returnMessages = this.receiveCore(currentReceive.maxMessageCount);
+			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
+			future.complete(returnMessages);
+		}
 	}
 	
 	public void onError(ErrorCondition error)
@@ -348,18 +335,21 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	
 	public void onError(Exception exception)
 	{
+		exception.getStackTrace();
+		
+		this.lastKnownLinkError = exception;
 		WorkItem<Collection<Message>> currentReceive = this.pendingReceives.peek();
 		
+		boolean isLinkOpenCall = (this.linkOpen != null && this.linkOpen.getWork() != null && !this.linkOpen.getWork().isDone());
 		TimeoutTracker currentOperationTracker = currentReceive != null 
 				? currentReceive.getTimeoutTracker() 
-				: (this.linkOpen.getWork().isDone() ? null : this.linkOpen.getTimeoutTracker());
+				: (isLinkOpenCall ? this.linkOpen.getTimeoutTracker() : new TimeoutTracker(this.receiveTimeout, true));
+		
 		Duration remainingTime = currentOperationTracker == null 
 						? Duration.ofSeconds(0)
-						: (currentOperationTracker.elapsed().compareTo(this.operationTimeout) > 0) 
-								? Duration.ofSeconds(0) 
-								: this.operationTimeout.minus(currentOperationTracker.elapsed());
+						: (currentOperationTracker.remaining().getSeconds() <= 0 ? Duration.ofSeconds(0) : currentOperationTracker.remaining());
 		Duration retryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), exception, remainingTime);
-		
+
 		if (retryInterval != null)
 		{
 			if (this.receiveLink.getLocalState() != EndpointState.CLOSED)
@@ -419,9 +409,9 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			
 			return null;
 		}
-        catch (TimeoutException exception)
+        catch (java.util.concurrent.TimeoutException exception)
         {
-        	this.onError(new ServiceBusException(false, "Connection creation timed out.", exception));
+        	this.onError(new TimeoutException("Connection creation timed out.", exception));
         	return null;
         }
         
@@ -498,121 +488,44 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
         return receiver;
 	}
 	
+	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue
 	private Message pollPrefetchQueue()
 	{
-		// message should be delivered only via Poll on prefetchqueue
-		// message lastReceivedOffset should be update upon each poll - as recreateLink will depend on this 
 		Message message = this.prefetchedMessages.poll();
 		if (message != null)
 		{
+			// message lastReceivedOffset should be up-to-date upon each poll - as recreateLink will depend on this 
 			this.lastReceivedOffset = message.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+			this.sendFlow(1);
 		}
 		
 		return message;
 	}
 	
-	/**
-	 * set the link credit; not thread-safe
-	 */
-	private void sendFlow(int credits)
+	
+	// set the link credit; thread-safe
+	private void sendFlow(final int credits)
 	{
-		if (this.receiveLink.getLocalState() != EndpointState.CLOSED)
+		int tempFlow = 0;
+		
+		// slow down sending the flow - to make the protocol less-chat'y
+		synchronized (this.flowSync)
 		{
-			int currentPingFlow = this.pingFlowCount.get();
-			if (currentPingFlow > 0)
+			this.nextCreditToFlow += credits;
+			if (this.nextCreditToFlow >= this.prefetchCount)
 			{
-				if (currentPingFlow < credits)
-				{
-					this.sendFlowInternal(credits - currentPingFlow);
-					this.pingFlowCount.set(0);
-				}
-				else 
-				{
-					this.pingFlowCount.set(currentPingFlow - credits);
-				}
-			}
-			else if (credits > 0)
-			{
-				this.sendFlowInternal(credits);
+				tempFlow = this.nextCreditToFlow;
+				this.receiveLink.flow(this.nextCreditToFlow);
+				this.nextCreditToFlow = 0;
 			}
 		}
-		else
+		
+		if (tempFlow != 0)
 		{
-			this.scheduleRecreate(Duration.ofMillis(1));
-		}		
-	}
-	
-	/**
-	 * slow down sending the flow - to make the protocol less-chat'y
-	 * will not send any flow if totalCredits=0 (@param credits + currentLinkCredit)
-	 */
-	private void sendFlowInternal(int credits)
-	{
-		int finalFlow = this.currentFlow.addAndGet(credits);
-		int flowThreshold = (int) Math.min(this.getInitialPrefetchCount() * MessageReceiver.FLOW_THRESHOLD_PERCENT, MessageReceiver.MAX_FLOW_DEFAULT);
-		if (finalFlow > 0 && finalFlow > flowThreshold)
-		{
-			this.receiveLink.flow(this.currentFlow.getAndSet(0));
-			this.lastCommunicatedAt = Instant.now();
-			
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 	        {
-	        	TRACE_LOGGER.log(Level.FINE,
-	        			String.format("linkname[%s], updated-link-credit[%s], sendCredits[%s]", this.receiveLink.getName(), this.receiveLink.getCredit(), finalFlow));
+	        	TRACE_LOGGER.log(Level.FINE, String.format("linkname[%s], updated-link-credit[%s], sentCredits[%s]", this.receiveLink.getName(), this.receiveLink.getCredit(), credits));
 	        }
-		}
-	}
-	
-	private void sendPingFlow()
-	{
-		if (this.receiveLink.getLocalState() != EndpointState.CLOSED)
-		{
-			if (this.pingFlowCount.get() < this.getPingFlowThreshold())
-			{
-				if (Instant.now().isAfter(this.lastCommunicatedAt.plus(this.operationTimeout)))
-				{
-					this.pingFlowCount.incrementAndGet();
-					
-					// Proton-j library needs to expose the sending flow with echo=true; workaround until then
-					this.receiveLink.flow(1);
-					this.lastCommunicatedAt = Instant.now();
-	
-					if(TRACE_LOGGER.isLoggable(Level.FINE))
-			        {
-			        	TRACE_LOGGER.log(Level.FINE,
-			        			String.format("linkname[%s], linkPath[%s], updated-link-credit[%s]", this.receiveLink.getName(), this.receivePath, this.receiveLink.getCredit()));
-			        }
-				}
-				else
-				{
-					this.sendFlowInternal(0);
-				}
-			}
-			else if (this.receiveLink.getLocalState() != EndpointState.CLOSED)
-			{
-				String action = null;
-				if (this.linkResetCount < MessageReceiver.LINK_RESET_THRESHOLD)
-				{
-					this.receiveLink.close();
-					action = "detectedReceiveStuck-closingLink";
-					this.linkResetCount++;
-				}
-				else 
-				{
-					this.underlyingFactory.resetConnection();
-					this.linkResetCount = 0;
-				}
-				
-				if(TRACE_LOGGER.isLoggable(Level.FINE))
-		        {
-		        	TRACE_LOGGER.log(Level.FINE,
-		        			String.format("linkname[%s], linkPath[%s], linkCredit[%s], action[%s]", this.receiveLink.getName(), this.receivePath, this.receiveLink.getCredit(), action));
-		        }
-			}
-		}
-		else
-		{
-			this.scheduleRecreate(Duration.ofMillis(1));
 		}
 	}
 	
@@ -675,11 +588,9 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 					{
 						if (!linkOpen.getWork().isDone())
 						{
-							Exception cause = MessageReceiver.this.lastKnownLinkError;
-							Exception operationTimedout = new ServiceBusException(
-									cause != null && cause instanceof ServiceBusException ? ((ServiceBusException) cause).getIsTransient() : ClientConstants.DEFAULT_IS_TRANSIENT,
-									String.format(Locale.US, "ReceiveLink(%s) %s() on path(%s) timed out", MessageReceiver.this.receiveLink.getName(), "Open", MessageReceiver.this.receivePath),
-									cause);
+							Exception operationTimedout = new TimeoutException(
+									String.format(Locale.US, "%s operation on ReceiveLink(%s) to path(%s) timed out at %s.", "Open", MessageReceiver.this.receiveLink.getName(), MessageReceiver.this.receivePath, ZonedDateTime.now()),
+									MessageReceiver.this.lastKnownLinkError);
 							if (TRACE_LOGGER.isLoggable(Level.WARNING))
 							{
 								TRACE_LOGGER.log(Level.WARNING, 
@@ -707,7 +618,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 						{
 							if (!linkClose.isDone())
 							{
-								Exception operationTimedout = new TimeoutException(String.format(Locale.US, "Receive Link(%s) %s() timed out", MessageReceiver.this.receiveLink.getName(), "Close"));
+								Exception operationTimedout = new TimeoutException(String.format(Locale.US, "%s operation on Receive Link(%s) timed out at %s", "Close", MessageReceiver.this.receiveLink.getName(), ZonedDateTime.now()));
 								if (TRACE_LOGGER.isLoggable(Level.WARNING))
 								{
 									TRACE_LOGGER.log(Level.WARNING, 
@@ -793,4 +704,15 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		
 		return errorContext;
 	}	
+
+	private static class ReceiveWorkItem extends WorkItem<Collection<Message>>
+	{
+		private final int maxMessageCount;
+		
+		public ReceiveWorkItem(CompletableFuture<Collection<Message>> completableFuture, Duration timeout, final int maxMessageCount)
+		{
+			super(completableFuture, timeout);
+			this.maxMessageCount = maxMessageCount;
+		}
+	}
 }

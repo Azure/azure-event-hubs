@@ -1,11 +1,15 @@
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 class DummyPump extends Pump
 {
-	private HashSet<String> pumps = new HashSet<String>();
+	private Set<String> pumps = Collections.synchronizedSet(new HashSet<String>());
 	
 	public DummyPump(EventProcessorHost host)
 	{
@@ -16,7 +20,43 @@ class DummyPump extends Pump
 	{
 		return this.pumps;
 	}
-
+	
+	void fastCleanup()
+	{
+		System.out.println("Host " + this.host.getHostName() + " fast cleanup");
+		HashSet<String> capturedList = new HashSet<String>(this.pumps); // avoid deadlock!
+		for (String p : capturedList)
+		{
+			Lease l = null;
+			try
+			{
+				l = this.host.getLeaseManager().getLease(p).get();
+				//System.out.println("Host " + this.host.getHostName() + " cleanup retrieved lease for " + p);
+			} 
+			catch (InterruptedException | ExecutionException e)
+			{
+				continue;
+			}
+			
+			if (this.host.getHostName().compareTo(l.getOwner()) != 0)
+			{
+				// Another host has stolen this lease.
+				try
+				{
+					System.out.println("Steal detected, host " + this.host.getHostName() + " removing " + p);
+					removePump(p, CloseReason.LeaseLost).get();
+				}
+				catch (InterruptedException | ExecutionException e)
+				{
+				}
+			}
+			else
+			{
+				//System.out.println("Host " + this.host.getHostName() + " cleanup still own " + p);
+			}
+		}
+	}
+	
 	//
 	// Completely override all functionality.
 	//
@@ -30,15 +70,19 @@ class DummyPump extends Pump
 	@Override
     public Future<?> removePump(String partitionId, final CloseReason reason)
     {
-		this.pumps.remove(partitionId);
-    	return null; // PartitionManager does not use the returned future
+		return EventProcessorHost.getExecutorService().submit(() -> this.pumps.remove(partitionId));
     }
     
 	@Override
     public Iterable<Future<?>> removeAllPumps(CloseReason reason)
     {
-		this.pumps.clear();
-		return null;
+		ArrayList<Future<?>> futures = new ArrayList<Future<?>>();
+		ArrayList<String> capturedPumps = new ArrayList<String>(this.pumps);
+		for (String p : capturedPumps)
+		{
+			futures.add(removePump(p, reason));
+		}
+		return futures;
     }
     
 	@Override
