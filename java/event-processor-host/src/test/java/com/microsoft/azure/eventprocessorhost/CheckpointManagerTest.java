@@ -21,6 +21,8 @@ public class CheckpointManagerTest
 	@Test
 	public void singleManagerCheckpointSmokeTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		this.leaseManagers = new ILeaseManager[1];
 		this.checkpointManagers = new ICheckpointManager[1];
 		this.hosts = new EventProcessorHost[1];
@@ -102,6 +104,8 @@ public class CheckpointManagerTest
 	@Test
 	public void twoManagerCheckpointSmokeTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		this.leaseManagers = new ILeaseManager[2];
 		this.checkpointManagers = new ICheckpointManager[2];
 		this.hosts = new EventProcessorHost[2];
@@ -181,8 +185,6 @@ public class CheckpointManagerTest
 		
 		System.out.println("twoManagerCheckpointSmokeTest DONE");
 	}
-
-	
 	
 	private String generateContainerName(String infix)
 	{
