@@ -20,6 +20,8 @@ public class LeaseManagerTest
 	@Test
 	public void singleManagerLeaseSmokeTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		this.leaseManagers = new ILeaseManager[1];
 		this.hosts = new EventProcessorHost[1];
 		setupOneManager(0, "0", generateContainerName("0"));
@@ -125,6 +127,8 @@ public class LeaseManagerTest
 	@Test
 	public void twoManagerLeaseStealingTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		this.leaseManagers = new ILeaseManager[2];
 		this.hosts = new EventProcessorHost[2];
 		String containerName = generateContainerName(null);

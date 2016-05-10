@@ -305,6 +305,13 @@ class PartitionManager implements Runnable
                     	if (leaseManager.acquireLease(possibleLease).get())
                     	{
                     		allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                    		ourLeasesCount++;
+                    	}
+                    	else
+                    	{
+                    		// Probably failed because another host stole it between get and acquire
+                        	allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                        	leasesOwnedByOthers.add(possibleLease);
                     	}
                     }
                     else if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
@@ -314,6 +321,12 @@ class PartitionManager implements Runnable
                             allLeases.put(possibleLease.getPartitionId(), possibleLease);
                             ourLeasesCount++;
                         }
+                    	else
+                    	{
+                    		// Probably failed because another host stole it between get and renew
+                        	allLeases.put(possibleLease.getPartitionId(), possibleLease);
+                        	leasesOwnedByOthers.add(possibleLease);
+                    	}
                     }
                     else
                     {

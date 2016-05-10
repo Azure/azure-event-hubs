@@ -24,8 +24,10 @@ public class PartitionManagerTest
 	private int maxChecks;
 	
 	@Test
-	public void partitionBalancingExactMultipleTest() throws InterruptedException
+	public void partitionBalancingExactMultipleTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		System.out.println("partitionBalancingExactMultipleTest");
 		
 		setup(2, 4); // two hosts, four partitions
@@ -55,13 +57,20 @@ public class PartitionManagerTest
 		stopManagers();
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up lease store", boolret);
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		System.out.println("DONE");
 	}
 	
 	@Test
-	public void partitionBalancingUnevenTest() throws InterruptedException
+	public void partitionBalancingUnevenTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		System.out.println("partitionBalancingUnevenTest");
 		
 		setup(5, 16); // five hosts, sixteen partitions
@@ -91,13 +100,20 @@ public class PartitionManagerTest
 		stopManagers();
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up lease store", boolret);
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		System.out.println("DONE");
 	}
 	
 	@Test
-	public void partitionRebalancingTest() throws InterruptedException
+	public void partitionRebalancingTest() throws Exception
 	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
 		System.out.println("partitionRebalancingTest");
 		
 		setup(3,8); // three hosts, eight partitions
@@ -178,6 +194,11 @@ public class PartitionManagerTest
 		assertTrue("Desired distribution 4/4/0 never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
 		stopManagers();
+
+		boolean boolret = this.leaseManagers[1].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up lease store", boolret);
+		boolret = this.checkpointManagers[1].deleteCheckpointStore().get();
+		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		System.out.println("DONE");
 	}
@@ -308,7 +329,15 @@ public class PartitionManagerTest
 	
 	private void startSingleManager(int index)
 	{
-		this.managerFutures[index] = EventProcessorHost.getExecutorService().submit(this.partitionManagers[index]);
+		try
+		{
+			this.managerFutures[index] = EventProcessorHost.getExecutorService().submit(this.partitionManagers[index]);
+		}
+		catch (Exception e)
+		{
+			System.out.println("TASK START FAILED " + e.toString() + " " + e.getMessage());
+			throw e;
+		}
 	}
 	
 	private void stopManagers()
