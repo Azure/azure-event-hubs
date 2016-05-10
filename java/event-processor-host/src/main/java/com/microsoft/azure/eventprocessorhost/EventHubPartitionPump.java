@@ -103,6 +103,7 @@ class EventHubPartitionPump extends PartitionPump
 		this.lease.setEpoch(epoch);
 		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
 		this.partitionReceiver.setPrefetchCount(this.host.getEventProcessorOptions().getPrefetchCount());
+		this.partitionReceiver.setReceiveTimeout(this.host.getEventProcessorOptions().getReceiveTimeOut());
 		this.internalOperationFuture = null;
 		
         this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "EH client and receiver creation finished");
@@ -158,6 +159,11 @@ class EventHubPartitionPump extends PartitionPump
     
     private class InternalReceiveHandler extends PartitionReceiveHandler
     {
+    	InternalReceiveHandler()
+    	{
+    		super(EventHubPartitionPump.this.host.getEventProcessorOptions().getMaxBatchSize());
+    	}
+    	
 		@Override
 		public void onReceive(Iterable<EventData> events)
 		{

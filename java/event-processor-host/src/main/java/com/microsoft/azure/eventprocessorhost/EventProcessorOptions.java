@@ -23,7 +23,7 @@ public final class EventProcessorOptions
      * 
      * The default values are:
      * <pre>
-     * MaxBatchSize: 10 -- not currently honored!
+     * MaxBatchSize: 10
      * ReceiveTimeOut: 1 minute
      * PrefetchCount: 300
      * InitialOffsetProvider: uses the last offset checkpointed, or START_OF_STREAM
@@ -56,46 +56,45 @@ public final class EventProcessorOptions
     	this.exceptionNotificationHandler = notificationHandler;
     }
 
-    /***
-     * Returns the maximum size of an event batch that IEventProcessor.onEvents will be called with
+    /**
+     * Returns the maximum number of events that will be passed to one call to IEventProcessor.onEvents
      * 
-     * Right now this option is hardwired to 10 and cannot be changed, but is not honored
-     * either. The batches are whatever size the underlying client returns. 
-     * 
-     * @return the maximum size of an event batch that IEventProcessor.onEvents will be called with
+     * @return the maximum maximum number of events that will be passed to one call to IEventProcessor.onEvents
      */
     public int getMaxBatchSize()
     {
         return this.maxBatchSize;
     }
 
-    /*
-     * JavaClient does not have a max batch size setting for receive.
+    /**
+     * Sets the maximum number of events that will be passed to one call to IEventProcessor.onEvents
+     *  
+     * @param maxBatchSize the maximum number of events that will be passed to one call to IEventProcessor.onEvents
+     */
     public void setMaxBatchSize(int maxBatchSize)
     {
         this.maxBatchSize = maxBatchSize;
     }
-    */
 
-    /***
-     * Returns the timeout length for receive operations.
+    /**
+     * Returns the timeout for receive operations.
      * 
-     * Right now this option is hardwired to one minute and cannot be changed.
-     * 
-     * @return the timeout length for receive operations
+     * @return the timeout for receive operations
      */
     public Duration getReceiveTimeOut()
     {
         return this.receiveTimeOut;
     }
 
-    /*
-     * JavaClient has a way to set the timeout but it is not exposed right now.
+    /**
+     * Sets the timeout for receive operations.
+     * 
+     * @param receiveTimeOut new timeout for receive operations
+     */
     public void setReceiveTimeOut(Duration receiveTimeOut)
     {
         this.receiveTimeOut = receiveTimeOut;
     }
-    */
 
     /***
      * Returns the current prefetch count for the underlying client.
