@@ -41,6 +41,7 @@ public final class EventProcessorHost
     private static ExecutorService executorService = Executors.newCachedThreadPool();
     private static int executorRefCount = 0;
     private static Boolean weOwnExecutor = true;
+    private static boolean skipExecutorShutdown = false; // test support
     
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
@@ -203,6 +204,7 @@ public final class EventProcessorHost
     
     // TEST USE ONLY
     static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
+    static void setSkipExecutorShutdown(boolean skip) { EventProcessorHost.skipExecutorShutdown = skip; }
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     
     // All of these accessors are for internal use only.
@@ -344,7 +346,7 @@ public final class EventProcessorHost
     // PartitionManager calls this after all shutdown tasks have been submitted to the ExecutorService.
     void stopExecutor()
     {
-        if (EventProcessorHost.weOwnExecutor)
+        if (EventProcessorHost.weOwnExecutor && !EventProcessorHost.skipExecutorShutdown)
         {
         	synchronized(EventProcessorHost.weOwnExecutor)
         	{
