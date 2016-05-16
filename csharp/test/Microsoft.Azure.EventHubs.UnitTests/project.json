@@ -1,29 +1,20 @@
-﻿{
+{
   "version": "1.0.0-*",
-  "description": "Microsoft.Azure.EventHubs.UnitTests",
-  "authors": [ "microsoft" ],
-  "tags": [ "" ],
-  "projectUrl": "",
-  "licenseUrl": "",
-  "compilationOptions": {
+  "buildOptions": {
     "emitEntryPoint": true
   },
-  "commands": {
-    "Microsoft.Azure.EventHubs.UnitTests": "Microsoft.Azure.EventHubs.UnitTests"
-  },
+
   "dependencies": {
-    "Microsoft.Azure.EventHubs": "1.0.0-*"
+    "Microsoft.Azure.EventHubs": "1.0.0-*",
+    "Microsoft.NETCore.App": {
+      "type": "platform",
+      "version": "1.0.0-rc2-3002702"
+    }
   },
+
   "frameworks": {
-    "net46": {
-      "frameworkAssemblies": {
-        "System.Runtime": ""
-      }
-    },
-    "dnxcore50": {
-      "dependencies": {
-        "Microsoft.NETCore.Console": "1.0.0-rc2-23712"
-      }
+    "netcoreapp1.0": {
+      "imports": "dnxcore50"
     }
   }
 }

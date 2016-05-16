@@ -3,18 +3,18 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Microsoft.Azure.EventHubs", "src\Microsoft.Azure.EventHubs\Microsoft.Azure.EventHubs.xproj", "{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{08E028C1-29E7-42B5-871F-C911DB93E78A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9F868651-E768-4750-9D48-36EEFF2F1E24}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFolder", "SolutionFolder", "{EB8F423F-5167-4CB3-A905-51BF1F06461B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9B788560-F090-446B-8E59-76B7BFD1C0B3}"
 	ProjectSection(SolutionItems) = preProject
 		global.json = global.json
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{19E746C9-F2E3-4A6A-A8F7-6375E713435D}"
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Microsoft.Azure.EventHubs", "src\Microsoft.Azure.EventHubs\Microsoft.Azure.EventHubs.xproj", "{126D946D-CE0F-4F14-9F13-8FD7098B81D8}"
 EndProject
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Microsoft.Azure.EventHubs.UnitTests", "test\Microsoft.Azure.EventHubs.UnitTests\Microsoft.Azure.EventHubs.UnitTests.xproj", "{5DFE7651-3A46-44A5-A49D-0EE11942C492}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{AF49C862-CB78-4110-A275-8111B387805D}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Microsoft.Azure.EventHubs.UnitTests", "test\Microsoft.Azure.EventHubs.UnitTests\Microsoft.Azure.EventHubs.UnitTests.xproj", "{154F7B4C-B998-4FA0-933F-F34DB0CA9B88}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,20 +22,20 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5DFE7651-3A46-44A5-A49D-0EE11942C492}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5DFE7651-3A46-44A5-A49D-0EE11942C492}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5DFE7651-3A46-44A5-A49D-0EE11942C492}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5DFE7651-3A46-44A5-A49D-0EE11942C492}.Release|Any CPU.Build.0 = Release|Any CPU
+		{126D946D-CE0F-4F14-9F13-8FD7098B81D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{126D946D-CE0F-4F14-9F13-8FD7098B81D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{126D946D-CE0F-4F14-9F13-8FD7098B81D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{126D946D-CE0F-4F14-9F13-8FD7098B81D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{154F7B4C-B998-4FA0-933F-F34DB0CA9B88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{154F7B4C-B998-4FA0-933F-F34DB0CA9B88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{154F7B4C-B998-4FA0-933F-F34DB0CA9B88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{154F7B4C-B998-4FA0-933F-F34DB0CA9B88}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{C8ACA249-68D2-483C-A2CC-A8A6C6C6FB0B} = {9F868651-E768-4750-9D48-36EEFF2F1E24}
-		{5DFE7651-3A46-44A5-A49D-0EE11942C492} = {19E746C9-F2E3-4A6A-A8F7-6375E713435D}
+		{126D946D-CE0F-4F14-9F13-8FD7098B81D8} = {08E028C1-29E7-42B5-871F-C911DB93E78A}
+		{154F7B4C-B998-4FA0-933F-F34DB0CA9B88} = {AF49C862-CB78-4110-A275-8111B387805D}
 	EndGlobalSection
 EndGlobal
