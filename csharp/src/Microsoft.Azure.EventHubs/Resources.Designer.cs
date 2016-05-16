@@ -22,7 +22,7 @@ namespace Microsoft.Azure.EventHubs {
     // with the /str option, or rebuild your VS project.
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    internal class Resources {
+    public class Resources {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -35,7 +35,7 @@ namespace Microsoft.Azure.EventHubs {
         ///    Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Resources.ResourceManager ResourceManager {
+        public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
                     global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Microsoft.Azure.EventHubs.Resources", typeof(Resources).GetTypeInfo().Assembly);
@@ -50,7 +50,7 @@ namespace Microsoft.Azure.EventHubs {
         ///    resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Globalization.CultureInfo Culture {
+        public static global::System.Globalization.CultureInfo Culture {
             get {
                 return resourceCulture;
             }
@@ -62,7 +62,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The received message (delivery-id:{0}, size:{1} bytes) exceeds the limit ({2} bytes) currently allowed on the link..
         /// </summary>
-        internal static string AmqpMessageSizeExceeded {
+        public static string AmqpMessageSizeExceeded {
             get {
                 return ResourceManager.GetString("AmqpMessageSizeExceeded", resourceCulture);
             }
@@ -71,7 +71,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The argument {0} is null or white space..
         /// </summary>
-        internal static string ArgumentNullOrWhiteSpace {
+        public static string ArgumentNullOrWhiteSpace {
             get {
                 return ResourceManager.GetString("ArgumentNullOrWhiteSpace", resourceCulture);
             }
@@ -80,7 +80,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The argument &apos;{0}&apos; cannot exceed {1} characters..
         /// </summary>
-        internal static string ArgumentStringTooBig {
+        public static string ArgumentStringTooBig {
             get {
                 return ResourceManager.GetString("ArgumentStringTooBig", resourceCulture);
             }
@@ -89,7 +89,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to Sending empty {0} is not a valid operation..
         /// </summary>
-        internal static string CannotSendAnEmptyEvent {
+        public static string CannotSendAnEmptyEvent {
             get {
                 return ResourceManager.GetString("CannotSendAnEmptyEvent", resourceCulture);
             }
@@ -98,7 +98,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to There are no event data supplied. Please make sure input events are not empty..
         /// </summary>
-        internal static string EventDataListIsNullOrEmpty {
+        public static string EventDataListIsNullOrEmpty {
             get {
                 return ResourceManager.GetString("EventDataListIsNullOrEmpty", resourceCulture);
             }
@@ -107,7 +107,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to Serialization operation failed due to unsupported type {0}..
         /// </summary>
-        internal static string FailedToSerializeUnsupportedType {
+        public static string FailedToSerializeUnsupportedType {
             get {
                 return ResourceManager.GetString("FailedToSerializeUnsupportedType", resourceCulture);
             }
@@ -116,7 +116,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The string has an invalid encoding format..
         /// </summary>
-        internal static string InvalidEncoding {
+        public static string InvalidEncoding {
             get {
                 return ResourceManager.GetString("InvalidEncoding", resourceCulture);
             }
@@ -125,7 +125,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The specified partitionKey &apos;{0}&apos; is invalid for partition &apos;{1}&apos;. Do not specify a partitionKey when sending using a PartitionedSender.  Instead use EventHubClient.Send..
         /// </summary>
-        internal static string PartitionInvalidPartitionKey {
+        public static string PartitionInvalidPartitionKey {
             get {
                 return ResourceManager.GetString("PartitionInvalidPartitionKey", resourceCulture);
             }
@@ -134,7 +134,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to Argument {0} must be a non-negative timeout value. The provided value was {1}..
         /// </summary>
-        internal static string TimeoutMustBeNonNegative {
+        public static string TimeoutMustBeNonNegative {
             get {
                 return ResourceManager.GetString("TimeoutMustBeNonNegative", resourceCulture);
             }
@@ -143,7 +143,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to Argument {0} must be a positive timeout value. The provided value was {1}..
         /// </summary>
-        internal static string TimeoutMustBePositive {
+        public static string TimeoutMustBePositive {
             get {
                 return ResourceManager.GetString("TimeoutMustBePositive", resourceCulture);
             }
@@ -152,7 +152,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The provided token does not specify the &apos;Audience&apos; value..
         /// </summary>
-        internal static string TokenMissingAudience {
+        public static string TokenMissingAudience {
             get {
                 return ResourceManager.GetString("TokenMissingAudience", resourceCulture);
             }
@@ -161,7 +161,7 @@ namespace Microsoft.Azure.EventHubs {
         /// <summary>
         ///    Looks up a localized string similar to The provided token does not specify the &apos;ExpiresOn&apos; value..
         /// </summary>
-        internal static string TokenMissingExpiresOn {
+        public static string TokenMissingExpiresOn {
             get {
                 return ResourceManager.GetString("TokenMissingExpiresOn", resourceCulture);
             }
