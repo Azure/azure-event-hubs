@@ -11,11 +11,14 @@ namespace Microsoft.Azure.EventHubs.Amqp
     using System.Threading.Tasks;
     using Microsoft.Azure.Amqp.Sasl;
     using Microsoft.Azure.Amqp;
+    using Microsoft.Azure.Amqp.Framing;
     using Microsoft.Azure.Amqp.Transport;
+    using Microsoft.Azure.EventHubs.Amqp.Management;
 
     sealed class AmqpEventHubClient : EventHubClient
     {
         const string CbsSaslMechanismName = "MSSBCBS";
+        AmqpServiceClient<IAmqpEntityManagement> managementServiceClient; // serviceClient that handles management calls
 
         public AmqpEventHubClient(ServiceBusConnectionSettings connectionSettings)
             : base(connectionSettings)
@@ -24,7 +27,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
             this.AmqpVersion = new Version(1, 0, 0, 0);
             this.MaxFrameSize = AmqpConstants.DefaultMaxFrameSize;
             var tokenProvider = connectionSettings.CreateTokenProvider();
-            this.CbsTokenProvider = new TokenProviderAdapter(tokenProvider, connectionSettings.OperationTimeout);
+            this.TokenProvider = tokenProvider;
+            this.CbsTokenProvider = new TokenProviderAdapter(this);
             this.ConnectionManager = new AmqpConnectionManager(this);
         }
 
@@ -37,6 +41,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
         Version AmqpVersion { get; }
 
         uint MaxFrameSize { get; }
+
+        TokenProvider TokenProvider { get; }
 
         internal override EventDataSender OnCreateEventSender(string partitionId)
         {
@@ -54,6 +60,101 @@ namespace Microsoft.Azure.EventHubs.Amqp
         {
             // Closing the Connection will also close all Links associated with it.
             await this.ConnectionManager.CloseAsync();
+        }
+
+        internal async Task<ActiveClientRequestResponseLink> OpenRequestResponseLinkAsync(
+            string type, string address, MessagingEntityType? entityType, string[] requiredClaims, TimeSpan timeout)
+        {
+            var timeoutHelper = new TimeoutHelper(timeout, true);
+            AmqpSession session = null;
+            try
+            {
+                // Don't need to get token for namespace scope operations, included in request
+                bool isNamespaceScope = address.Equals(AmqpClientConstants.ManagementAddress, StringComparison.OrdinalIgnoreCase);
+
+                var connection = await this.ConnectionManager.GetConnectionAsync();
+
+                var sessionSettings = new AmqpSessionSettings { Properties = new Fields() };
+                //sessionSettings.Properties[AmqpClientConstants.BatchFlushIntervalName] = (uint)batchFlushInterval.TotalMilliseconds;
+                session = connection.CreateSession(sessionSettings);
+
+                await session.OpenAsync(timeoutHelper.RemainingTime());
+
+                var linkSettings = new AmqpLinkSettings();
+                linkSettings.AddProperty(AmqpClientConstants.TimeoutName, (uint)timeoutHelper.RemainingTime().TotalMilliseconds);
+                if (entityType != null)
+                {
+                    linkSettings.AddProperty(AmqpClientConstants.EntityTypeName, (int)entityType.Value);
+                }
+
+                // Create the link
+                var link = new RequestResponseAmqpLink(type, session, address, linkSettings.Properties);
+
+                bool isClientToken = false;
+                var authorizationValidToUtc = DateTime.MaxValue;
+
+                if (!isNamespaceScope)
+                {
+                    // TODO: Get Entity level token here
+                }
+
+                await link.OpenAsync(timeoutHelper.RemainingTime());
+
+                // Redirected scenario requires entityPath as the audience, otherwise we 
+                // should always use the full EndpointUri as audience.
+                return new ActiveClientRequestResponseLink(
+                    link,
+                    this.ConnectionSettings.Endpoint.AbsoluteUri, // audience
+                    this.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    requiredClaims,
+                    isClientToken,
+                    authorizationValidToUtc);
+            }
+            catch (Exception)
+            {
+                if (session != null)
+                {
+                    // Aborting the session will cleanup the link as well.
+                    session.Abort();
+                }
+
+                throw;
+            }
+        }
+
+        protected override async Task<EventHubRuntimeInformation> OnGetRuntimeInformationAsync()
+        {
+            var timeoutHelper = new TimeoutHelper(this.ConnectionSettings.OperationTimeout);
+            string serviceClientAddress = //this.ConnectionSettings.Endpoint.IsIoTDeviceUri() ?
+                //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
+                AmqpClientConstants.ManagementAddress;
+
+            string entityType = AmqpClientConstants.ManagementEventHubEntityTypeValue;
+            SecurityToken token = await this.TokenProvider.GetTokenAsync(this.ConnectionSettings.Endpoint.AbsoluteUri, ClaimConstants.Manage, timeoutHelper.RemainingTime());
+
+            var serviceClient = this.GetManagementServiceClient(serviceClientAddress);
+            var eventHubRuntimeInformation = await serviceClient.Channel.GetRuntimeInfoAsync<EventHubRuntimeInformation>(
+                entityType, this.ConnectionSettings.EntityPath, null, token.TokenValue.ToString(), this.ConnectionSettings.OperationTimeout);
+
+            return eventHubRuntimeInformation;
+        }
+
+        internal AmqpServiceClient<IAmqpEntityManagement> GetManagementServiceClient(string address)
+        {
+            if (this.managementServiceClient == null)
+            {
+                lock (ThisLock)
+                {
+                    if (this.managementServiceClient == null)
+                    {
+                        this.managementServiceClient = new AmqpServiceClient<IAmqpEntityManagement>(this, address);
+                    }
+
+                    Fx.Assert(string.Equals(this.managementServiceClient.Address, address, StringComparison.OrdinalIgnoreCase), "The address should match the address of managementServiceClient");
+                }
+            }
+
+            return this.managementServiceClient;
         }
 
         internal static AmqpSettings CreateAmqpSettings(
@@ -256,20 +357,20 @@ namespace Microsoft.Azure.EventHubs.Amqp
         /// </summary>
         sealed class TokenProviderAdapter : ICbsTokenProvider
         {
-            readonly TokenProvider tokenProvider;
-            readonly TimeSpan operationTimeout;
+            readonly AmqpEventHubClient eventHubClient;
 
-            public TokenProviderAdapter(TokenProvider tokenProvider, TimeSpan operationTimeout)
+            public TokenProviderAdapter(AmqpEventHubClient eventHubClient)
             {
-                Fx.Assert(tokenProvider != null, "tokenProvider cannot be null");
-                this.tokenProvider = tokenProvider;
-                this.operationTimeout = operationTimeout;
+                Fx.Assert(eventHubClient != null, "tokenProvider cannot be null");
+                this.eventHubClient = eventHubClient;
             }
 
             public async Task<CbsToken> GetTokenAsync(Uri namespaceAddress, string appliesTo, string[] requiredClaims)
             {
                 string claim = requiredClaims?.FirstOrDefault();
-                var token = await this.tokenProvider.GetTokenAsync(appliesTo, claim, this.operationTimeout);
+                var tokenProvider = this.eventHubClient.TokenProvider;
+                var timeout = this.eventHubClient.ConnectionSettings.OperationTimeout;
+                var token = await tokenProvider.GetTokenAsync(appliesTo, claim, timeout);
                 return new CbsToken(token.TokenValue, CbsConstants.ServiceBusSasTokenType, token.ExpiresAtUtc);
             }
         }

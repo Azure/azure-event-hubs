@@ -22,6 +22,7 @@
             await TestRunner.RunAsync(() => eventHubClientTests.SendBatchAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionSenderSendAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverReceiveAsync());
+            await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
         }
 
         async Task SendAsync()
@@ -58,6 +59,7 @@
         async Task PartitionReceiverReceiveAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.ReceiveAsync");
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
             try
@@ -81,6 +83,24 @@
             finally
             {
                 await partitionReceiver1.CloseAsync();
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+            }
+        }
+
+        async Task GetEventHubRuntimeInformationAsync()
+        {
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Getting  EventHubRuntimeInformation");
+            var eventHubRuntimeInformation = await this.EventHubClient.GetRuntimeInformationAsync();
+
+            if (eventHubRuntimeInformation.PartitionIds == null || eventHubRuntimeInformation.PartitionIds.Length == 0)
+            {
+                throw new InvalidOperationException("Failed to get partition ids!");
+            }
+
+            Console.WriteLine("Found partitions:");
+            foreach (string partitionId in eventHubRuntimeInformation.PartitionIds)
+            {
+                Console.WriteLine(partitionId);
             }
         }
     }
