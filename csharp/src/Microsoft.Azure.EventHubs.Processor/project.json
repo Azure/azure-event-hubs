@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0-*",
+
+  "dependencies": {
+    "Microsoft.Azure.EventHubs": "1.0.0-*",
+    "Newtonsoft.Json": "8.0.3",
+    "WindowsAzure.Storage": "7.0.1-preview"
+  },
+
+  "frameworks": {
+    "net46": {
+    }
+  }
+}
