@@ -5,6 +5,7 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// A handler interface for the receive operation. Use any implementation of this interface to specify
@@ -17,10 +18,10 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         /// <seealso cref="PartitionReceiver.ReceiveAsync"/>
         /// <param name="events">The list of fetched events from the corresponding PartitionReceiver.</param>
-        void OnReceive(IEnumerable<EventData> events);
+        Task ProcessEventsAsync(IEnumerable<EventData> events);
 
-        void OnError(Exception error);
+        Task ProcessErrorAsync(Exception error);
 
-        void OnClose(Exception error);
+        Task CloseAsync(Exception error);
     }
 }

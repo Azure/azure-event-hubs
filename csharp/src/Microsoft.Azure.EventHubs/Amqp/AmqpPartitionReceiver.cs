@@ -7,6 +7,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Amqp;
     using Microsoft.Azure.Amqp.Encoding;
@@ -14,6 +15,10 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
     class AmqpPartitionReceiver : PartitionReceiver
     {
+        readonly object receivePumpLock;
+        CancellationTokenSource receivePumpCancellationSource;
+        Task receivePumpTask;
+
         public AmqpPartitionReceiver(
             AmqpEventHubClient eventHubClient,
             string consumerGroupName,
@@ -27,15 +32,32 @@ namespace Microsoft.Azure.EventHubs.Amqp
             string entityPath = eventHubClient.ConnectionSettings.EntityPath;
             this.Path = $"{entityPath}/ConsumerGroups/{consumerGroupName}/Partitions/{partitionId}";
             this.ReceiveLinkManager = new AmqpReceiveLinkManager(this);
+            this.receivePumpLock = new object();
         }
 
         string Path { get; }
 
         AmqpReceiveLinkManager ReceiveLinkManager { get; }
 
-        public override Task CloseAsync()
+        public override async Task CloseAsync()
         {
-            return this.ReceiveLinkManager.CloseAsync();
+            Task localReceivePumpTask;
+            CancellationTokenSource localReceivePumpCancellationSource;
+            lock (this.receivePumpLock)
+            {
+                localReceivePumpTask = this.receivePumpTask;
+                localReceivePumpCancellationSource = this.receivePumpCancellationSource;
+                this.receivePumpTask = null;
+                this.receivePumpCancellationSource = null;
+            }
+
+            if (localReceivePumpTask != null)
+            {
+                await localReceivePumpTask;
+                localReceivePumpCancellationSource.Dispose();
+            }
+
+            await this.ReceiveLinkManager.CloseAsync();
         }
 
         protected override async Task<IEnumerable<EventData>> OnReceiveAsync()
@@ -72,7 +94,26 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler)
         {
-            throw new NotImplementedException("TODO: Implement OnSetReceiveHandler.");
+            lock (this.receivePumpLock)
+            {
+                if (this.receivePumpTask != null)
+                {
+                    // Shutdown previously running pump.
+                    Fx.Assert(this.receivePumpCancellationSource != null, $"{nameof(receivePumpCancellationSource)} and {nameof(receivePumpTask)} must be set together!");
+                    this.receivePumpCancellationSource.Cancel();
+                    this.receivePumpTask.Wait(this.EventHubClient.ConnectionSettings.OperationTimeout);
+
+                    this.receivePumpCancellationSource.Dispose();
+                    this.receivePumpCancellationSource = null;
+                    this.receivePumpTask = null;
+                }
+
+                if (receiveHandler != null)
+                {
+                    this.receivePumpCancellationSource = new CancellationTokenSource();
+                    this.receivePumpTask = this.ReceivePumpAsync(receiveHandler, this.receivePumpCancellationSource.Token);
+                }
+            }
         }
 
         IList<AmqpDescribed> CreateFilters()
@@ -106,6 +147,53 @@ namespace Microsoft.Azure.EventHubs.Amqp
             DateTime utcValue = value.ToUniversalTime();
             double millisecs = (utcValue - AmqpConstants.StartOfEpoch).TotalMilliseconds;
             return (long)millisecs;
+        }
+
+        async Task ReceivePumpAsync(IPartitionReceiveHandler receiveHandler, CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                IEnumerable<EventData> receivedEvents = null;
+
+                try
+                {
+                }
+                catch (Exception e) // when (e is InterruptedException || e is ExecutionException || e is TimeoutException)
+                {
+                    ServiceBusException serviceBusException = e as ServiceBusException;
+                    if (serviceBusException != null && serviceBusException.IsTransient)
+                    {
+                        try
+                        {
+                            await receiveHandler.ProcessErrorAsync(e);
+                            continue;
+                        }
+                        catch (Exception userCodeError)
+                        {
+                            await receiveHandler.CloseAsync(userCodeError);
+                            return;
+                        }
+                    }
+					else
+					{
+                        await receiveHandler.CloseAsync(e);
+                        return;
+                    }
+                }
+
+                try
+                {
+                    await receiveHandler.ProcessEventsAsync(receivedEvents);
+                }
+                catch (Exception userCodeError)
+                {
+                    await receiveHandler.CloseAsync(userCodeError);
+                    return;
+                }
+            }
+
+            // Shutting down gracefully
+            await receiveHandler.CloseAsync(null);
         }
 
         /// <summary>

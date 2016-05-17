@@ -50,5 +50,25 @@ namespace Microsoft.Azure.EventHubs.Amqp
         public const string FilterReceivedAtPartNameV2 = "amqp.annotation.x-opt-enqueued-time";
         public const string FilterReceivedAt = FilterReceivedAtPartNameV2 + " > ";
         public const string FilterReceivedAtFormatString = FilterReceivedAt + "{0}";
+
+        // AMQP Management Operation
+        public const string ManagementAddress = "$management";
+        public const string EntityNameKey = "name";
+        public const string PartitionNameKey = "partition";
+        public const string ManagementOperationKey = "operation";
+        public const string ReadOperationValue = "READ";
+        public const string ManagementEntityTypeKey = "type";
+        public const string ManagementSecurityTokenKey = "security_token";
+        public const string ManagementEventHubEntityTypeValue = AmqpConstants.Vendor + ":eventhub";
+        public const string ManagementPartitionEntityTypeValue = AmqpConstants.Vendor + ":partition";
+        public const string ManagementEventHubCreatedAt = "created_at";
+        public const string ManagementEventHubPartitionCount = "partition_count";
+        public const string ManagementEventHubPartitionIds = "partition_ids";
+
+        public const string ResponseStatusCode = "status-code";
+        public const string ResponseErrorCondition = "error-condition";
+        public const string ResponseStatusDescription = "status-description";
+
+
     }
 }

@@ -358,13 +358,23 @@ namespace Microsoft.Azure.EventHubs
             return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, startTime, epoch);
         }
 
+        /// <summary>
+        /// Retrieves EventHub runtime information
+        /// </summary>
+        public Task<EventHubRuntimeInformation> GetRuntimeInformationAsync()
+        {
+            return this.OnGetRuntimeInformationAsync();
+        }
+
         internal EventDataSender CreateEventSender(string partitionId = null)
         {
             return this.OnCreateEventSender(partitionId);
-		}
+        }
 
         internal abstract EventDataSender OnCreateEventSender(string partitionId);
 
         protected abstract PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startOffset, bool offsetInclusive, DateTime? startTime, long? epoch);
+
+        protected abstract Task<EventHubRuntimeInformation> OnGetRuntimeInformationAsync();
     }
 }
