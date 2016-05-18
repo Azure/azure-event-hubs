@@ -16,6 +16,8 @@
 	ms.date="05/29/2015"
 	ms.author="sethm"/>
 
+> This document is known to be out of date
+
 # How to build the Windows sample
 
 The following procedure describes the process of building and running the Event Hubs SDK samples (**send** and **send_batch**) on a Windows desktop machine.
