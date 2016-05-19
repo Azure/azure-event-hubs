@@ -53,6 +53,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
             if (localReceivePumpTask != null)
             {
+                localReceivePumpCancellationSource.Cancel();
                 await localReceivePumpTask;
                 localReceivePumpCancellationSource.Dispose();
             }
@@ -157,6 +158,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
                 try
                 {
+                    receivedEvents = await this.ReceiveAsync();
                 }
                 catch (Exception e) // when (e is InterruptedException || e is ExecutionException || e is TimeoutException)
                 {
