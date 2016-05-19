@@ -931,7 +931,7 @@
   },
   "libraries": {
     "Microsoft.Azure.Amqp.Core/1.1.0": {
-      "sha512": "2T4EFE0bSS6wCEdRqHMUQ2FRpGjifL2unT6y+pijiOSwRu3bfullzvwkItlsKY0L3kCNz3lDwi3bPhR+DvLhSg==",
+      "sha512": "/K/Q8xuB17cuItYj4ILGLY4rOIuaZGgs7fRRBVQmEoud2mR0+lKjCVSLOEOIwR6jfs5MvEvOZoZnVlSiuOKF2w==",
       "type": "package",
       "files": [
         "Microsoft.Azure.Amqp.Core.1.1.0.nupkg.sha512",

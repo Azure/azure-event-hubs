@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public class EventHubClientTests
@@ -23,6 +24,7 @@
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionSenderSendAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverReceiveAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
+            await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverSetReceiveHandlerAsync());
         }
 
         async Task SendAsync()
@@ -60,7 +62,7 @@
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
             try
             {
@@ -87,6 +89,58 @@
             }
         }
 
+        async Task PartitionReceiverSetReceiveHandlerAsync()
+        {
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.SetReceiveHandler()");
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
+            try
+            {
+                EventWaitHandle dataReceivedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+                var handler = new TestPartitionReceiveHandler();
+                handler.EventsReceived += (s, e) =>
+                {
+                    Console.WriteLine("Receive a batch of {0} events:", e != null ? e.Count() : 0);
+                    if (e != null)
+                    {
+                        foreach (var eventData in e)
+                        {
+                            ArraySegment<byte> body = eventData.Body;
+                            Console.WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
+                        }
+                    }
+
+                    dataReceivedEvent.Set();
+                };
+
+                partitionReceiver1.SetReceiveHandler(handler);
+
+                if (!dataReceivedEvent.WaitOne(TimeSpan.FromSeconds(30)))
+                {
+                    throw new InvalidOperationException("Data Received Event was not signalled.");
+                }
+
+                EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+                handler.Closed += (s, error) =>
+                {
+                    Console.WriteLine($"IPartitionReceiveHandler.CloseAsync called.");
+                    handlerClosedEvent.Set();
+                };
+
+                Console.WriteLine("Closing PartitionReceiver");
+                await partitionReceiver1.CloseAsync();
+                if (!handlerClosedEvent.WaitOne(TimeSpan.FromSeconds(30)))
+                {
+                    throw new InvalidOperationException("Handle Closed Event was not signalled.");
+                }
+            }
+            finally
+            {
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+            }
+        }
+
         async Task GetEventHubRuntimeInformationAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Getting  EventHubRuntimeInformation");
@@ -101,6 +155,33 @@
             foreach (string partitionId in eventHubRuntimeInformation.PartitionIds)
             {
                 Console.WriteLine(partitionId);
+            }
+        }
+
+        class TestPartitionReceiveHandler : IPartitionReceiveHandler
+        {
+            public event EventHandler<IEnumerable<EventData>> EventsReceived;
+
+            public event EventHandler<Exception> ErrorReceived;
+
+            public event EventHandler<Exception> Closed;
+
+            Task IPartitionReceiveHandler.CloseAsync(Exception error)
+            {
+                this.Closed?.Invoke(this, error);
+                return Task.CompletedTask;
+            }
+
+            Task IPartitionReceiveHandler.ProcessErrorAsync(Exception error)
+            {
+                this.ErrorReceived?.Invoke(this, error);
+                return Task.CompletedTask;
+            }
+
+            Task IPartitionReceiveHandler.ProcessEventsAsync(IEnumerable<EventData> events)
+            {
+                this.EventsReceived?.Invoke(this, events);
+                return Task.CompletedTask;
             }
         }
     }
