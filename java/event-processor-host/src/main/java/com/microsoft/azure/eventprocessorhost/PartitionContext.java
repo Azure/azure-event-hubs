@@ -44,6 +44,11 @@ public class PartitionContext
     {
         return this.eventHubPath;
     }
+    
+    public String getOwner()
+    {
+    	return this.lease.getOwner();
+    }
 
     Lease getLease()
     {
