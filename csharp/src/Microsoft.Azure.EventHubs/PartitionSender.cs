@@ -17,11 +17,12 @@ namespace Microsoft.Azure.EventHubs
     public sealed class PartitionSender : ClientEntity
     {
         internal PartitionSender(EventHubClient eventHubClient, string partitionId)
-            : base(null)
+            : base($"{nameof(PartitionSender)}({eventHubClient.EventHubName},{partitionId})")
         {
             this.EventHubClient = eventHubClient;
             this.PartitionId = partitionId;
             this.InnerSender = eventHubClient.CreateEventSender(partitionId);
+            EventHubsEventSource.Log.ClientCreated(this.ClientId, null);
         }
 
         public EventHubClient EventHubClient { get; }
@@ -54,7 +55,7 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNull(nameof(eventData));
             }
 
-            return this.InnerSender.SendAsync(new[] { eventData }, null);
+            return this.SendAsync(new[] { eventData });
         }
 
         /// <summary>
@@ -96,19 +97,41 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>a Task that completes when the send operation is done.</returns>
         /// <exception cref="PayloadSizeExceededException">the total size of the <see cref="EventData"/> exceeds a pre-defined limit set by the service. Default is 256k bytes.</exception>
         /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
-        public Task SendAsync(IEnumerable<EventData> eventDatas)
+        public async Task SendAsync(IEnumerable<EventData> eventDatas)
         {
             if (eventDatas == null)
             {
                 throw Fx.Exception.ArgumentNull(nameof(eventDatas));
             }
 
-            return this.InnerSender.SendAsync(eventDatas, null);
+            int count = EventDataSender.ValidateEvents(eventDatas, this.PartitionId, null);
+            EventHubsEventSource.Log.EventSendStart(this.ClientId, count, null);
+            try
+            {
+                await this.InnerSender.SendAsync(eventDatas, null);
+            }
+            catch (Exception exception)
+            {
+                EventHubsEventSource.Log.EventSendException(this.ClientId, exception.ToString());
+                throw;
+            }
+            finally
+            {
+                EventHubsEventSource.Log.EventSendStop(this.ClientId);
+            }
         }
 
-        public override Task CloseAsync()
+        public override async Task CloseAsync()
         {
-            return this.InnerSender.CloseAsync();
-        }       
+            EventHubsEventSource.Log.ClientCloseStart(this.ClientId);
+            try
+            {
+                await this.InnerSender.CloseAsync();
+            }
+            finally
+            {
+                EventHubsEventSource.Log.ClientCloseStop(this.ClientId);
+            }
+        }
     }
 }

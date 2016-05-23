@@ -5,7 +5,8 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
+    using System.Globalization;
+    using System.Text;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -35,7 +36,7 @@ namespace Microsoft.Azure.EventHubs
         const int MaxPrefetchCount = 999;
         const int DefaultPrefetchCount = 300;
 
-        internal PartitionReceiver(
+        protected internal PartitionReceiver(
             EventHubClient eventHubClient,
             string consumerGroupName,
             string partitionId,
@@ -43,7 +44,7 @@ namespace Microsoft.Azure.EventHubs
             bool offsetInclusive,
             DateTime? startTime,
             long? epoch)
-            : base(nameof(EventDataSender) + StringUtility.GetRandomString())
+            : base($"{nameof(PartitionReceiver)}({eventHubClient.EventHubName},{consumerGroupName},{partitionId})")
         {
             this.EventHubClient = eventHubClient;
             this.ConsumerGroupName = consumerGroupName;
@@ -53,6 +54,7 @@ namespace Microsoft.Azure.EventHubs
             this.StartTime = startTime;
             this.PrefetchCount = DefaultPrefetchCount;
             this.Epoch = epoch;
+            EventHubsEventSource.Log.ClientCreated(this.ClientId, this.FormatTraceDetails());
         }
 
         /// <summary>
@@ -124,25 +126,79 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
         public async Task<IEnumerable<EventData>> ReceiveAsync()
         {
-            IEnumerable<EventData> events = await this.OnReceiveAsync();
-            EventData lastEvent = events?.LastOrDefault();
-            if (lastEvent != null)
+            EventHubsEventSource.Log.EventReceiveStart(this.ClientId);
+            int count = 0;
+            try
             {
-                // Store the current position in the stream of messages
-                this.StartOffset = lastEvent.SystemProperties.Offset;
-                this.StartTime = lastEvent.SystemProperties.EnqueuedTimeUtc;
-            }
+                IList<EventData> events = await this.OnReceiveAsync();
+                count = events != null ? events.Count : 0;
+                EventData lastEvent = events?[count - 1];
+                if (lastEvent != null)
+                {
+                    // Store the current position in the stream of messages
+                    this.StartOffset = lastEvent.SystemProperties.Offset;
+                    this.StartTime = lastEvent.SystemProperties.EnqueuedTimeUtc;
+                }
 
-            return events;
+                return events;
+            }
+            catch (Exception e)
+            {
+                EventHubsEventSource.Log.EventReceiveException(this.ClientId, e.ToString());
+                throw;
+            }
+            finally
+            {
+                EventHubsEventSource.Log.EventReceiveStop(this.ClientId, count);
+            }
         }
 
         public void SetReceiveHandler(IPartitionReceiveHandler receiveHandler)
         {
+            EventHubsEventSource.Log.SetReceiveHandlerStart(this.ClientId, receiveHandler != null ? receiveHandler.GetType().ToString() : "null");
             this.OnSetReceiveHandler(receiveHandler);
+            EventHubsEventSource.Log.SetReceiveHandlerStop(this.ClientId);
         }
 
-        protected abstract Task<IEnumerable<EventData>> OnReceiveAsync();
+        public sealed override async Task CloseAsync()
+        {
+            EventHubsEventSource.Log.ClientCloseStart(this.ClientId);
+            try
+            {
+                await this.OnCloseAsync();
+            }
+            finally
+            {
+                EventHubsEventSource.Log.ClientCloseStop(this.ClientId);
+            }
+        }
+
+        protected abstract Task<IList<EventData>> OnReceiveAsync();
 
         protected abstract void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler);
+
+        protected abstract Task OnCloseAsync();
+
+        string FormatTraceDetails()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendFormat("ConsumerGroup:{0}, PartitionId:{1}", this.ConsumerGroupName, PartitionId);
+            if (!string.IsNullOrEmpty(this.StartOffset))
+            {
+                sb.AppendFormat(", StartOffset:{0}, OffsetInclusive:{1}", this.StartOffset, this.OffsetInclusive);
+            }
+
+            if (this.StartTime.HasValue)
+            {
+                sb.AppendFormat(", StartTime:{0}", this.StartTime.Value.ToString(CultureInfo.InvariantCulture));
+            }
+
+            if (this.Epoch.HasValue)
+            {
+                sb.AppendFormat(", Epoch:{0}", this.Epoch.Value);
+            }
+
+            return sb.ToString();
+        }
     }
 }
