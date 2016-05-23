@@ -26,52 +26,151 @@ namespace Microsoft.Azure.EventHubs
         {
             if (IsEnabled())
             {
-                WriteEvent(1, nameSpace, eventHubName);
+                WriteEvent(1, nameSpace ?? string.Empty, eventHubName ?? string.Empty);
             }
         }
 
-        [Event(2, Level = EventLevel.Informational, Message = "Done creating EventHubClient")]
-        public void EventHubClientCreateStop()
+        [Event(2, Level = EventLevel.Informational, Message = "{0}: created.")]
+        public void EventHubClientCreateStop(string clientId)
         {
             if (IsEnabled())
             {
-                WriteEvent(2);
+                WriteEvent(2, clientId);
             }
         }
 
-        [Event(3, Level = EventLevel.Informational, Message = "Sending {0} message(s) to partitionId '{1}'.")]
-        public void EventSendStart(int count, string partitionId)
+        [Event(3, Level = EventLevel.Informational, Message = "{0}: SendAsync start. EventCount: {1}, PartitionKey: '{2}'")]
+        public void EventSendStart(string clientId, int count, string partitionKey)
         {
             if (IsEnabled())
             {
-                WriteEvent(3, count, partitionId);
+                WriteEvent(3, clientId, count, partitionKey ?? string.Empty);
             }
         }
 
-        [Event(4, Level = EventLevel.Informational, Message = "Done sending message(s).")]
-        public void EventSendStop()
+        [Event(4, Level = EventLevel.Informational, Message = "{0}: SendAsync done.")]
+        public void EventSendStop(string clientId)
         {
             if (IsEnabled())
             {
-                WriteEvent(4);
+                WriteEvent(4, clientId);
             }
         }
 
-        [Event(5, Level = EventLevel.Error, Message = "Error sending message(s): {0}.")]
-        public void EventSendException(string error)
+        [Event(5, Level = EventLevel.Error, Message = "{0}: SendAsync Exception: {1}.")]
+        public void EventSendException(string clientId, string error)
         {
             if (IsEnabled())
             {
-                WriteEvent(5, error);
+                WriteEvent(5, clientId, error);
             }
         }
 
-        [Event(6, Level = EventLevel.Error, Message = "Throwing Exception: {0}")]
+        [Event(6, Level = EventLevel.Informational, Message = "{0}: ReceiveAsync start.")]
+        public void EventReceiveStart(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(6, clientId);
+            }
+        }
+
+        [Event(7, Level = EventLevel.Informational, Message = "{0}: ReceiveAsync done. EventCount: {1}.")]
+        public void EventReceiveStop(string clientId, int count)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(7, clientId, count);
+            }
+        }
+
+        [Event(8, Level = EventLevel.Error, Message = "{0}: ReceiveAsync Exception: {1}.")]
+        public void EventReceiveException(string clientId, string error)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(8, clientId, error);
+            }
+        }
+
+        [Event(9, Level = EventLevel.Informational, Message = "{0}: SetReceiveHandler start. Handler: {1}.")]
+        public void SetReceiveHandlerStart(string clientId, string handler)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(9, clientId, handler ?? string.Empty);
+            }
+        }
+
+        [Event(10, Level = EventLevel.Informational, Message = "{0}: SetReceiveHandler done.")]
+        public void SetReceiveHandlerStop(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(10, clientId);
+            }
+        }
+
+        [Event(11, Level = EventLevel.Error, Message = "Throwing Exception: {0}")]
         public void ThrowingExceptionError(string error)
         {
             if (IsEnabled())
             {
-                WriteEvent(6, error);
+                WriteEvent(11, error);
+            }
+        }
+
+        [Event(12, Level = EventLevel.Informational, Message = "{0}: created. {1}")]
+        public void ClientCreated(string clientId, string details)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(12, clientId, details ?? string.Empty);
+            }
+        }
+        
+        [Event(13, Level = EventLevel.Informational, Message = "{0}: closing.")]
+        public void ClientCloseStart(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(13, clientId);
+            }
+        }
+        
+        [Event(14, Level = EventLevel.Informational, Message = "{0}: closed.")]
+        public void ClientCloseStop(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(14, clientId);
+            }
+        }
+
+        [Event(15, Level = EventLevel.Informational, Message = "{0}: GetEventHubRuntimeInformation start.")]
+        public void GetEventHubRuntimeInformationStart(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(15, clientId);
+            }
+        }
+
+        [Event(16, Level = EventLevel.Informational, Message = "{0}: GetEventHubRuntimeInformation done.")]
+        public void GetEventHubRuntimeInformationStop(string clientId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(16, clientId);
+            }
+        }
+
+        [Event(17, Level = EventLevel.Error, Message = "{0}: GetEventHubRuntimeInformation Exception: {1}.")]
+        public void GetEventHubRuntimeInformationException(string clientId, string error)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(17, clientId, error);
             }
         }
 

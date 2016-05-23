@@ -56,10 +56,10 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 this, consumerGroupName, partitionId, startOffset, offsetInclusive, startTime, epoch);
         }
 
-        public override async Task CloseAsync()
+        protected override Task OnCloseAsync()
         {
             // Closing the Connection will also close all Links associated with it.
-            await this.ConnectionManager.CloseAsync();
+            return this.ConnectionManager.CloseAsync();
         }
 
         internal async Task<ActiveClientRequestResponseLink> OpenRequestResponseLinkAsync(
@@ -124,19 +124,27 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task<EventHubRuntimeInformation> OnGetRuntimeInformationAsync()
         {
-            var timeoutHelper = new TimeoutHelper(this.ConnectionSettings.OperationTimeout);
-            string serviceClientAddress = //this.ConnectionSettings.Endpoint.IsIoTDeviceUri() ?
-                //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
-                AmqpClientConstants.ManagementAddress;
+            try
+            {
+                var timeoutHelper = new TimeoutHelper(this.ConnectionSettings.OperationTimeout);
+                string serviceClientAddress = //this.ConnectionSettings.Endpoint.IsIoTDeviceUri() ?
+                                              //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
+                    AmqpClientConstants.ManagementAddress;
 
-            string entityType = AmqpClientConstants.ManagementEventHubEntityTypeValue;
-            SecurityToken token = await this.TokenProvider.GetTokenAsync(this.ConnectionSettings.Endpoint.AbsoluteUri, ClaimConstants.Manage, timeoutHelper.RemainingTime());
+                string entityType = AmqpClientConstants.ManagementEventHubEntityTypeValue;
+                SecurityToken token = await this.TokenProvider.GetTokenAsync(this.ConnectionSettings.Endpoint.AbsoluteUri, ClaimConstants.Manage, timeoutHelper.RemainingTime());
 
-            var serviceClient = this.GetManagementServiceClient(serviceClientAddress);
-            var eventHubRuntimeInformation = await serviceClient.Channel.GetRuntimeInfoAsync<EventHubRuntimeInformation>(
-                entityType, this.ConnectionSettings.EntityPath, null, token.TokenValue.ToString(), this.ConnectionSettings.OperationTimeout);
+                var serviceClient = this.GetManagementServiceClient(serviceClientAddress);
+                var eventHubRuntimeInformation = await serviceClient.Channel.GetRuntimeInfoAsync<EventHubRuntimeInformation>(
+                    entityType, this.ConnectionSettings.EntityPath, null, token.TokenValue.ToString(), this.ConnectionSettings.OperationTimeout);
 
-            return eventHubRuntimeInformation;
+                return eventHubRuntimeInformation;
+            }
+            catch (AggregateException aggregateException) when (aggregateException.InnerExceptions.Count == 1)
+            {
+                // The AmqpServiceClient for some reason wraps errors with an unnecessary AggregateException, unwrap here.
+                throw aggregateException.InnerException;
+            }
         }
 
         internal AmqpServiceClient<IAmqpEntityManagement> GetManagementServiceClient(string address)

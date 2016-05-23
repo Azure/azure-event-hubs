@@ -21,37 +21,23 @@ namespace Microsoft.Azure.EventHubs
 
         protected string PartitionId { get; }
 
-        public async Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
+        public Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
-            int count = this.ValidateEvents(eventDatas, partitionKey);
-            EventHubsEventSource.Log.EventSendStart(count, partitionKey);
-            try
-            {
-                await this.OnSendAsync(eventDatas, partitionKey);
-            }
-            catch (Exception exception)
-            {
-                EventHubsEventSource.Log.EventSendException(exception.ToString());
-                throw;
-            }
-            finally
-            {
-                EventHubsEventSource.Log.EventSendStop();
-            }
+            return this.OnSendAsync(eventDatas, partitionKey);
         }
 
         protected abstract Task OnSendAsync(IEnumerable<EventData> eventDatas, string partitionKey);
 
-        int ValidateEvents(IEnumerable<EventData> eventDatas, string partitionKey)
+        internal static int ValidateEvents(IEnumerable<EventData> eventDatas, string partitionId, string partitionKey)
         {
             int count;
             if (eventDatas == null || (count = eventDatas.Count()) == 0)
             {
                 throw Fx.Exception.Argument(nameof(eventDatas), Resources.EventDataListIsNullOrEmpty);
             }
-            else if (this.PartitionId != null && partitionKey != null)
+            else if (partitionId != null && partitionKey != null)
             {
-                throw Fx.Exception.Argument(nameof(partitionKey), Resources.PartitionInvalidPartitionKey.FormatForUser(partitionKey, this.PartitionId));
+                throw Fx.Exception.Argument(nameof(partitionKey), Resources.PartitionInvalidPartitionKey.FormatForUser(partitionKey, partitionId));
             }
 
             return count;

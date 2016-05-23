@@ -39,7 +39,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         AmqpReceiveLinkManager ReceiveLinkManager { get; }
 
-        public override async Task CloseAsync()
+        protected override async Task OnCloseAsync()
         {
             Task localReceivePumpTask;
             CancellationTokenSource localReceivePumpCancellationSource;
@@ -61,7 +61,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             await this.ReceiveLinkManager.CloseAsync();
         }
 
-        protected override async Task<IEnumerable<EventData>> OnReceiveAsync()
+        protected override async Task<IList<EventData>> OnReceiveAsync()
         {
             var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
             ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetLinkAsync();
