@@ -16,7 +16,7 @@ namespace Microsoft.Azure.EventHubs
         EventDataSender innerSender;
 
         internal EventHubClient(ServiceBusConnectionSettings connectionSettings)
-            : base(StringUtility.GetRandomString())
+            : base($"{nameof(EventHubClient)}({connectionSettings.EntityPath})")
         {
             this.ConnectionSettings = connectionSettings;
             this.EventHubName = connectionSettings.EntityPath;
@@ -70,13 +70,22 @@ namespace Microsoft.Azure.EventHubs
             }
 
             EventHubsEventSource.Log.EventHubClientCreateStart(connectionSettings.Endpoint.Host, connectionSettings.EntityPath);
+            EventHubClient eventHubClient;
+            eventHubClient = connectionSettings.CreateEventHubClient();
+            EventHubsEventSource.Log.EventHubClientCreateStop(eventHubClient.ClientId);
+            return eventHubClient;
+        }
+
+        public sealed override async Task CloseAsync()
+        {
+            EventHubsEventSource.Log.ClientCloseStart(this.ClientId);
             try
             {
-                return connectionSettings.CreateEventHubClient();
+                await this.OnCloseAsync();
             }
             finally
             {
-                EventHubsEventSource.Log.EventHubClientCreateStop();
+                EventHubsEventSource.Log.ClientCloseStop(this.ClientId);
             }
         }
 
@@ -105,7 +114,7 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNull(nameof(eventData));
             }
 
-            return this.InnerSender.SendAsync(new[] { eventData }, null);
+            return this.SendAsync(new[] { eventData }, null);
         }
 
         /// <summary>
@@ -153,7 +162,7 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNull(nameof(eventDatas));
             }
 
-            return this.InnerSender.SendAsync(eventDatas, null);
+            return this.SendAsync(eventDatas, null);
         }
 
         /// <summary>
@@ -181,7 +190,7 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNull(eventData == null ? nameof(eventData) : nameof(partitionKey));
             }
 
-            return this.InnerSender.SendAsync(new[] { eventData }, partitionKey);
+            return this.SendAsync(new[] { eventData }, partitionKey);
         }
 
         /// <summary>
@@ -200,14 +209,29 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that completes when the send operation is done.</returns>
         /// <seealso cref="SendAsync(EventData)"/>
         /// <see cref="PartitionSender.SendAsync(EventData)"/>
-        public Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
+        public async Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
-            if (eventDatas == null || string.IsNullOrEmpty(partitionKey))
+            if (eventDatas == null)
             {
-                throw Fx.Exception.ArgumentNull(eventDatas == null ? nameof(eventDatas) : nameof(partitionKey));
+                throw Fx.Exception.ArgumentNull(nameof(eventDatas));
             }
 
-            return this.InnerSender.SendAsync(eventDatas, partitionKey);
+            int count = EventDataSender.ValidateEvents(eventDatas, null, partitionKey);
+            EventHubsEventSource.Log.EventSendStart(this.ClientId, count, partitionKey);
+            try
+            {
+                await this.InnerSender.SendAsync(eventDatas, partitionKey);
+            }
+            catch (Exception exception)
+            {
+                EventHubsEventSource.Log.EventSendException(this.ClientId, exception.ToString());
+                throw;
+            }
+            finally
+            {
+                EventHubsEventSource.Log.EventSendStop(this.ClientId);
+            }
+
         }
 
         /// <summary>
@@ -361,9 +385,23 @@ namespace Microsoft.Azure.EventHubs
         /// <summary>
         /// Retrieves EventHub runtime information
         /// </summary>
-        public Task<EventHubRuntimeInformation> GetRuntimeInformationAsync()
+        public async Task<EventHubRuntimeInformation> GetRuntimeInformationAsync()
         {
-            return this.OnGetRuntimeInformationAsync();
+            EventHubsEventSource.Log.GetEventHubRuntimeInformationStart(this.ClientId);
+            try
+            {
+                var eventHubRuntimeInformation = await this.OnGetRuntimeInformationAsync();
+                return eventHubRuntimeInformation;
+            }
+            catch (Exception e)
+            {
+                EventHubsEventSource.Log.GetEventHubRuntimeInformationException(this.ClientId, e.ToString());
+                throw;
+            }
+            finally
+            {
+                EventHubsEventSource.Log.GetEventHubRuntimeInformationStop(this.ClientId);
+            }
         }
 
         internal EventDataSender CreateEventSender(string partitionId = null)
@@ -376,5 +414,7 @@ namespace Microsoft.Azure.EventHubs
         protected abstract PartitionReceiver OnCreateReceiver(string consumerGroupName, string partitionId, string startOffset, bool offsetInclusive, DateTime? startTime, long? epoch);
 
         protected abstract Task<EventHubRuntimeInformation> OnGetRuntimeInformationAsync();
+
+        protected abstract Task OnCloseAsync();
     }
 }
