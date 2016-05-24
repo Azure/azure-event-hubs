@@ -57,7 +57,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     // If the processor won't create or open, only thing we can do here is pass the buck.
                     // Null it out so we don't try to operate on it further.
                     this.Processor = null;
-                    this.Host.LogWithHostAndPartition(EventLevel.Error, this.PartitionContext, "Failed " + action, e);
+                    this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Failed " + action, e);
                     this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, action);
                     this.PumpStatus = PartitionPumpStatus.OpenFailed;
                 }
@@ -84,7 +84,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         public async Task CloseAsync(CloseReason reason)
         {
             this.PumpStatus = PartitionPumpStatus.Closing;
-            this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "pump shutdown for reason " + reason);
+            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "pump shutdown for reason " + reason);
 
             await this.OnClosingAsync(reason);
 
@@ -102,7 +102,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 }
                 catch (Exception e)
                 {
-                    this.Host.LogWithHostAndPartition(EventLevel.Error, this.PartitionContext, "Failure closing processor", e);
+                    this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Failure closing processor", e);
                     // If closing the processor has failed, the state of the processor is suspect.
                     // Report the failure to the general error handler instead.
                     this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, "Closing Event Processor");
@@ -136,8 +136,9 @@ namespace Microsoft.Azure.EventHubs.Processor
                     EventData last = events.LastOrDefault();
                     if (last != null)
                     {
-                        this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "Updating offset in partition context with end of batch " +
-                            last.SystemProperties.Offset + "/" + last.SystemProperties.SequenceNumber);
+                        this.Host.LogPartitionInfo(
+                            this.PartitionContext.PartitionId,
+                            "Updating offset in partition context with end of batch " + last.SystemProperties.Offset + "/" + last.SystemProperties.SequenceNumber);
                         this.PartitionContext.SetOffsetAndSequenceNumber(last);
                     }
                 }
@@ -148,7 +149,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 // Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
                 // a convenient way of centralizing error handling.
                 // In the meantime, just trace it.
-                this.Host.LogWithHostAndPartition(EventLevel.Error, this.PartitionContext, "Got exception from onEvents", e);
+                this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Got exception from ProcessEventsAsync", e);
             }
         }
 

@@ -14,7 +14,6 @@ namespace Microsoft.Azure.EventHubs.Processor
         readonly string sharedAccessKeyName;
         readonly string sharedAccessKey;
         readonly bool initializeLeaseManager;
-        Task partitionManagerFuture;
 
         /// <summary>
         /// Create a new host to process events from an Event Hub.
@@ -162,8 +161,9 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.ConsumerGroupName = consumerGroupName;
             this.CheckpointManager = checkpointManager;
             this.LeaseManager = leaseManager;
-            this.PartitionManager = new PartitionManager(this);        
-            this.LogWithHost(EventLevel.Informational, "New EventProcessorHost created");
+            this.Id = $"EventProcessorHost({hostName.Substring(0, Math.Min(hostName.Length, 20))}...)";
+            this.PartitionManager = new PartitionManager(this);
+            ProcessorEventSource.Log.EventProcessorHostCreated(this.Id, namespaceName, eventHubPath);
         }
 
         /// <summary>
@@ -194,6 +194,8 @@ namespace Microsoft.Azure.EventHubs.Processor
         internal IEventProcessorFactory ProcessorFactory { get; private set; }
 
         internal PartitionManager PartitionManager { get; private set; }
+
+        string Id { get; }
 
         /// <summary>
         /// This registers <see cref="IEventProcessor"/> implementation with the host using <see cref="DefaultEventProcessorFactory{T}"/>.  
@@ -241,34 +243,39 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <param name="processorOptions"><see cref="EventProcessorOptions"/> to control various aspects of message pump created when ownership 
         /// is acquired for a particular partition of EventHub.</param>
         /// <returns>A task to indicate EventProcessorHost instance is started.</returns>
-        public Task RegisterEventProcessorFactoryAsync(IEventProcessorFactory factory, EventProcessorOptions processorOptions)
+        public async Task RegisterEventProcessorFactoryAsync(IEventProcessorFactory factory, EventProcessorOptions processorOptions)
         {
-    	    // TODO: set the timeout
-            this.EventHubConnectionString = new ServiceBusConnectionSettings(
-                this.namespaceName,
-                this.EventHubPath,
-                this.sharedAccessKeyName,
-                this.sharedAccessKey
-                /*, processorOptions.ReceiveTimeOut, RetryPolicy.Default*/).ToString();
-
-            if (this.initializeLeaseManager)
+            if (factory == null || processorOptions == null)
             {
-                try
-                {
-				    ((AzureStorageCheckpointLeaseManager)this.LeaseManager).Initialize(this);
-			    }
-                catch (Exception e) //when (e is InvalidKeyException || e is URISyntaxException || e is StorageException)
-                {
-            	    this.LogWithHost(EventLevel.Error, "Failure initializing Storage lease manager", e);
-            	    throw new EventProcessorRuntimeException(e.Message, "Initializing Storage lease manager", e);
-			    }
+                throw new ArgumentNullException(factory == null ? nameof(factory) : nameof(processorOptions));
             }
-        
-            this.LogWithHost(EventLevel.Informational, "Starting event processing");
-            this.ProcessorFactory = factory;
-            this.EventProcessorOptions = processorOptions;
-            this.partitionManagerFuture = this.PartitionManager.RunAsync();        
-            return this.partitionManagerFuture;
+
+            ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
+            try
+            {
+                // TODO: set the timeout
+                this.EventHubConnectionString = new ServiceBusConnectionSettings(
+                    this.namespaceName,
+                    this.EventHubPath,
+                    this.sharedAccessKeyName,
+                    this.sharedAccessKey
+                    /*, processorOptions.ReceiveTimeOut, RetryPolicy.Default*/).ToString();
+
+                if (this.initializeLeaseManager)
+                {
+                    ((AzureStorageCheckpointLeaseManager)this.LeaseManager).Initialize(this);
+                }
+
+                this.ProcessorFactory = factory;
+                this.EventProcessorOptions = processorOptions;
+                await this.PartitionManager.StartAsync();
+                ProcessorEventSource.Log.EventProcessorHostOpenStop(this.Id);
+            }
+            catch (Exception e)
+            {
+                ProcessorEventSource.Log.EventProcessorHostOpenError(this.Id, e.ToString());
+                throw;
+            }
         }
 
         /// <summary>
@@ -277,60 +284,55 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <returns></returns>
         public async Task UnregisterEventProcessorAsync() // throws InterruptedException, ExecutionException
         {
-    	    this.LogWithHost(EventLevel.Informational, "Stopping event processing");
-    	
-            this.PartitionManager.StopPartitions();
+            ProcessorEventSource.Log.EventProcessorHostCloseStart(this.Id);    	
             try
             {
-                await this.partitionManagerFuture;
+                await this.PartitionManager.StopAsync();
 		    }
             catch (Exception e) // when (e is InterruptedException || e is ExecutionException)
             {
-        	    // Log the failure but nothing really to do about it.
-        	    this.LogWithHost(EventLevel.Error, "Failure shutting down", e);
-        	    throw;
+                // Log the failure but nothing really to do about it.
+                ProcessorEventSource.Log.EventProcessorHostCloseError(this.Id, e.ToString());
+                throw;
 		    }
+            finally
+            {
+                ProcessorEventSource.Log.EventProcessorHostCloseStop(this.Id);
+            }
         }
-
 
         //
         // Centralized logging.
         //
 
-        internal void Log(EventLevel logLevel, string logMessage)
+        internal void LogInfo(string details)
         {
-            // TODO: EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-            Console.WriteLine(logLevel + ": " + logMessage);
+            ProcessorEventSource.Log.EventProcessorHostInfo(this.Id, details);
         }
 
-        internal void LogWithHost(EventLevel logLevel, string logMessage)
+        internal void LogPartitionInfo(string partitionId, string details)
         {
-            Log(logLevel, "host " + this.HostName + ": " + logMessage);
+            LogInfo($"Partition {partitionId}: {details}");
         }
 
-        internal void LogWithHost(EventLevel logLevel, string logMessage, Exception e)
+        internal void LogWarning(string details, Exception error = null)
         {
-            LogWithHost(logLevel, logMessage + ". Caught " + e);
+            ProcessorEventSource.Log.EventProcessorHostWarning(this.Id, details, error?.ToString());
         }
 
-        internal void LogWithHostAndPartition(EventLevel logLevel, string partitionId, string logMessage)
+        internal void LogPartitionWarning(string partitionId, string details, Exception error = null)
         {
-            LogWithHost(logLevel, "partition " + partitionId + ": " + logMessage);
+            LogWarning($"Partition {partitionId}: {details}", error);
         }
 
-        internal void LogWithHostAndPartition(EventLevel logLevel, string partitionId, string logMessage, Exception e)
+        internal void LogError(string details, Exception error = null)
         {
-            LogWithHostAndPartition(logLevel, partitionId, logMessage + ". Caught " + e);
+            ProcessorEventSource.Log.EventProcessorHostError(this.Id, details, error?.ToString());
         }
 
-        internal void LogWithHostAndPartition(EventLevel logLevel, PartitionContext context, string logMessage)
+        internal void LogPartitionError(string partitionId, string details, Exception error = null)
         {
-            LogWithHostAndPartition(logLevel, context.PartitionId, logMessage);
-        }
-
-        internal void LogWithHostAndPartition(EventLevel logLevel, PartitionContext context, string logMessage, Exception e)
-        {
-            LogWithHostAndPartition(logLevel, context.PartitionId, logMessage, e);
+            LogError($"Partition {partitionId}: {details}", error);
         }
     }
 }

@@ -35,7 +35,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 else
                 {
                     // Pump is working, just replace the lease.
-                    this.host.LogWithHostAndPartition(EventLevel.Informational, partitionId, "updating lease for pump");
+                    this.host.LogPartitionInfo(partitionId, "updating lease for pump");
                     capturedPump.SetLease(lease);
                 }
             }
@@ -51,7 +51,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, lease);
             await newPartitionPump.OpenAsync();
             this.pumpStates.TryAdd(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
-		    this.host.LogWithHostAndPartition(EventLevel.Informational, partitionId, "created new pump");
+		    this.host.LogPartitionInfo(partitionId, "created new pump");
         }
 
         public async Task RemovePumpAsync(string partitionId, CloseReason reason)
@@ -59,20 +59,20 @@ namespace Microsoft.Azure.EventHubs.Processor
             PartitionPump capturedPump;
             if (this.pumpStates.TryRemove(partitionId, out capturedPump))
             {
-                this.host.LogWithHostAndPartition(EventLevel.Informational, partitionId, "closing pump for reason " + reason);
+                this.host.LogPartitionInfo(partitionId, "closing pump for reason " + reason);
                 if (!capturedPump.IsClosing)
                 {
                     await capturedPump.CloseAsync(reason);
                 }
                 // else, pump is already closing/closed, don't need to try to shut it down again
 
-                this.host.LogWithHostAndPartition(EventLevel.Informational, partitionId, "removing pump");
+                this.host.LogPartitionInfo(partitionId, "removing pump");
             }
             else
             {
                 // PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
                 // Not finding a pump for a partition is normal and expected most of the time.
-                this.host.LogWithHostAndPartition(EventLevel.Informational, partitionId, "no pump found to remove for partition " + partitionId);
+                this.host.LogPartitionInfo(partitionId, "no pump found to remove for partition " + partitionId);
             }
         }
 
