@@ -29,12 +29,12 @@ namespace Microsoft.Azure.EventHubs.Amqp
             var tokenProvider = connectionSettings.CreateTokenProvider();
             this.TokenProvider = tokenProvider;
             this.CbsTokenProvider = new TokenProviderAdapter(this);
-            this.ConnectionManager = new AmqpConnectionManager(this);
+            this.ConnectionManager = new FaultTolerantAmqpObject<AmqpConnection>(this.CreateConnectionAsync, this.CloseConnection);
         }
 
         internal ICbsTokenProvider CbsTokenProvider { get; }
 
-        internal AmqpConnectionManager ConnectionManager { get; }
+        internal FaultTolerantAmqpObject<AmqpConnection> ConnectionManager { get; }
 
         internal string ContainerId { get; }
 
@@ -72,7 +72,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 // Don't need to get token for namespace scope operations, included in request
                 bool isNamespaceScope = address.Equals(AmqpClientConstants.ManagementAddress, StringComparison.OrdinalIgnoreCase);
 
-                var connection = await this.ConnectionManager.GetConnectionAsync();
+                var connection = await this.ConnectionManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
 
                 var sessionSettings = new AmqpSessionSettings { Properties = new Fields() };
                 //sessionSettings.Properties[AmqpClientConstants.BatchFlushIntervalName] = (uint)batchFlushInterval.TotalMilliseconds;
@@ -263,101 +263,44 @@ namespace Microsoft.Azure.EventHubs.Amqp
             return connectionSettings;
         }
 
-        /// <summary>
-        /// This class is responsible for getting or creating the AmqpConnection for use.
-        /// </summary>
-        internal sealed class AmqpConnectionManager
+        async Task<AmqpConnection> CreateConnectionAsync(TimeSpan timeout)
         {
-            readonly AmqpEventHubClient eventHubClient;
-            Task<AmqpConnection> createConnectionTask;
+            string hostName = this.ConnectionSettings.Endpoint.Host;
+            string networkHost = this.ConnectionSettings.Endpoint.Host;
+            int port = this.ConnectionSettings.Endpoint.Port;
 
-            public AmqpConnectionManager(AmqpEventHubClient eventHubClient)
+            var timeoutHelper = new TimeoutHelper(timeout);
+            var amqpSettings = CreateAmqpSettings(
+                amqpVersion: this.AmqpVersion,
+                useSslStreamSecurity: true,
+                hasTokenProvider: true);
+
+            TransportSettings tpSettings = CreateTcpTransportSettings(
+                networkHost: networkHost,
+                hostName: hostName,
+                port: port,
+                useSslStreamSecurity: true);
+
+            var initiator = new AmqpTransportInitiator(amqpSettings, tpSettings);
+            var transport = await initiator.ConnectTaskAsync(timeoutHelper.RemainingTime());
+
+            var connectionSettings = CreateAmqpConnectionSettings(this.MaxFrameSize, this.ContainerId, hostName);
+            var connection = new AmqpConnection(transport, amqpSettings, connectionSettings);
+            await connection.OpenAsync(timeoutHelper.RemainingTime());
+
+            // Always create the CBS Link + Session
+            var cbsLink = new AmqpCbsLink(connection);
+            if (connection.Extensions.Find<AmqpCbsLink>() == null)
             {
-                this.eventHubClient = eventHubClient;
+                connection.Extensions.Add(cbsLink);
             }
 
-            object ThisLock { get; } = new object();
+            return connection;
+        }
 
-            internal async Task<AmqpConnection> GetConnectionAsync()
-            {
-                var localCreateConnectionTask = this.createConnectionTask;
-                if (localCreateConnectionTask != null)
-                {
-                    var connection = await localCreateConnectionTask;
-                    if (!connection.IsClosing())
-                    {
-                        return connection;
-                    }
-                    else
-                    {
-                        lock (this.ThisLock)
-                        {
-                            if (object.ReferenceEquals(localCreateConnectionTask, this.createConnectionTask))
-                            {
-                                this.createConnectionTask = null;
-                            }
-                        }
-                    }
-                }
-
-                lock (this.ThisLock)
-                {
-                    if (this.createConnectionTask == null)
-                    {
-                        this.createConnectionTask = this.CreateConnectionAsync();
-                    }
-
-                    localCreateConnectionTask = this.createConnectionTask;
-                }
-
-                return await localCreateConnectionTask;
-            }
-
-            async Task<AmqpConnection> CreateConnectionAsync()
-            {
-                string hostName = this.eventHubClient.ConnectionSettings.Endpoint.Host;
-                string networkHost = this.eventHubClient.ConnectionSettings.Endpoint.Host;
-                int port = this.eventHubClient.ConnectionSettings.Endpoint.Port;
-
-                var timeoutHelper = new TimeoutHelper(this.eventHubClient.ConnectionSettings.OperationTimeout);
-                var amqpSettings = CreateAmqpSettings(
-                    amqpVersion: this.eventHubClient.AmqpVersion,
-                    useSslStreamSecurity: true,
-                    hasTokenProvider: true);
-
-                TransportSettings tpSettings = CreateTcpTransportSettings(
-                    networkHost: networkHost,
-                    hostName: hostName,
-                    port: port,
-                    useSslStreamSecurity: true);
-
-                var initiator = new AmqpTransportInitiator(amqpSettings, tpSettings);
-                var transport = await initiator.ConnectTaskAsync(timeoutHelper.RemainingTime());
-
-                var connectionSettings = CreateAmqpConnectionSettings(this.eventHubClient.MaxFrameSize, this.eventHubClient.ContainerId, hostName);
-                var connection = new AmqpConnection(transport, amqpSettings, connectionSettings);
-                await connection.OpenAsync(timeoutHelper.RemainingTime());
-
-                // Always create the CBS Link + Session
-                var cbsLink = new AmqpCbsLink(connection);
-                if (connection.Extensions.Find<AmqpCbsLink>() == null)
-                {
-                    connection.Extensions.Add(cbsLink);
-                }
-
-                return connection;
-            }
-
-            public async Task CloseAsync()
-            {
-                var localCreateTask = this.createConnectionTask;
-                if (localCreateTask != null)
-                {
-                    var timeoutHelper = new TimeoutHelper(this.eventHubClient.ConnectionSettings.OperationTimeout, startTimeout: true);
-                    var connection = await localCreateTask;
-                    await connection.CloseAsync(timeoutHelper.RemainingTime());
-                }
-            }
+        void CloseConnection(AmqpConnection connection)
+        {
+            connection.SafeClose();
         }
 
         /// <summary>
