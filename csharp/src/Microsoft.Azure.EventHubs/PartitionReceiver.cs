@@ -44,7 +44,7 @@ namespace Microsoft.Azure.EventHubs
             bool offsetInclusive,
             DateTime? startTime,
             long? epoch)
-            : base($"{nameof(PartitionReceiver)}({eventHubClient.EventHubName},{consumerGroupName},{partitionId})")
+            : base($"{nameof(PartitionReceiver)}{ClientEntity.GetNextId()}({eventHubClient.EventHubName},{consumerGroupName},{partitionId})")
         {
             this.EventHubClient = eventHubClient;
             this.ConsumerGroupName = consumerGroupName;

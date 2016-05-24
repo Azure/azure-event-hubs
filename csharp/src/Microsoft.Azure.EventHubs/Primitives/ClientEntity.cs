@@ -3,6 +3,7 @@
 
 namespace Microsoft.Azure.EventHubs
 {
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -11,6 +12,8 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     public abstract class ClientEntity
     {
+        static int nextId;
+
         protected ClientEntity(string clientId)
         {
             this.ClientId = clientId;
@@ -27,6 +30,11 @@ namespace Microsoft.Azure.EventHubs
         public void Close()
         {
             this.CloseAsync().GetAwaiter().GetResult();
+        }
+
+        protected static long GetNextId()
+        {
+            return Interlocked.Increment(ref nextId);
         }
     }
 }
