@@ -16,7 +16,7 @@ namespace Microsoft.Azure.EventHubs
         EventDataSender innerSender;
 
         internal EventHubClient(ServiceBusConnectionSettings connectionSettings)
-            : base($"{nameof(EventHubClient)}({connectionSettings.EntityPath})")
+            : base($"{nameof(EventHubClient)}{ClientEntity.GetNextId()}({connectionSettings.EntityPath})")
         {
             this.ConnectionSettings = connectionSettings;
             this.EventHubName = connectionSettings.EntityPath;

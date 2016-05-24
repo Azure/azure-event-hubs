@@ -17,7 +17,7 @@ namespace Microsoft.Azure.EventHubs
     public sealed class PartitionSender : ClientEntity
     {
         internal PartitionSender(EventHubClient eventHubClient, string partitionId)
-            : base($"{nameof(PartitionSender)}({eventHubClient.EventHubName},{partitionId})")
+            : base($"{nameof(PartitionSender)}{ClientEntity.GetNextId()}({eventHubClient.EventHubName},{partitionId})")
         {
             this.EventHubClient = eventHubClient;
             this.PartitionId = partitionId;
