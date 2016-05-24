@@ -38,13 +38,13 @@ namespace Microsoft.Azure.EventHubs.Processor
 	        	    {
                         // TODO Assuming this is due to a receiver with a higher epoch.
                         // Is there a way to be sure without checking the exception text?
-                        this.Host.LogWithHostAndPartition(EventLevel.Warning, this.PartitionContext, "Receiver disconnected on create, bad epoch?", e);
+                        this.Host.LogPartitionWarning(this.PartitionContext.PartitionId, "Receiver disconnected on create, bad epoch?", e);
                         // If it's a bad epoch, then retrying isn't going to help.
                         break;
                     }
 	        	    else
 	        	    {
-                        this.Host.LogWithHostAndPartition(EventLevel.Warning, this.PartitionContext, "Failure creating client or receiver, retrying", e);
+                        this.Host.LogPartitionWarning(this.PartitionContext.PartitionId, "Failure creating client or receiver, retrying", e);
                         retryCount++;
                     }
                 }
@@ -80,18 +80,18 @@ namespace Microsoft.Azure.EventHubs.Processor
         async Task OpenClientsAsync() // throws ServiceBusException, IOException, InterruptedException, ExecutionException
         {
             // Create new client
-            this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "Creating EH client");
+            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Creating EH client");
 		    this.eventHubClient = EventHubClient.Create(this.Host.EventHubConnectionString);
 
             // Create new receiver and set options
             string startingOffset = await this.PartitionContext.GetInitialOffsetAsync();
             long epoch = this.Lease.Epoch;
-            this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
+            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
             this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, startingOffset, epoch);
             
             this.partitionReceiver.PrefetchCount = this.Host.EventProcessorOptions.PrefetchCount;
 
-            this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "EH client and receiver creation finished");
+            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "EH client and receiver creation finished");
         }
 
         async Task CleanUpClientsAsync() // swallows all exceptions
@@ -107,14 +107,14 @@ namespace Microsoft.Azure.EventHubs.Processor
                     this.partitionReceiver.SetReceiveHandler(null);
                 }
 
-                this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "Closing EH receiver");
+                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EH receiver");
                 await this.partitionReceiver.CloseAsync();
                 this.partitionReceiver = null;
             }
 
             if (this.eventHubClient != null)
             {
-                this.Host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionContext, "Closing EH client");
+                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EH client");
                 await this.eventHubClient.CloseAsync();
                 this.eventHubClient = null;
             }
@@ -163,12 +163,14 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 if (error is ReceiverDisconnectedException)
 			    {
-                    this.eventHubPartitionPump.Host.LogWithHostAndPartition(EventLevel.Warning, this.eventHubPartitionPump.PartitionContext,
+                    this.eventHubPartitionPump.Host.LogPartitionWarning(
+                        this.eventHubPartitionPump.PartitionContext.PartitionId,
                         "EventHub client disconnected, probably another host took the partition");
                 }
 			    else
 			    {
-                    this.eventHubPartitionPump.Host.LogWithHostAndPartition(EventLevel.Error, this.eventHubPartitionPump.PartitionContext, "EventHub client error: ", error);
+                    this.eventHubPartitionPump.Host.LogPartitionError(
+                        this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client error: ", error);
                     await this.eventHubPartitionPump.ProcessErrorAsync(error);
                 }
 
@@ -182,7 +184,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     error = new Exception("normal shutdown"); // TODO -- is this true?
                 }
 
-                this.eventHubPartitionPump.Host.LogWithHostAndPartition(EventLevel.Error, this.eventHubPartitionPump.PartitionContext, "EventHub client closed: ", error);
+                this.eventHubPartitionPump.Host.LogPartitionError(this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client closed: ", error);
                 this.eventHubPartitionPump.PumpStatus = PartitionPumpStatus.Errored;
                 return Task.CompletedTask;
             }

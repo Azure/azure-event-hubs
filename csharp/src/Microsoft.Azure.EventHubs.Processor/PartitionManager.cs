@@ -10,12 +10,13 @@ namespace Microsoft.Azure.EventHubs.Processor
     using System.Threading;
     using System.Threading.Tasks;
 
-    class PartitionManager // implements Runnable
+    class PartitionManager
     {
         readonly EventProcessorHost host;
+        readonly CancellationTokenSource cancellationTokenSource;
         Pump pump;
         IList<string> partitionIds;
-        CancellationTokenSource cancellationTokenSource;
+        Task runTask;
 
         internal PartitionManager(EventProcessorHost host)
         {
@@ -34,7 +35,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     var runtimeInfo = await eventHubClient.GetRuntimeInformationAsync();
                     this.partitionIds = runtimeInfo.PartitionIds.ToList();
                 }
-                catch (Exception e) 
+                catch (Exception e)
         	    {
                     throw new EventProcessorConfigurationException("Encountered error while fetching the list of EventHub PartitionIds", e);
                 }
@@ -46,11 +47,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                 }
 
-                this.host.LogWithHost(EventLevel.Informational, "Eventhub " + this.host.EventHubPath + " count of partitions: " + this.partitionIds.Count);
-                foreach (string id in this.partitionIds)
-                {
-                    this.host.LogWithHost(EventLevel.Informational, "Found partition with id: " + id);
-                }
+                this.host.LogInfo("PartitionCount: " + this.partitionIds.Count);
             }
 
             return this.partitionIds;
@@ -63,79 +60,66 @@ namespace Microsoft.Azure.EventHubs.Processor
         }
 
         // Testability hook: called after stores are initialized.
-        void OnInitializeCompleteTestHook()
+        protected virtual void OnInitializeComplete()
         {
         }
 
         // Testability hook: called at the end of the main loop after all partition checks/stealing is complete.
-        void OnPartitionCheckCompleteTestHook()
+        protected virtual void OnPartitionCheckComplete()
         {
         }
 
-        internal void StopPartitions()
+        public async Task StartAsync()
+        {
+            if (this.runTask != null)
+            {
+                throw new InvalidOperationException("A PartitionManager cannot be started multiple times.");
+            }
+
+            this.pump = CreatePumpTestHook();
+
+            await this.InitializeStoresAsync();
+            this.OnInitializeComplete();
+
+            this.runTask = this.RunAsync();
+        }
+
+        public async Task StopAsync()
         {
             this.cancellationTokenSource.Cancel();
+            var localRunTask = this.runTask;
+            if (localRunTask != null)
+            {
+                await localRunTask;
+            }
         }
 
-        public async Task RunAsync()
+        async Task RunAsync()
         {
-            bool initializedOK = false;                
-            this.pump = CreatePumpTestHook();
+            try
+            {
+                await this.RunLoopAsync(this.cancellationTokenSource.Token);
+                this.host.LogInfo("Partition manager main loop exited normally, shutting down");
+            }
+            catch (Exception e)
+            {
+                this.host.LogError("Exception from partition manager main loop, shutting down", e);
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, "Partition Manager Main Loop");
+            }
 
             try
             {
-                await this.InitializeStoresAsync();
-                initializedOK = true;
-                this.OnInitializeCompleteTestHook();
+                // Cleanup
+                this.host.LogInfo("Shutting down all pumps");
+                await this.pump.RemoveAllPumpsAsync(CloseReason.Shutdown);
             }
-            //catch (ExceptionWithAction e)
-            //{
-            //    this.host.LogWithHost(EventLevel.Error, "Exception while initializing stores, not starting partition manager", e.InnerException);
-            //    this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, e.Action);
-            //}
             catch (Exception e)
-            {
-                this.host.LogWithHost(EventLevel.Error, "Exception while initializing stores, not starting partition manager", e);
-                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.InitializingStores);
+	    	{
+                this.host.LogError("Failure during shutdown", e);
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.ParitionManagerCleanup);
             }
 
-            if (initializedOK)
-            {
-                try
-                {
-                    await this.RunLoopAsync(this.cancellationTokenSource.Token);
-                    this.host.LogWithHost(EventLevel.Informational, "Partition manager main loop exited normally, shutting down");
-                }
-                //catch (ExceptionWithAction e)
-                //{
-                //    this.host.LogWithHost(EventLevel.Error, "Exception from partition manager main loop, shutting down", e.InnerException);
-                //    this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, e.Action);
-                //}
-                catch (Exception e)
-                {
-                    this.host.LogWithHost(EventLevel.Error, "Exception from partition manager main loop, shutting down", e);
-                    this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, "Partition Manager Main Loop");
-                }
-
-                try
-                {
-                    // Cleanup
-                    this.host.LogWithHost(EventLevel.Informational, "Shutting down all pumps");
-                    await this.pump.RemoveAllPumpsAsync(CloseReason.Shutdown);
-                }
-                catch (Exception e)
-	    		{
-                    this.host.LogWithHost(EventLevel.Error, "Failure during shutdown", e);
-                    this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.ParitionManagerCleanup);
-
-                    // By convention, bail immediately on interrupt, even though we're just cleaning
-                    // up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
-                    // free to bail without serious side effects.
-                    throw;
-                }
-            }
-
-            this.host.LogWithHost(EventLevel.Informational, "Partition manager exiting");
+            this.host.LogInfo("Partition manager exiting");
         }
 
         async Task InitializeStoresAsync() //throws InterruptedException, ExecutionException, ExceptionWithAction
@@ -193,11 +177,11 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     if (partitionId != null)
                     {
-                        this.host.LogWithHostAndPartition(EventLevel.Warning, partitionId, retryMessage, e);
+                        this.host.LogPartitionWarning(partitionId, retryMessage, e);
                     }
                     else
                     {
-                        this.host.LogWithHost(EventLevel.Warning, retryMessage, e);
+                        this.host.LogWarning(retryMessage, e);
                     }
                     retryCount++;
                 }
@@ -208,11 +192,11 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 if (partitionId != null)
                 {
-                    this.host.LogWithHostAndPartition(EventLevel.Error, partitionId, finalFailureMessage);
+                    this.host.LogPartitionError(partitionId, finalFailureMessage);
                 }
                 else
                 {
-                    this.host.LogWithHost(EventLevel.Error, finalFailureMessage);
+                    this.host.LogError(finalFailureMessage, null);
                 }
 
                 throw new EventProcessorRuntimeException(finalFailureMessage, action);
@@ -260,7 +244,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                     catch (Exception e)
                     {
-                        this.host.LogWithHost(EventLevel.Warning, "Failure getting/acquiring/renewing lease, skipping", e);
+                        this.host.LogWarning("Failure getting/acquiring/renewing lease, skipping", e);
                         this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.CheckingLeases);
                     }
                 }
@@ -277,18 +261,18 @@ namespace Microsoft.Azure.EventHubs.Processor
                             {
                                 if (await leaseManager.AcquireLeaseAsync(stealee))
                                 {
-                                    this.host.LogWithHostAndPartition(EventLevel.Informational, stealee.PartitionId, "Stole lease");
+                                    this.host.LogPartitionInfo(stealee.PartitionId, "Stole lease");
                                     allLeases.Add(stealee.PartitionId, stealee);
                                     ourLeasesCount++;
                                 }
                                 else
                                 {
-                                    this.host.LogWithHost(EventLevel.Warning, "Failed to steal lease for partition " + stealee.PartitionId);
+                                    this.host.LogWarning("Failed to steal lease for partition " + stealee.PartitionId, null);
                                 }
                             }
                             catch (Exception e)
                             {
-                                this.host.LogWithHost(EventLevel.Error, "Exception stealing lease for partition " + stealee.PartitionId, e);
+                                this.host.LogError("Exception stealing lease for partition " + stealee.PartitionId, e);
                                 this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.StealingLease);
                             }
                         }
@@ -299,7 +283,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 foreach (string partitionId in allLeases.Keys)
                 {
                     Lease updatedLease = allLeases[partitionId];
-                    this.host.LogWithHost(EventLevel.Informational, "Lease on partition " + updatedLease.PartitionId + " owned by " + updatedLease.Owner); // DEBUG
+                    this.host.LogInfo("Lease on partition " + updatedLease.PartitionId + " owned by " + updatedLease.Owner); // DEBUG
                     if (updatedLease.Owner == this.host.HostName)
                     {
                         await this.pump.AddPumpAsync(partitionId, updatedLease);
@@ -310,16 +294,16 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                 }
 
-                this.OnPartitionCheckCompleteTestHook();
+                this.OnPartitionCheckComplete();
 
                 try
                 {
                     await Task.Delay(leaseManager.LeaseRenewInterval, cancellationToken);
                 }
-                catch (TaskCanceledException tce)
+                catch (TaskCanceledException)
                 {
-                    // Bail on the async work if we are cancelled.
-                    this.host.LogWithHost(EventLevel.Warning, "Delay was cancelled", tce);
+                    // Bail on the async work if we are canceled.
+                    this.host.LogInfo("Delay was canceled");
                 }
             }
         }
@@ -358,7 +342,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     if (l.Owner == biggestOwner)
                     {
                         stealTheseLeases.Add(l);
-                        this.host.LogWithHost(EventLevel.Informational, "Proposed to steal lease for partition " + l.PartitionId + " from " + biggestOwner);
+                        this.host.LogInfo("Proposed to steal lease for partition " + l.PartitionId + " from " + biggestOwner);
                         break;
                     }
                 }
@@ -399,10 +383,10 @@ namespace Microsoft.Azure.EventHubs.Processor
 
             foreach (string owner in counts.Keys)
             {
-                this.host.Log(EventLevel.Informational, "host " + owner + " owns " + counts[owner] + " leases");
+                this.host.LogInfo($"Host {owner} owns {counts[owner]} leases");
             }
 
-            this.host.Log(EventLevel.Informational, "total hosts in sorted list: " + counts.Count);
+            this.host.LogInfo($"Total hosts in list: {counts.Count}");
             return counts;
         }
     }

@@ -84,10 +84,10 @@ namespace Microsoft.Azure.EventHubs.Processor
             Func<string, string> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
     	    if (initialOffsetProvider != null)
     	    {
-    		    this.host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionId, "Calling user-provided initial offset provider");
+    		    this.host.LogPartitionInfo(this.PartitionId, "Calling user-provided initial offset provider");
     		    this.offset = initialOffsetProvider(this.PartitionId);
     		    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-	    	    this.host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber);
+	    	    this.host.LogPartitionInfo(this.PartitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber);
     	    }
     	    else
     	    {
@@ -95,7 +95,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 this.offset = startingCheckpoint.Offset;
 	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
-	    	    this.host.LogWithHostAndPartition(EventLevel.Informational, this.PartitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
+	    	    this.host.LogPartitionInfo(this.PartitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
             }
 
     	    return this.offset;
@@ -137,9 +137,9 @@ namespace Microsoft.Azure.EventHubs.Processor
             return $"PartitionContext: {this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.sequenceNumber}";
         }
 
-        async Task PersistCheckpointAsync(Checkpoint checkpoint) // throws IllegalArgumentException, InterruptedException, ExecutionException
+        async Task PersistCheckpointAsync(Checkpoint checkpoint) // throws ArgumentOutOfRangeException, InterruptedException, ExecutionException
         {
-            this.host.LogWithHostAndPartition(EventLevel.Informational, checkpoint.PartitionId, "Saving checkpoint: " + checkpoint.Offset + "/" + checkpoint.SequenceNumber);
+            this.host.LogPartitionInfo(checkpoint.PartitionId, "Saving checkpoint: " + checkpoint.Offset + "/" + checkpoint.SequenceNumber);
 
             Checkpoint inStoreCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(checkpoint.PartitionId);
             if (checkpoint.SequenceNumber >= inStoreCheckpoint.SequenceNumber)
@@ -152,8 +152,8 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 string msg = "Ignoring out of date checkpoint " + checkpoint.Offset + "/" + checkpoint.SequenceNumber +
                         " because store is at " + inStoreCheckpoint.Offset + "/" + inStoreCheckpoint.SequenceNumber;
-                this.host.LogWithHostAndPartition(EventLevel.Error, checkpoint.PartitionId, msg);
-                throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
+                this.host.LogPartitionError(checkpoint.PartitionId, msg);
+                throw new ArgumentOutOfRangeException("offset+sequenceNumber", msg);
             }
         }
     }

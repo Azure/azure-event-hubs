@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
 
     public class EventProcessorHostTests
@@ -33,10 +34,13 @@
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.StorageConnectionString);
 
-            var registerTask = eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Calling RegisterEventProcessor.");
+            await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
 
-            await Task.Delay(TimeSpan.FromMinutes(1));
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Waiting for events...");
+            await Task.Delay(TimeSpan.FromSeconds(30));
 
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Calling UnregisterEventProcessorAsync.");
             await eventProcessorHost.UnregisterEventProcessorAsync();
         }
 
@@ -59,9 +63,10 @@
                 return Task.CompletedTask;
             }
 
-            Task IEventProcessor.ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
+            Task IEventProcessor.ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> events)
             {
-                throw new NotImplementedException();
+                Console.WriteLine("TestEventProcessor.ProcessEventsAsync({0}, {1} events)", context, events?.Count());
+                return context.CheckpointAsync();
             }
 
             Task IEventProcessor.OpenAsync(PartitionContext context)
