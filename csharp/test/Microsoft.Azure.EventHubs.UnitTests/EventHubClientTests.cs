@@ -23,8 +23,8 @@
             await TestRunner.RunAsync(() => eventHubClientTests.SendBatchAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionSenderSendAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverReceiveAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverSetReceiveHandlerAsync());
+            await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
         }
 
         async Task SendAsync()
@@ -62,7 +62,7 @@
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
             try
             {
@@ -93,7 +93,7 @@
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
             try
             {
@@ -114,13 +114,6 @@
                     dataReceivedEvent.Set();
                 };
 
-                partitionReceiver1.SetReceiveHandler(handler);
-
-                if (!dataReceivedEvent.WaitOne(TimeSpan.FromSeconds(30)))
-                {
-                    throw new InvalidOperationException("Data Received Event was not signalled.");
-                }
-
                 EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
                 handler.Closed += (s, error) =>
                 {
@@ -128,12 +121,24 @@
                     handlerClosedEvent.Set();
                 };
 
+                partitionReceiver1.SetReceiveHandler(handler);
+
+                if (!dataReceivedEvent.WaitOne(TimeSpan.FromSeconds(20)))
+                {
+                    throw new InvalidOperationException("Data Received Event was not signalled.");
+                }
+
                 Console.WriteLine("Closing PartitionReceiver");
                 await partitionReceiver1.CloseAsync();
-                if (!handlerClosedEvent.WaitOne(TimeSpan.FromSeconds(30)))
+                if (!handlerClosedEvent.WaitOne(TimeSpan.FromSeconds(20)))
                 {
                     throw new InvalidOperationException("Handle Closed Event was not signalled.");
                 }
+            }
+            catch (Exception e)
+            {
+                await partitionReceiver1.CloseAsync();
+                throw;
             }
             finally
             {

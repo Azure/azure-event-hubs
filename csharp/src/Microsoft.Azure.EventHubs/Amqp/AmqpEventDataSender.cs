@@ -26,12 +26,12 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 this.Path = eventHubClient.EventHubName;
             }
 
-            this.SendLinkManager = new AmqpSendLinkManager(this);
+            this.SendLinkManager = new FaultTolerantAmqpObject<SendingAmqpLink>(this.CreateLinkAsync, this.CloseSession);
         }
 
         string Path { get; }
 
-        AmqpSendLinkManager SendLinkManager { get; }
+        FaultTolerantAmqpObject<SendingAmqpLink> SendLinkManager { get; }
 
         public override Task CloseAsync()
         {
@@ -43,8 +43,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
             using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
             {
-                var amqpLink = await this.SendLinkManager.GetLinkAsync();
-
+                var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
                 if (amqpLink.Settings.MaxMessageSize.HasValue)
                 {
                     ulong size = (ulong)amqpMessage.SerializedMessageSize;
@@ -71,118 +70,59 @@ namespace Microsoft.Azure.EventHubs.Amqp
             return new ArraySegment<byte>(BitConverter.GetBytes(deliveryId));
         }
 
-        /// <summary>
-        /// This class is responsible for getting or [re]creating the SendingAmqpLink when asked for it.
-        /// </summary>
-        class AmqpSendLinkManager
+        async Task<SendingAmqpLink> CreateLinkAsync(TimeSpan timeout)
         {
-            readonly AmqpEventDataSender eventSender;
-            readonly AmqpEventHubClient eventHubClient;
-            volatile Task<SendingAmqpLink> createLinkTask;
+            var amqpEventHubClient = ((AmqpEventHubClient)this.EventHubClient);
+            var connectionSettings = amqpEventHubClient.ConnectionSettings;
+            var timeoutHelper = new TimeoutHelper(connectionSettings.OperationTimeout);
+            AmqpConnection connection = await amqpEventHubClient.ConnectionManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
 
-            public AmqpSendLinkManager(AmqpEventDataSender eventSender)
+            // Authenticate over CBS
+            var cbsLink = connection.Extensions.Find<AmqpCbsLink>();
+
+            ICbsTokenProvider cbsTokenProvider = amqpEventHubClient.CbsTokenProvider;
+            Uri address = new Uri(connectionSettings.Endpoint, this.Path);
+            string audience = address.AbsoluteUri;
+            string resource = address.AbsoluteUri;
+            var expiresAt = await cbsLink.SendTokenAsync(cbsTokenProvider, address, audience, resource, new[] { ClaimConstants.Send }, timeoutHelper.RemainingTime());
+
+            AmqpSession session = null;
+            try
             {
-                this.eventSender = eventSender;
-                this.eventHubClient = (AmqpEventHubClient)eventSender.EventHubClient;
+                // Create our Session
+                var sessionSettings = new AmqpSessionSettings { Properties = new Fields() };
+                //sessionSettings.Properties[AmqpClientConstants.BatchFlushIntervalName] = (uint)connectionSettings.BatchFlushInterval.TotalMilliseconds;
+                session = connection.CreateSession(sessionSettings);
+                await session.OpenAsync(timeoutHelper.RemainingTime());
+
+                // Create our Link
+                var linkSettings = new AmqpLinkSettings();
+                linkSettings.AddProperty(AmqpClientConstants.TimeoutName, (uint)timeoutHelper.RemainingTime().TotalMilliseconds);
+                linkSettings.AddProperty(AmqpClientConstants.EntityTypeName, (int)MessagingEntityType.EventHub);
+                linkSettings.Role = false;
+                linkSettings.InitialDeliveryCount = 0;
+                linkSettings.Target = new Target { Address = address.AbsolutePath };
+                linkSettings.Source = new Source { Address = this.ClientId };
+
+                var link = new SendingAmqpLink(linkSettings);
+                linkSettings.LinkName = $"{amqpEventHubClient.ContainerId};{connection.Identifier}:{session.Identifier}:{link.Identifier}";
+                link.AttachTo(session);
+
+                await link.OpenAsync(timeoutHelper.RemainingTime());
+                return link;
             }
-
-            object ThisLock { get; } = new object();
-
-            internal async Task<SendingAmqpLink> GetLinkAsync()
+            catch (Exception)
             {
-                var localCreateLinkTask = this.createLinkTask;
-                if (localCreateLinkTask != null)
-                {
-                    var sendLink = await localCreateLinkTask;
-                    if (!sendLink.IsClosing())
-                    {
-                        return sendLink;
-                    }
-                    else
-                    {
-                        lock (this.ThisLock)
-                        {
-                            if (object.ReferenceEquals(localCreateLinkTask, this.createLinkTask))
-                            {
-                                this.createLinkTask = null;
-                            }
-                        }
-                    }
-                }
-
-                lock (this.ThisLock)
-                {
-                    if (this.createLinkTask == null)
-                    {
-                        this.createLinkTask = this.CreateLinkAsync();
-                    }
-
-                    localCreateLinkTask = this.createLinkTask;
-                }
-
-                return await localCreateLinkTask;
+                // Cleanup any session (and thus link) in case of exception.
+                session?.Abort();
+                throw;
             }
+        }
 
-            async Task<SendingAmqpLink> CreateLinkAsync()
-            {
-                var connectionSettings = this.eventHubClient.ConnectionSettings;
-                var timeoutHelper = new TimeoutHelper(connectionSettings.OperationTimeout, startTimeout: true);
-                AmqpConnection connection = await this.eventHubClient.ConnectionManager.GetConnectionAsync();
-
-                // Authenticate over CBS
-                var cbsLink = connection.Extensions.Find<AmqpCbsLink>();
-
-                ICbsTokenProvider cbsTokenProvider = this.eventHubClient.CbsTokenProvider;
-                Uri address = new Uri(connectionSettings.Endpoint, this.eventSender.Path);
-                string audience = address.AbsoluteUri;
-                string resource = address.AbsoluteUri;
-                var expiresAt = await cbsLink.SendTokenAsync(cbsTokenProvider, address, audience, resource, new[] { ClaimConstants.Send }, timeoutHelper.RemainingTime());
-
-                AmqpSession session = null;
-                try
-                {
-                    // Create our Session
-                    var sessionSettings = new AmqpSessionSettings { Properties = new Fields() };
-                    //sessionSettings.Properties[AmqpClientConstants.BatchFlushIntervalName] = (uint)connectionSettings.BatchFlushInterval.TotalMilliseconds;
-                    session = connection.CreateSession(sessionSettings);
-                    await session.OpenAsync(timeoutHelper.RemainingTime());
-
-                    // Create our Link
-                    var linkSettings = new AmqpLinkSettings();
-                    linkSettings.AddProperty(AmqpClientConstants.TimeoutName, (uint)timeoutHelper.RemainingTime().TotalMilliseconds);
-                    linkSettings.AddProperty(AmqpClientConstants.EntityTypeName, (int)MessagingEntityType.EventHub);
-                    linkSettings.Role = false;
-                    linkSettings.InitialDeliveryCount = 0;
-                    linkSettings.Target = new Target { Address = address.AbsolutePath };
-                    linkSettings.Source = new Source { Address = this.eventSender.ClientId };
-
-                    var link = new SendingAmqpLink(linkSettings);
-                    linkSettings.LinkName = $"{this.eventHubClient.ContainerId};{connection.Identifier}:{session.Identifier}:{link.Identifier}";
-                    link.AttachTo(session);
-
-                    await link.OpenAsync(timeoutHelper.RemainingTime());
-                    return link;
-                }
-                catch (Exception)
-                {
-                    // Cleanup any session (and thus link) in case of exception.
-                    session?.Abort();
-                    throw;
-                }
-            }
-
-            internal async Task CloseAsync()
-            {
-                var localCreateTask = this.createLinkTask;
-                if (localCreateTask != null)
-                {
-                    var timeoutHelper = new TimeoutHelper(this.eventHubClient.ConnectionSettings.OperationTimeout, startTimeout: true);
-                    var localSendLink = await localCreateTask;
-
-                    // Note we close the session (which includes the link).
-                    await localSendLink.Session.CloseAsync(timeoutHelper.RemainingTime());
-                }
-            }
+        void CloseSession(SendingAmqpLink link)
+        {
+            // Note we close the session (which includes the link).
+            link.Session.SafeClose();
         }
     }
 }
