@@ -46,7 +46,8 @@ import com.microsoft.azure.servicebus.amqp.SessionHandler;
 public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErrorContextProvider
 {
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-
+	private static final int MIN_TIMEOUT_DURATION_MILLIS = 20;
+	
 	private final ConcurrentLinkedQueue<ReceiveWorkItem> pendingReceives;
 	private final MessagingFactory underlyingFactory;
 	private final ITimeoutErrorHandler stuckTransportHandler;
@@ -54,8 +55,12 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private final Runnable onOperationTimedout;
 	private final Duration operationTimeout;
 	private final CompletableFuture<Void> linkClose;
-
-	private int prefetchCount; 
+	private final Object prefetchCountSync;
+	private final Object flowSync;
+	private final Object linkCreateLock;
+	
+	private int prefetchCount;
+	
 	private ConcurrentLinkedQueue<Message> prefetchedMessages;
 	private Receiver receiveLink;
 	private WorkItem<MessageReceiver> linkOpen;
@@ -69,12 +74,10 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private String lastReceivedOffset;
 
 	private boolean linkCreateScheduled;
-	private Object linkCreateLock;
 	private Exception lastKnownLinkError;
 
 	private int nextCreditToFlow;
-	private Object flowSync;
-
+	
 	private MessageReceiver(final MessagingFactory factory,
 			final ITimeoutErrorHandler stuckTransportHandler,
 			final String name, 
@@ -101,6 +104,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		this.lastKnownLinkError = null;
 		this.flowSync = new Object();
 		this.receiveTimeout = factory.getOperationTimeout();
+		this.prefetchCountSync = new Object();
 
 		if (offset != null)
 		{
@@ -123,7 +127,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 				boolean workItemTimedout = false;
 				while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
 				{
-					if (topWorkItem.getTimeoutTracker().remaining().getSeconds() <= 0)
+					if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS)
 					{
 						WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
 						if (dequedWorkItem != null)
@@ -225,12 +229,24 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 	public int getPrefetchCount()
 	{
-		return this.prefetchCount;
+		synchronized (this.prefetchCountSync)
+		{
+			return this.prefetchCount;
+		}
 	}
 
 	public void setPrefetchCount(final int value)
 	{
-		this.prefetchCount = value;
+		synchronized (this.prefetchCountSync)
+		{
+			if (this.prefetchCount < value)
+			{
+				final int deltaPrefetch = this.prefetchCount - value;
+				this.sendFlow(deltaPrefetch);
+			}
+
+			this.prefetchCount = value;
+		}
 	}
 
 	public Duration getReceiveTimeout()
@@ -503,7 +519,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			if (this.nextCreditToFlow >= this.prefetchCount)
 			{
 				tempFlow = this.nextCreditToFlow;
-				this.receiveLink.flow(this.prefetchCount);
+				this.receiveLink.flow(tempFlow);
 				this.nextCreditToFlow = 0;
 			}
 		}
@@ -513,7 +529,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 			{
 				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s]",
-						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), this.prefetchCount));
+						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), tempFlow));
 			}
 		}
 	}
