@@ -48,7 +48,9 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     this.Processor = this.Host.ProcessorFactory.CreateEventProcessor(this.PartitionContext);
                     action = EventProcessorHostActionStrings.OpeningEventProcessor;
+                    ProcessorEventSource.Log.PartitionPumpOpenProcessorStart(this.Host.Id, this.PartitionContext.PartitionId, this.Processor.GetType().ToString());
                     await this.Processor.OpenAsync(this.PartitionContext);
+                    ProcessorEventSource.Log.PartitionPumpOpenProcessorStop(this.Host.Id, this.PartitionContext.PartitionId);
                 }
                 catch (Exception e)
                 {
@@ -81,7 +83,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public async Task CloseAsync(CloseReason reason)
         {
-            ProcessorEventSource.Log.EventProcessorHostPartitionCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString("g"));
+            ProcessorEventSource.Log.PartitionPumpCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString("g"));
             this.PumpStatus = PartitionPumpStatus.Closing;
             try
             {
@@ -94,20 +96,22 @@ namespace Microsoft.Azure.EventHubs.Processor
                         // When we take the lock, any existing ProcessEventsAsync call has finished.
                         // Because the client has been closed, there will not be any more
                         // calls to onEvents in the future. Therefore we can safely call CloseAsync.
+                        ProcessorEventSource.Log.PartitionPumpCloseProcessorStart(this.Host.Id, this.PartitionContext.PartitionId);
                         await this.Processor.CloseAsync(this.PartitionContext, reason);
+                        ProcessorEventSource.Log.PartitionPumpCloseProcessorStop(this.Host.Id, this.PartitionContext.PartitionId);
                     }
                 }                    
             }
             catch (Exception e)
             {
-                ProcessorEventSource.Log.EventProcessorHostPartitionCloseError(this.Host.Id, this.PartitionContext.PartitionId, e.ToString());
+                ProcessorEventSource.Log.PartitionPumpCloseError(this.Host.Id, this.PartitionContext.PartitionId, e.ToString());
                 // If closing the processor has failed, the state of the processor is suspect.
                 // Report the failure to the general error handler instead.
                 this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, "Closing Event Processor");
             }
 
             this.PumpStatus = PartitionPumpStatus.Closed;
-            ProcessorEventSource.Log.EventProcessorHostPartitionCloseStop(this.Host.Id, this.PartitionContext.PartitionId);
+            ProcessorEventSource.Log.PartitionPumpCloseStop(this.Host.Id, this.PartitionContext.PartitionId);
         }
 
         protected abstract Task OnClosingAsync(CloseReason reason);
@@ -123,7 +127,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             try
             {
                 // Synchronize to serialize calls to the processor.
-                // The handler is not installed until after OpenAsync returns, so onEvents cannot conflict with OpenAsync.
+                // The handler is not installed until after OpenAsync returns, so ProcessEventsAsync cannot conflict with OpenAsync.
                 // There could be a conflict between ProcessEventsAsync and CloseAsync, however. All calls to CloseAsync are
                 // protected by synchronizing too.
                 using (await this.ProcessingAsyncLock.LockAsync())

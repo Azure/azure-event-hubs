@@ -100,7 +100,6 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             // Need to fetch the most current lease data so that we can update it correctly.
             AzureBlobLease lease = (AzureBlobLease)(await GetLeaseAsync(checkpoint.PartitionId));
-            this.host.LogPartitionInfo(checkpoint.PartitionId, "Checkpointing at " + checkpoint.Offset + "/" + checkpoint.SequenceNumber);
             lease.Offset = checkpoint.Offset;
             lease.SequenceNumber = checkpoint.SequenceNumber;
             await UpdateLeaseAsync(lease);
@@ -168,7 +167,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                                 }
                                 catch (StorageException e)
                                 {
-                                    this.host.LogWarning("Failure while deleting lease store", e);
+                                    this.host.LogWarning("AzureStorage: Failure while deleting lease store", e);
                                     retval = false;
                                 }
                             }
@@ -183,7 +182,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         }
                         catch (StorageException e)
                         {
-                            this.host.LogWarning("Failure while deleting lease store", e);
+                            this.host.LogWarning("AzureStorage: Failure while deleting lease store", e);
                             retval = false;
                         }
                     }
@@ -229,7 +228,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 string jsonLease = JsonConvert.SerializeObject(returnLease);
 
                 this.host.LogPartitionInfo(partitionId,
-                    "CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName);
+                    "AzureStorage: CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName);
                 await leaseBlob.UploadTextAsync(jsonLease, null, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
             }
     	    catch (StorageException se)
@@ -240,7 +239,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     	    	     extendedErrorInfo.ErrorCode == BlobErrorCodeStrings.LeaseIdMissing)) // occurs when somebody else already has leased the blob
     		    {
                     // The blob already exists.
-                    this.host.LogPartitionInfo(partitionId, "Lease already exists");
+                    this.host.LogPartitionInfo(partitionId, "AzureStorage: Lease already exists");
                     returnLease = (AzureBlobLease)(await GetLeaseAsync(partitionId));
                 }
     		    else
@@ -250,7 +249,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                     this.host.LogPartitionError(
                         partitionId,
-    				    "CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName,
+                        "AzureStorage: CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName,
                         se);
     			    throw;
                 }
@@ -262,7 +261,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         public async Task DeleteLeaseAsync(Lease lease)
         {
             var azureBlobLease = (AzureBlobLease)lease;
-            this.host.LogPartitionInfo(azureBlobLease.PartitionId, "Deleting lease");
+            this.host.LogPartitionInfo(azureBlobLease.PartitionId, "AzureStorage: Deleting lease");
             await azureBlobLease.Blob.DeleteIfExistsAsync();
         }
 
@@ -273,8 +272,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         async Task<bool> AcquireLeaseCoreAsync(AzureBlobLease lease)
         {
-    	    this.host.LogPartitionInfo(lease.PartitionId, "Acquiring lease");
-
             CloudBlockBlob leaseBlob = lease.Blob;
             bool retval = true;
             string newLeaseId = Guid.NewGuid().ToString();
@@ -284,12 +281,12 @@ namespace Microsoft.Azure.EventHubs.Processor
                 await leaseBlob.FetchAttributesAsync();
                 if (leaseBlob.Properties.LeaseState == LeaseState.Leased)
                 {
-                    this.host.LogPartitionInfo(lease.PartitionId, "changeLease");
+                    this.host.LogPartitionInfo(lease.PartitionId, "AzureStorage: need to ChangeLease");
                     newToken = await leaseBlob.ChangeLeaseAsync(newLeaseId, AccessCondition.GenerateLeaseCondition(lease.Token));
                 }
                 else
                 {
-                    this.host.LogPartitionInfo(lease.PartitionId, "acquireLease");
+                    this.host.LogPartitionInfo(lease.PartitionId, "AzureStorage: need to AcquireLease");
                     newToken = await leaseBlob.AcquireLeaseAsync(AzureStorageCheckpointLeaseManager.leaseDuration, newLeaseId);
                 }
 
@@ -320,8 +317,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         async Task<bool> RenewLeaseCoreAsync(AzureBlobLease lease)
         {
-    	    this.host.LogPartitionInfo(lease.PartitionId, "Renewing lease");
-
             CloudBlockBlob leaseBlob = lease.Blob;
             bool retval = true;
     	
@@ -351,7 +346,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         async Task<bool> ReleaseLeaseCoreAsync(AzureBlobLease lease)
         {
-    	    this.host.LogPartitionInfo(lease.PartitionId, "Releasing lease");
+    	    this.host.LogPartitionInfo(lease.PartitionId, "AzureStorage: Releasing lease");
 
             CloudBlockBlob leaseBlob = lease.Blob;
             bool retval = true;
@@ -391,7 +386,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 return false;
             }
     	
-    	    this.host.LogPartitionInfo(lease.PartitionId, "Updating lease");
+    	    this.host.LogPartitionInfo(lease.PartitionId, "AzureStorage: Updating lease");
 
             string token = lease.Token;
     	    if (string.IsNullOrEmpty(token))
@@ -409,7 +404,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     	    try
             {
                 string jsonToUpload = JsonConvert.SerializeObject(lease);
-                this.host.LogPartitionInfo(lease.PartitionId, "Raw JSON uploading: " + jsonToUpload);
+                this.host.LogPartitionInfo(lease.PartitionId, "AzureStorage: Raw JSON uploading: " + jsonToUpload);
                 await leaseBlob.UploadTextAsync(jsonToUpload, null, AccessCondition.GenerateLeaseCondition(token), null, null);
             }
     	    catch (StorageException se)
@@ -431,7 +426,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             string jsonLease = await blob.DownloadTextAsync();
 
-            this.host.LogPartitionInfo(partitionId, "Raw JSON downloaded: " + jsonLease);
+            this.host.LogPartitionInfo(partitionId, "AzureStorage: Raw JSON downloaded: " + jsonLease);
             AzureBlobLease rehydrated = (AzureBlobLease)JsonConvert.DeserializeObject(jsonLease, typeof(AzureBlobLease));
     	    AzureBlobLease blobLease = new AzureBlobLease(rehydrated, blob);
     	    return blobLease;
@@ -440,8 +435,8 @@ namespace Microsoft.Azure.EventHubs.Processor
         bool WasLeaseLost(StorageException se)
         {
             bool retval = false;
-            this.host.LogInfo("WAS LEASE LOST?");
-            this.host.LogInfo("Http " + se.RequestInformation.HttpStatusCode);
+            this.host.LogInfo("AzureStorage: WAS LEASE LOST?");
+            this.host.LogInfo("AzureStorage: Http " + se.RequestInformation.HttpStatusCode);
             if (se.RequestInformation.HttpStatusCode == 409 || // conflict
                 se.RequestInformation.HttpStatusCode == 412) // precondition failed
             {
@@ -449,8 +444,8 @@ namespace Microsoft.Azure.EventHubs.Processor
                 if (extendedErrorInfo != null)
                 {
                     string errorCode = extendedErrorInfo.ErrorCode;
-                    this.host.LogInfo("Error code: " + errorCode);
-                    this.host.LogInfo("Error message: " + extendedErrorInfo.ErrorMessage);
+                    this.host.LogInfo("AzureStorage: Error code: " + errorCode);
+                    this.host.LogInfo("AzureStorage: Error message: " + extendedErrorInfo.ErrorMessage);
                     if (errorCode == BlobErrorCodeStrings.LeaseLost ||
                         errorCode == BlobErrorCodeStrings.LeaseIdMismatchWithLeaseOperation ||
                         errorCode == BlobErrorCodeStrings.LeaseIdMismatchWithBlobOperation)

@@ -57,7 +57,6 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
-
         [Event(5, Level = EventLevel.Informational, Message = "{0}: opening. Factory:{1}.")]
         public void EventProcessorHostOpenStart(string hostId, string factoryType)
         {
@@ -112,8 +111,10 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
+
+
         [Event(11, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closing. Reason:{2}.")]
-        public void EventProcessorHostPartitionCloseStart(string hostId, string partitionId, string reason)
+        public void PartitionPumpCloseStart(string hostId, string partitionId, string reason)
         {
             if (IsEnabled())
             {
@@ -122,7 +123,7 @@ namespace Microsoft.Azure.EventHubs
         }
 
         [Event(12, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closed.")]
-        public void EventProcessorHostPartitionCloseStop(string hostId, string partitionId)
+        public void PartitionPumpCloseStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
@@ -131,13 +132,95 @@ namespace Microsoft.Azure.EventHubs
         }
 
         [Event(13, Level = EventLevel.Error, Message = "{0}: Partition {1}: Pump close error: {2}.")]
-        public void EventProcessorHostPartitionCloseError(string hostId, string partitionId, string error)
+        public void PartitionPumpCloseError(string hostId, string partitionId, string error)
         {
             if (IsEnabled())
             {
                 WriteEvent(13, hostId, partitionId, error ?? string.Empty);
             }
         }
+
+        [Event(14, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Saving checkpoint at Offset:{2}/SequenceNumber:{3}.")]
+        public void PartitionPumpCheckpointStart(string hostId, string partitionId, string offset, long sequenceNumber)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(14, hostId, partitionId, offset ?? string.Empty, sequenceNumber);
+            }
+        }
+
+        [Event(15, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done saving checkpoint.")]
+        public void PartitionPumpCheckpointStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(15, hostId, partitionId);
+            }
+        }
+
+        [Event(16, Level = EventLevel.Error, Message = "{0}: Partition {1}: Error saving checkpoint: {2}.")]
+        public void PartitionPumpCheckpointError(string hostId, string partitionId, string error)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(16, hostId, partitionId, error ?? string.Empty);
+            }
+        }
+
+        [Event(17, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Creating EventHubClient and PartitionReceiver with Epoch:{2} Offset: {3}.")]
+        public void PartitionPumpCreateClientsStart(string hostId, string partitionId, long epoch, string startOffset)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(17, hostId, partitionId, epoch, startOffset ?? string.Empty);
+            }
+        }
+
+        [Event(18, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done creating EventHubClient and PartitionReceiver.")]
+        public void PartitionPumpCreateClientsStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(18, hostId, partitionId);
+            }
+        }
+
+        [Event(19, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opening. Type: {2}.")]
+        public void PartitionPumpOpenProcessorStart(string hostId, string partitionId, string processorType)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(19, hostId, partitionId, processorType);
+            }
+        }
+
+        [Event(20, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opened.")]
+        public void PartitionPumpOpenProcessorStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(20, hostId, partitionId);
+            }
+        }
+
+        [Event(21, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closing.")]
+        public void PartitionPumpCloseProcessorStart(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(21, hostId, partitionId);
+            }
+        }
+
+        [Event(22, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closed.")]
+        public void PartitionPumpCloseProcessorStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(22, hostId, partitionId);
+            }
+        }
+
 
         // TODO: Add Keywords if desired.
         //public class Keywords   // This is a bitvector

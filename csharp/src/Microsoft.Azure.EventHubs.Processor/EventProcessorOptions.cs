@@ -31,7 +31,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             this.MaxBatchSize = 10;
             this.PrefetchCount = 300;
-            this.ReceiveTimeOut = TimeSpan.FromMinutes(1);
+            this.ReceiveTimeout = TimeSpan.FromMinutes(1);
         }
 
         /// <summary>
@@ -55,10 +55,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         public int MaxBatchSize { get; }
 
         /// <summary>
-        /// Returns the timeout length for receive operations.
-        /// <para>Right now this option is hardwired to one minute and cannot be changed.</para>
+        /// Gets or sets the timeout length for receive operations.
         /// </summary>
-        public TimeSpan ReceiveTimeOut { get; }
+        public TimeSpan ReceiveTimeout { get; set; }
 
         /// <summary>
         /// Gets or sets the current prefetch count for the underlying client.

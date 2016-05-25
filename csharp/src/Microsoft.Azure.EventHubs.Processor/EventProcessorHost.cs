@@ -176,7 +176,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// using ConnectionStringBuilder, so it's not clear that there's any value to making this
         /// string accessible.</para>
         /// </summary>
-        internal string EventHubConnectionString { get; private set; }
+        internal ServiceBusConnectionSettings ConnectionSettings { get; private set; }
 
         public string EventHubPath { get; }
 
@@ -251,13 +251,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                // TODO: set the timeout
-                this.EventHubConnectionString = new ServiceBusConnectionSettings(
+                this.ConnectionSettings = new ServiceBusConnectionSettings(
                     this.namespaceName,
                     this.EventHubPath,
                     this.sharedAccessKeyName,
                     this.sharedAccessKey
-                    /*, processorOptions.ReceiveTimeOut, RetryPolicy.Default*/).ToString();
+                    /*, RetryPolicy.Default*/);
+                this.ConnectionSettings.OperationTimeout = processorOptions.ReceiveTimeout;
 
                 if (this.initializeLeaseManager)
                 {
@@ -267,12 +267,15 @@ namespace Microsoft.Azure.EventHubs.Processor
                 this.ProcessorFactory = factory;
                 this.EventProcessorOptions = processorOptions;
                 await this.PartitionManager.StartAsync();
-                ProcessorEventSource.Log.EventProcessorHostOpenStop(this.Id);
             }
             catch (Exception e)
             {
                 ProcessorEventSource.Log.EventProcessorHostOpenError(this.Id, e.ToString());
                 throw;
+            }
+            finally
+            {
+                ProcessorEventSource.Log.EventProcessorHostOpenStop(this.Id);
             }
         }
 
