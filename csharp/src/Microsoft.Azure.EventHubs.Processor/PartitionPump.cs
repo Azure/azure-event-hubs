@@ -5,9 +5,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics.Tracing;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
 
     abstract class PartitionPump
@@ -83,14 +81,13 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public async Task CloseAsync(CloseReason reason)
         {
+            ProcessorEventSource.Log.EventProcessorHostPartitionCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString("g"));
             this.PumpStatus = PartitionPumpStatus.Closing;
-            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "pump shutdown for reason " + reason);
-
-            await this.OnClosingAsync(reason);
-
-            if (this.Processor != null)
+            try
             {
-                try
+                await this.OnClosingAsync(reason);
+
+                if (this.Processor != null)
                 {
                     using (await this.ProcessingAsyncLock.LockAsync())
                     {
@@ -99,25 +96,25 @@ namespace Microsoft.Azure.EventHubs.Processor
                         // calls to onEvents in the future. Therefore we can safely call CloseAsync.
                         await this.Processor.CloseAsync(this.PartitionContext, reason);
                     }
-                }
-                catch (Exception e)
-                {
-                    this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Failure closing processor", e);
-                    // If closing the processor has failed, the state of the processor is suspect.
-                    // Report the failure to the general error handler instead.
-                    this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, "Closing Event Processor");
-                }
+                }                    
+            }
+            catch (Exception e)
+            {
+                ProcessorEventSource.Log.EventProcessorHostPartitionCloseError(this.Host.Id, this.PartitionContext.PartitionId, e.ToString());
+                // If closing the processor has failed, the state of the processor is suspect.
+                // Report the failure to the general error handler instead.
+                this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, "Closing Event Processor");
             }
 
             this.PumpStatus = PartitionPumpStatus.Closed;
+            ProcessorEventSource.Log.EventProcessorHostPartitionCloseStop(this.Host.Id, this.PartitionContext.PartitionId);
         }
 
         protected abstract Task OnClosingAsync(CloseReason reason);
 
         protected async Task ProcessEventsAsync(IEnumerable<EventData> events)
         {
-            // Assumes that javaClient will call with null on receive timeout. Currently it doesn't call at all.
-            // See note on EventProcessorOptions.
+            // Assumes that .NET Core client will call with null on receive timeout.
             if (events == null && this.Host.EventProcessorOptions.InvokeProcessorAfterReceiveTimeout == false)
             {
                 return;

@@ -59,20 +59,17 @@ namespace Microsoft.Azure.EventHubs.Processor
             PartitionPump capturedPump;
             if (this.pumpStates.TryRemove(partitionId, out capturedPump))
             {
-                this.host.LogPartitionInfo(partitionId, "closing pump for reason " + reason);
                 if (!capturedPump.IsClosing)
                 {
                     await capturedPump.CloseAsync(reason);
                 }
                 // else, pump is already closing/closed, don't need to try to shut it down again
-
-                this.host.LogPartitionInfo(partitionId, "removing pump");
             }
             else
             {
                 // PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
                 // Not finding a pump for a partition is normal and expected most of the time.
-                this.host.LogPartitionInfo(partitionId, "no pump found to remove for partition " + partitionId);
+                this.host.LogPartitionInfo(partitionId, "No pump found to remove for Partition " + partitionId);
             }
         }
 
