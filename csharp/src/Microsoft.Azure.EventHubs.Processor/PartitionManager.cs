@@ -4,8 +4,8 @@
 namespace Microsoft.Azure.EventHubs.Processor
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Diagnostics.Tracing;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -14,7 +14,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     {
         readonly EventProcessorHost host;
         readonly CancellationTokenSource cancellationTokenSource;
-        Pump pump;
+        readonly ConcurrentDictionary<string, PartitionPump> partitionPumps;
         IList<string> partitionIds;
         Task runTask;
 
@@ -22,6 +22,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             this.host = host;
             this.cancellationTokenSource = new CancellationTokenSource();
+            this.partitionPumps = new ConcurrentDictionary<string, PartitionPump>();
         }
 
         public async Task<IEnumerable<string>> GetPartitionIdsAsync()
@@ -53,12 +54,6 @@ namespace Microsoft.Azure.EventHubs.Processor
             return this.partitionIds;
         }
 
-        // Test hook: allows a test subclass to insert dummy pump.
-        protected virtual Pump OnCreatePump()
-        {
-            return new Pump(this.host);
-        }
-
         // Testability hook: called after stores are initialized.
         protected virtual void OnInitializeComplete()
         {
@@ -71,12 +66,11 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public async Task StartAsync()
         {
-            if (this.pump != null)
+            if (this.runTask != null)
             {
                 throw new InvalidOperationException("A PartitionManager cannot be started multiple times.");
             }
 
-            this.pump = this.OnCreatePump();
             await this.InitializeStoresAsync();
             this.OnInitializeComplete();
 
@@ -109,7 +103,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 // Cleanup
                 this.host.LogInfo("Shutting down all pumps");
-                await this.pump.RemoveAllPumpsAsync(CloseReason.Shutdown);
+                await this.RemoveAllPumpsAsync(CloseReason.Shutdown);
             }
             catch (Exception e)
 	    	{
@@ -283,11 +277,11 @@ namespace Microsoft.Azure.EventHubs.Processor
                     this.host.LogInfo("Lease on partition " + updatedLease.PartitionId + " owned by " + updatedLease.Owner); // DEBUG
                     if (updatedLease.Owner == this.host.HostName)
                     {
-                        await this.pump.AddPumpAsync(partitionId, updatedLease);
+                        await this.AddPumpAsync(partitionId, updatedLease);
                     }
                     else
                     {
-                        await this.pump.RemovePumpAsync(partitionId, CloseReason.LeaseLost);
+                        await this.RemovePumpAsync(partitionId, CloseReason.LeaseLost);
                     }
                 }
 
@@ -302,6 +296,71 @@ namespace Microsoft.Azure.EventHubs.Processor
                     // Bail on the async work if we are canceled.
                 }
             }
+        }
+
+        async Task AddPumpAsync(string partitionId, Lease lease)
+        {
+            PartitionPump capturedPump;
+            if (this.partitionPumps.TryGetValue(partitionId, out capturedPump))
+            {
+                // There already is a pump. Make sure the pump is working and replace the lease.
+                if (capturedPump.PumpStatus == PartitionPumpStatus.Errored || capturedPump.IsClosing)
+                {
+                    // The existing pump is bad. Remove it and create a new one.
+                    await RemovePumpAsync(partitionId, CloseReason.Shutdown);
+                    await CreateNewPumpAsync(partitionId, lease);
+                }
+                else
+                {
+                    // Pump is working, just replace the lease.
+                    this.host.LogPartitionInfo(partitionId, "updating lease for pump");
+                    capturedPump.SetLease(lease);
+                }
+            }
+            else
+            {
+                // No existing pump, create a new one.
+                await CreateNewPumpAsync(partitionId, lease);
+            }
+        }
+
+        async Task CreateNewPumpAsync(string partitionId, Lease lease)
+        {
+            PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, lease);
+            await newPartitionPump.OpenAsync();
+            this.partitionPumps.TryAdd(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
+            this.host.LogPartitionInfo(partitionId, "Created new PartitionPump");
+        }
+
+        async Task RemovePumpAsync(string partitionId, CloseReason reason)
+        {
+            PartitionPump capturedPump;
+            if (this.partitionPumps.TryRemove(partitionId, out capturedPump))
+            {
+                if (!capturedPump.IsClosing)
+                {
+                    await capturedPump.CloseAsync(reason);
+                }
+                // else, pump is already closing/closed, don't need to try to shut it down again
+            }
+            else
+            {
+                // PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
+                // Not finding a pump for a partition is normal and expected most of the time.
+                this.host.LogPartitionInfo(partitionId, "No pump found to remove for Partition " + partitionId);
+            }
+        }
+
+        Task RemoveAllPumpsAsync(CloseReason reason)
+        {
+            List<Task> tasks = new List<Task>();
+            var keys = new List<string>(this.partitionPumps.Keys);
+            foreach (string partitionId in keys)
+            {
+                tasks.Add(this.RemovePumpAsync(partitionId, reason));
+            }
+
+            return Task.WhenAll(tasks);
         }
 
         IEnumerable<Lease> WhichLeasesToSteal(List<Lease> stealableLeases, int haveLeaseCount)
