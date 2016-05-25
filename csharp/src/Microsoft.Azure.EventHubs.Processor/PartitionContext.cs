@@ -87,7 +87,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     		    this.host.LogPartitionInfo(this.PartitionId, "Calling user-provided initial offset provider");
     		    this.offset = initialOffsetProvider(this.PartitionId);
     		    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-	    	    this.host.LogPartitionInfo(this.PartitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber);
+	    	    this.host.LogPartitionInfo(this.PartitionId, "Initial offset/sequenceNumber provided: " + this.offset + "/" + this.sequenceNumber);
     	    }
     	    else
     	    {
@@ -95,7 +95,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 this.offset = startingCheckpoint.Offset;
 	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
-	    	    this.host.LogPartitionInfo(this.PartitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber);
+	    	    this.host.LogPartitionInfo(this.PartitionId, "Retrieved starting offset/sequenceNumber: " + this.offset + "/" + this.sequenceNumber);
             }
 
     	    return this.offset;
@@ -134,26 +134,37 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public override string ToString()
         {
-            return $"PartitionContext: {this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.sequenceNumber}";
+            return $"PartitionContext({this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.sequenceNumber})";
         }
 
         async Task PersistCheckpointAsync(Checkpoint checkpoint) // throws ArgumentOutOfRangeException, InterruptedException, ExecutionException
         {
-            this.host.LogPartitionInfo(checkpoint.PartitionId, "Saving checkpoint: " + checkpoint.Offset + "/" + checkpoint.SequenceNumber);
-
-            Checkpoint inStoreCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(checkpoint.PartitionId);
-            if (checkpoint.SequenceNumber >= inStoreCheckpoint.SequenceNumber)
+            ProcessorEventSource.Log.PartitionPumpCheckpointStart(this.host.Id, checkpoint.PartitionId, checkpoint.Offset, checkpoint.SequenceNumber);
+            try
             {
-                inStoreCheckpoint.Offset = checkpoint.Offset;
-                inStoreCheckpoint.SequenceNumber = checkpoint.SequenceNumber;
-                await this.host.CheckpointManager.UpdateCheckpointAsync(inStoreCheckpoint);
+                Checkpoint inStoreCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(checkpoint.PartitionId);
+                if (checkpoint.SequenceNumber >= inStoreCheckpoint.SequenceNumber)
+                {
+                    inStoreCheckpoint.Offset = checkpoint.Offset;
+                    inStoreCheckpoint.SequenceNumber = checkpoint.SequenceNumber;
+                    await this.host.CheckpointManager.UpdateCheckpointAsync(inStoreCheckpoint);
+                }
+                else
+                {
+                    string msg = "Ignoring out of date checkpoint " + checkpoint.Offset + "/" + checkpoint.SequenceNumber +
+                            " because store is at " + inStoreCheckpoint.Offset + "/" + inStoreCheckpoint.SequenceNumber;
+                    this.host.LogPartitionError(checkpoint.PartitionId, msg);
+                    throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
+                }
             }
-            else
+            catch (Exception e)
             {
-                string msg = "Ignoring out of date checkpoint " + checkpoint.Offset + "/" + checkpoint.SequenceNumber +
-                        " because store is at " + inStoreCheckpoint.Offset + "/" + inStoreCheckpoint.SequenceNumber;
-                this.host.LogPartitionError(checkpoint.PartitionId, msg);
-                throw new ArgumentOutOfRangeException("offset+sequenceNumber", msg);
+                ProcessorEventSource.Log.PartitionPumpCheckpointError(this.host.Id, checkpoint.PartitionId, e.ToString());
+                throw;
+            }
+            finally
+            {
+                ProcessorEventSource.Log.PartitionPumpCheckpointStop(this.host.Id, checkpoint.PartitionId);
             }
         }
     }

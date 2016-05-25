@@ -35,7 +35,8 @@
                 this.StorageConnectionString);
 
             Console.WriteLine(DateTime.Now.TimeOfDay + " Calling RegisterEventProcessorAsync.");
-            await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
+            var processorOptions = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(30) };
+            await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>(processorOptions);
 
             Console.WriteLine(DateTime.Now.TimeOfDay + " Waiting for events...");
             await Task.Delay(TimeSpan.FromSeconds(20));
@@ -66,7 +67,13 @@
             Task IEventProcessor.ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> events)
             {
                 Console.WriteLine("TestEventProcessor.ProcessEventsAsync({0}, {1} events)", context, events?.Count());
-                return context.CheckpointAsync();
+                EventData lastEvent = events?.LastOrDefault();
+                if (lastEvent != null)
+                {
+                    return context.CheckpointAsync(lastEvent);
+                }
+
+                return Task.CompletedTask;
             }
 
             Task IEventProcessor.OpenAsync(PartitionContext context)

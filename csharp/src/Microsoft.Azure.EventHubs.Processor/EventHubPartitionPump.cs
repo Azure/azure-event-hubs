@@ -78,19 +78,17 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         async Task OpenClientsAsync() // throws ServiceBusException, IOException, InterruptedException, ExecutionException
         {
-            // Create new client
-            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Creating EH client");
-		    this.eventHubClient = EventHubClient.Create(this.Host.EventHubConnectionString);
+            // Create new clients
+            string startOffset = await this.PartitionContext.GetInitialOffsetAsync();
+            long epoch = this.Lease.Epoch;
+            ProcessorEventSource.Log.PartitionPumpCreateClientsStart(this.Host.Id, this.PartitionContext.PartitionId, epoch, startOffset);
+		    this.eventHubClient = EventHubClient.Create(this.Host.ConnectionSettings);
 
             // Create new receiver and set options
-            string startingOffset = await this.PartitionContext.GetInitialOffsetAsync();
-            long epoch = this.Lease.Epoch;
-            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Opening EH receiver with epoch " + epoch + " at offset " + startingOffset);
-            this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, startingOffset, epoch);
-            
+            this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, startOffset, epoch);
             this.partitionReceiver.PrefetchCount = this.Host.EventProcessorOptions.PrefetchCount;
-
-            this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "EH client and receiver creation finished");
+            
+            ProcessorEventSource.Log.PartitionPumpCreateClientsStop(this.Host.Id, this.PartitionContext.PartitionId);
         }
 
         async Task CleanUpClientsAsync() // swallows all exceptions
@@ -106,14 +104,14 @@ namespace Microsoft.Azure.EventHubs.Processor
                     this.partitionReceiver.SetReceiveHandler(null);
                 }
 
-                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EH receiver");
+                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing PartitionReceiver");
                 await this.partitionReceiver.CloseAsync();
                 this.partitionReceiver = null;
             }
 
             if (this.eventHubClient != null)
             {
-                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EH client");
+                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EventHubClient");
                 await this.eventHubClient.CloseAsync();
                 this.eventHubClient = null;
             }

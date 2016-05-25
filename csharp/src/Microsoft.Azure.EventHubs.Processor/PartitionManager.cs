@@ -31,7 +31,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 EventHubClient eventHubClient = null;
                 try
                 {
-                    eventHubClient = EventHubClient.Create(this.host.EventHubConnectionString);
+                    eventHubClient = EventHubClient.Create(this.host.ConnectionSettings);
                     var runtimeInfo = await eventHubClient.GetRuntimeInformationAsync();
                     this.partitionIds = runtimeInfo.PartitionIds.ToList();
                 }
@@ -53,8 +53,8 @@ namespace Microsoft.Azure.EventHubs.Processor
             return this.partitionIds;
         }
 
-        // Testability hook: allows a test subclass to insert dummy pump.
-        Pump CreatePumpTestHook()
+        // Test hook: allows a test subclass to insert dummy pump.
+        protected virtual Pump OnCreatePump()
         {
             return new Pump(this.host);
         }
@@ -71,13 +71,12 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public async Task StartAsync()
         {
-            if (this.runTask != null)
+            if (this.pump != null)
             {
                 throw new InvalidOperationException("A PartitionManager cannot be started multiple times.");
             }
 
-            this.pump = CreatePumpTestHook();
-
+            this.pump = this.OnCreatePump();
             await this.InitializeStoresAsync();
             this.OnInitializeComplete();
 
@@ -121,9 +120,8 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         async Task InitializeStoresAsync() //throws InterruptedException, ExecutionException, ExceptionWithAction
         {
-            ILeaseManager leaseManager = this.host.LeaseManager;
-        
             // Make sure the lease store exists
+            ILeaseManager leaseManager = this.host.LeaseManager;
             if (!await leaseManager.LeaseStoreExistsAsync())
             {
                 await RetryAsync(() => leaseManager.CreateLeaseStoreIfNotExistsAsync(), null, "Failure creating lease store for this Event Hub, retrying",
@@ -138,10 +136,9 @@ namespace Microsoft.Azure.EventHubs.Processor
                 await RetryAsync(() => leaseManager.CreateLeaseIfNotExistsAsync(id), id, "Failure creating lease for partition, retrying",
         			    "Out of retries creating lease for partition", EventProcessorHostActionStrings.CreatingLease, 5);
             }
-        
-            ICheckpointManager checkpointManager = this.host.CheckpointManager;
-        
+
             // Make sure the checkpoint store exists
+            ICheckpointManager checkpointManager = this.host.CheckpointManager;
             if (!await checkpointManager.CheckpointStoreExistsAsync())
             {
                 await RetryAsync(() => checkpointManager.CreateCheckpointStoreIfNotExistsAsync(), null, "Failure creating checkpoint store for this Event Hub, retrying",
@@ -220,6 +217,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         Lease possibleLease = await getLeastTask;
                         if (possibleLease.IsExpired())
                         {
+                            this.host.LogPartitionInfo(possibleLease.PartitionId, "Trying to acquire lease.");
                             if (await leaseManager.AcquireLeaseAsync(possibleLease))
                             {
                                 allLeases.Add(possibleLease.PartitionId, possibleLease);
@@ -227,6 +225,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         }
                         else if (possibleLease.Owner == this.host.HostName)
                         {
+                            this.host.LogPartitionInfo(possibleLease.PartitionId, "Trying to renew lease.");
                             if (await leaseManager.RenewLeaseAsync(possibleLease))
                             {
                                 allLeases.Add(possibleLease.PartitionId, possibleLease);
@@ -256,6 +255,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         {
                             try
                             {
+                                this.host.LogPartitionInfo(stealee.PartitionId, "Trying to acquire/steal lease.");
                                 if (await leaseManager.AcquireLeaseAsync(stealee))
                                 {
                                     this.host.LogPartitionInfo(stealee.PartitionId, "Stole lease");

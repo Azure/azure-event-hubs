@@ -51,7 +51,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, lease);
             await newPartitionPump.OpenAsync();
             this.pumpStates.TryAdd(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
-		    this.host.LogPartitionInfo(partitionId, "created new pump");
+		    this.host.LogPartitionInfo(partitionId, "Created new PartitionPump");
         }
 
         public async Task RemovePumpAsync(string partitionId, CloseReason reason)
