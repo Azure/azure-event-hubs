@@ -34,11 +34,11 @@
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.StorageConnectionString);
 
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Calling RegisterEventProcessor.");
+            Console.WriteLine(DateTime.Now.TimeOfDay + " Calling RegisterEventProcessorAsync.");
             await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
 
             Console.WriteLine(DateTime.Now.TimeOfDay + " Waiting for events...");
-            await Task.Delay(TimeSpan.FromSeconds(30));
+            await Task.Delay(TimeSpan.FromSeconds(20));
 
             Console.WriteLine(DateTime.Now.TimeOfDay + " Calling UnregisterEventProcessorAsync.");
             await eventProcessorHost.UnregisterEventProcessorAsync();

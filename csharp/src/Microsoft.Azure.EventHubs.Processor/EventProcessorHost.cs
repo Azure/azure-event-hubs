@@ -4,8 +4,6 @@
 namespace Microsoft.Azure.EventHubs.Processor
 {
     using System;
-    using System.Diagnostics.Tracing;
-    using System.Threading;
     using System.Threading.Tasks;
 
     public sealed class EventProcessorHost
@@ -195,7 +193,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         internal PartitionManager PartitionManager { get; private set; }
 
-        string Id { get; }
+        internal string Id { get; }
 
         /// <summary>
         /// This registers <see cref="IEventProcessor"/> implementation with the host using <see cref="DefaultEventProcessorFactory{T}"/>.  

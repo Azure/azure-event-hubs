@@ -5,7 +5,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics.Tracing;
     using System.Threading.Tasks;
 
     class EventHubPartitionPump : PartitionPump
@@ -181,10 +180,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 if (error == null)
                 {
-                    error = new Exception("normal shutdown"); // TODO -- is this true?
+                    this.eventHubPartitionPump.Host.LogPartitionInfo(this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed");
+                }
+                else
+                {
+                    this.eventHubPartitionPump.Host.LogPartitionError(this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed", error);
                 }
 
-                this.eventHubPartitionPump.Host.LogPartitionError(this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client closed: ", error);
                 this.eventHubPartitionPump.PumpStatus = PartitionPumpStatus.Errored;
                 return Task.CompletedTask;
             }

@@ -99,12 +99,11 @@ namespace Microsoft.Azure.EventHubs.Processor
             try
             {
                 await this.RunLoopAsync(this.cancellationTokenSource.Token);
-                this.host.LogInfo("Partition manager main loop exited normally, shutting down");
             }
             catch (Exception e)
             {
                 this.host.LogError("Exception from partition manager main loop, shutting down", e);
-                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, "Partition Manager Main Loop");
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerMainLoop);
             }
 
             try
@@ -116,10 +115,8 @@ namespace Microsoft.Azure.EventHubs.Processor
             catch (Exception e)
 	    	{
                 this.host.LogError("Failure during shutdown", e);
-                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.ParitionManagerCleanup);
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerCleanup);
             }
-
-            this.host.LogInfo("Partition manager exiting");
         }
 
         async Task InitializeStoresAsync() //throws InterruptedException, ExecutionException, ExceptionWithAction
@@ -303,7 +300,6 @@ namespace Microsoft.Azure.EventHubs.Processor
                 catch (TaskCanceledException)
                 {
                     // Bail on the async work if we are canceled.
-                    this.host.LogInfo("Delay was canceled");
                 }
             }
         }

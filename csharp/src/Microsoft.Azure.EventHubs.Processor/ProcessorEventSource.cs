@@ -112,6 +112,33 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
+        [Event(11, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closing. Reason:{2}.")]
+        public void EventProcessorHostPartitionCloseStart(string hostId, string partitionId, string reason)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(11, hostId, partitionId, reason);
+            }
+        }
+
+        [Event(12, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closed.")]
+        public void EventProcessorHostPartitionCloseStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(12, hostId, partitionId);
+            }
+        }
+
+        [Event(13, Level = EventLevel.Error, Message = "{0}: Partition {1}: Pump close error: {2}.")]
+        public void EventProcessorHostPartitionCloseError(string hostId, string partitionId, string error)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(13, hostId, partitionId, error ?? string.Empty);
+            }
+        }
+
         // TODO: Add Keywords if desired.
         //public class Keywords   // This is a bitvector
         //{
