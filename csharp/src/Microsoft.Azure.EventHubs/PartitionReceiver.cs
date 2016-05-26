@@ -32,6 +32,8 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         public static readonly string DefaultConsumerGroupName = "$Default";
 
+        internal const long NullEpoch = 0;
+
         const int MinPrefetchCount = 10;
         const int MaxPrefetchCount = 999;
         const int DefaultPrefetchCount = 300;
@@ -100,7 +102,7 @@ namespace Microsoft.Azure.EventHubs
         /// <code>
         /// EventHubClient client = EventHubClient.Create("__connectionString__");
         /// PartitionReceiver receiver = client.CreateReceiver("ConsumerGroup1", "1");
-        /// IEnumerable&lt;EventData&gt; receivedEvents = await receiver.ReceiveAsync();
+        /// IEnumerable&lt;EventData&gt; receivedEvents = await receiver.ReceiveAsync(BatchSize);
         ///      
         /// while (true)
         /// {
@@ -124,13 +126,13 @@ namespace Microsoft.Azure.EventHubs
         /// </code>
         /// </example>
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
-        public async Task<IEnumerable<EventData>> ReceiveAsync()
+        public async Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount)
         {
             EventHubsEventSource.Log.EventReceiveStart(this.ClientId);
             int count = 0;
             try
             {
-                IList<EventData> events = await this.OnReceiveAsync();
+                IList<EventData> events = await this.OnReceiveAsync(maxMessageCount);
                 count = events != null ? events.Count : 0;
                 EventData lastEvent = events?[count - 1];
                 if (lastEvent != null)
@@ -173,7 +175,7 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
-        protected abstract Task<IList<EventData>> OnReceiveAsync();
+        protected abstract Task<IList<EventData>> OnReceiveAsync(int maxMessageCount);
 
         protected abstract void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler);
 

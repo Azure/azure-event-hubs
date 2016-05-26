@@ -61,7 +61,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             await this.ReceiveLinkManager.CloseAsync();
         }
 
-        protected override async Task<IList<EventData>> OnReceiveAsync()
+        protected override async Task<IList<EventData>> OnReceiveAsync(int maxMessageCount)
         {
             try
             {
@@ -69,7 +69,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
                 IEnumerable<AmqpMessage> amqpMessages = null;
                 bool hasMessages = await Task.Factory.FromAsync(
-                    (c, s) => receiveLink.BeginReceiveMessages(this.PrefetchCount, timeoutHelper.RemainingTime(), c, s),
+                    (c, s) => receiveLink.BeginReceiveMessages(maxMessageCount, timeoutHelper.RemainingTime(), c, s),
                     (a) => receiveLink.EndReceiveMessages(a, out amqpMessages),
                     this);
 
@@ -244,7 +244,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
                 try
                 {
-                    receivedEvents = await this.ReceiveAsync();
+                    receivedEvents = await this.ReceiveAsync(receiveHandler.MaxBatchSize);
                 }
                 catch (Exception e) // when (e is InterruptedException || e is ExecutionException || e is TimeoutException)
                 {
