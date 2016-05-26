@@ -141,7 +141,10 @@ namespace Microsoft.Azure.EventHubs.Processor
             public PartitionReceiveHandler(EventHubPartitionPump eventHubPartitionPump)
             {
                 this.eventHubPartitionPump = eventHubPartitionPump;
+                this.MaxBatchSize = eventHubPartitionPump.Host.EventProcessorOptions.MaxBatchSize;
             }
+
+            public int MaxBatchSize { get; }
 
             public Task ProcessEventsAsync(IEnumerable<EventData> events)
             {
