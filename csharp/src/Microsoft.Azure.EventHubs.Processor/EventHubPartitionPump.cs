@@ -182,6 +182,14 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     ProcessorEventSource.Log.PartitionPumpInfo(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed");
                 }
+                else if (error is ReceiverDisconnectedException)
+                {
+                    ProcessorEventSource.Log.PartitionPumpWarning(
+                        this.eventHubPartitionPump.Host.Id,
+                        this.eventHubPartitionPump.PartitionContext.PartitionId,
+                        "PartitionReceiveHandler closed",
+                        error.GetType().Name + ": " + error.Message);
+                }
                 else
                 {
                     ProcessorEventSource.Log.PartitionPumpError(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed", error.ToString());

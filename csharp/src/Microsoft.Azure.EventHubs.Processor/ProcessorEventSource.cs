@@ -279,6 +279,24 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
+        [Event(69, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Attempting to steal lease")]
+        public void PartitionPumpStealLeaseStart(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(69, hostId, partitionId);
+            }
+        }
+
+        [Event(70, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Steal lease succeeded")]
+        public void PartitionPumpStealLeaseStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(70, hostId, partitionId);
+            }
+        }
+
         //
         // 101-150 reserved for AzureStorageManager traces
         //

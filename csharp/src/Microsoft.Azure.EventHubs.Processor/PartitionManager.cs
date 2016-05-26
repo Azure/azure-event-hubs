@@ -209,12 +209,18 @@ namespace Microsoft.Azure.EventHubs.Processor
                     try
                     {
                         Lease possibleLease = await getLeastTask;
+                        allLeases[possibleLease.PartitionId] = possibleLease;
                         if (possibleLease.IsExpired())
                         {
                             ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, possibleLease.PartitionId, "Trying to acquire lease.");
                             if (await leaseManager.AcquireLeaseAsync(possibleLease))
                             {
-                                allLeases.Add(possibleLease.PartitionId, possibleLease);
+                                ourLeasesCount++;
+                            }
+                            else
+                            {
+                                // Probably failed because another host stole it between get and acquire  
+                                leasesOwnedByOthers.Add(possibleLease);
                             }
                         }
                         else if (possibleLease.Owner == this.host.HostName)
@@ -222,13 +228,16 @@ namespace Microsoft.Azure.EventHubs.Processor
                             ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, possibleLease.PartitionId, "Trying to renew lease.");
                             if (await leaseManager.RenewLeaseAsync(possibleLease))
                             {
-                                allLeases.Add(possibleLease.PartitionId, possibleLease);
                                 ourLeasesCount++;
+                            }
+                            else
+                            {
+                                // Probably failed because another host stole it between get and renew 
+                                leasesOwnedByOthers.Add(possibleLease);
                             }
                         }
                         else
                         {
-                            allLeases.Add(possibleLease.PartitionId, possibleLease);
                             leasesOwnedByOthers.Add(possibleLease);
                         }
                     }
@@ -249,11 +258,11 @@ namespace Microsoft.Azure.EventHubs.Processor
                         {
                             try
                             {
-                                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, stealee.PartitionId, "Trying to acquire/steal lease.");
+                                ProcessorEventSource.Log.PartitionPumpStealLeaseStart(this.host.Id, stealee.PartitionId);
                                 if (await leaseManager.AcquireLeaseAsync(stealee))
                                 {
-                                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, stealee.PartitionId, "Stole lease");
-                                    allLeases.Add(stealee.PartitionId, stealee);
+                                    // Succeeded in stealing lease
+                                    ProcessorEventSource.Log.PartitionPumpStealLeaseStop(this.host.Id, stealee.PartitionId);
                                     ourLeasesCount++;
                                 }
                                 else
