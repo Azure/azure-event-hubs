@@ -21,6 +21,9 @@ namespace Microsoft.Azure.EventHubs
 
         ProcessorEventSource() { }
 
+        //
+        // 1-50 reserved for EventProcessorHost traces
+        //
         [Event(1, Level = EventLevel.Informational, Message = "{0}: created. Namespace: {1}, EventHub: {2}.")]
         public void EventProcessorHostCreated(string hostId, string namespaceName, string path)
         {
@@ -49,11 +52,11 @@ namespace Microsoft.Azure.EventHubs
         }
 
         [Event(4, Level = EventLevel.Error, Message = "{0}: close failed: {1}.")]
-        public void EventProcessorHostCloseError(string hostId, string error)
+        public void EventProcessorHostCloseError(string hostId, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(4, hostId, error);
+                WriteEvent(4, hostId, exception);
             }
         }
 
@@ -76,11 +79,11 @@ namespace Microsoft.Azure.EventHubs
         }
 
         [Event(7, Level = EventLevel.Error, Message = "{0}: open failed: {1}.")]
-        public void EventProcessorHostOpenError(string hostId, string error)
+        public void EventProcessorHostOpenError(string hostId, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(7, hostId, error);
+                WriteEvent(7, hostId, exception);
             }
         }
 
@@ -94,133 +97,217 @@ namespace Microsoft.Azure.EventHubs
         }
 
         [Event(9, Level = EventLevel.Warning, Message = "{0}: Warning: {1}. {2}")]
-        public void EventProcessorHostWarning(string hostId, string details, string error)
+        public void EventProcessorHostWarning(string hostId, string details, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(9, hostId, details, error ?? string.Empty);
+                WriteEvent(9, hostId, details, exception ?? string.Empty);
             }
         }
 
         [Event(10, Level = EventLevel.Error, Message = "{0}: Error: {1}. {2}")]
-        public void EventProcessorHostError(string hostId, string details, string error)
+        public void EventProcessorHostError(string hostId, string details, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(10, hostId, details, error ?? string.Empty);
+                WriteEvent(10, hostId, details, exception ?? string.Empty);
             }
         }
 
-
-
-        [Event(11, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closing. Reason:{2}.")]
+        //
+        // 51-100 reserved for PartitionPump traces
+        //
+        [Event(51, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closing. Reason:{2}.")]
         public void PartitionPumpCloseStart(string hostId, string partitionId, string reason)
         {
             if (IsEnabled())
             {
-                WriteEvent(11, hostId, partitionId, reason);
+                WriteEvent(51, hostId, partitionId, reason);
             }
         }
 
-        [Event(12, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closed.")]
+        [Event(52, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Pump closed.")]
         public void PartitionPumpCloseStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
-                WriteEvent(12, hostId, partitionId);
+                WriteEvent(52, hostId, partitionId);
             }
         }
 
-        [Event(13, Level = EventLevel.Error, Message = "{0}: Partition {1}: Pump close error: {2}.")]
-        public void PartitionPumpCloseError(string hostId, string partitionId, string error)
+        [Event(53, Level = EventLevel.Error, Message = "{0}: Partition {1}: Pump close error: {2}.")]
+        public void PartitionPumpCloseError(string hostId, string partitionId, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(13, hostId, partitionId, error ?? string.Empty);
+                WriteEvent(53, hostId, partitionId, exception ?? string.Empty);
             }
         }
 
-        [Event(14, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Saving checkpoint at Offset:{2}/SequenceNumber:{3}.")]
+        [Event(54, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Saving checkpoint at Offset:{2}/SequenceNumber:{3}.")]
         public void PartitionPumpCheckpointStart(string hostId, string partitionId, string offset, long sequenceNumber)
         {
             if (IsEnabled())
             {
-                WriteEvent(14, hostId, partitionId, offset ?? string.Empty, sequenceNumber);
+                WriteEvent(54, hostId, partitionId, offset ?? string.Empty, sequenceNumber);
             }
         }
 
-        [Event(15, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done saving checkpoint.")]
+        [Event(55, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done saving checkpoint.")]
         public void PartitionPumpCheckpointStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
-                WriteEvent(15, hostId, partitionId);
+                WriteEvent(55, hostId, partitionId);
             }
         }
 
-        [Event(16, Level = EventLevel.Error, Message = "{0}: Partition {1}: Error saving checkpoint: {2}.")]
-        public void PartitionPumpCheckpointError(string hostId, string partitionId, string error)
+        [Event(56, Level = EventLevel.Error, Message = "{0}: Partition {1}: Error saving checkpoint: {2}.")]
+        public void PartitionPumpCheckpointError(string hostId, string partitionId, string exception)
         {
             if (IsEnabled())
             {
-                WriteEvent(16, hostId, partitionId, error ?? string.Empty);
+                WriteEvent(56, hostId, partitionId, exception ?? string.Empty);
             }
         }
 
-        [Event(17, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Creating EventHubClient and PartitionReceiver with Epoch:{2} Offset: {3}.")]
+        [Event(57, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Creating EventHubClient and PartitionReceiver with Epoch:{2} Offset: {3}.")]
         public void PartitionPumpCreateClientsStart(string hostId, string partitionId, long epoch, string startOffset)
         {
             if (IsEnabled())
             {
-                WriteEvent(17, hostId, partitionId, epoch, startOffset ?? string.Empty);
+                WriteEvent(57, hostId, partitionId, epoch, startOffset ?? string.Empty);
             }
         }
 
-        [Event(18, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done creating EventHubClient and PartitionReceiver.")]
+        [Event(58, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done creating EventHubClient and PartitionReceiver.")]
         public void PartitionPumpCreateClientsStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
-                WriteEvent(18, hostId, partitionId);
+                WriteEvent(58, hostId, partitionId);
             }
         }
 
-        [Event(19, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opening. Type: {2}.")]
-        public void PartitionPumpOpenProcessorStart(string hostId, string partitionId, string processorType)
+        [Event(59, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opening. Type: {2}.")]
+        public void PartitionPumpInvokeProcessorOpenStart(string hostId, string partitionId, string processorType)
         {
             if (IsEnabled())
             {
-                WriteEvent(19, hostId, partitionId, processorType);
+                WriteEvent(59, hostId, partitionId, processorType);
             }
         }
 
-        [Event(20, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opened.")]
-        public void PartitionPumpOpenProcessorStop(string hostId, string partitionId)
+        [Event(60, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor opened.")]
+        public void PartitionPumpInvokeProcessorOpenStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
-                WriteEvent(20, hostId, partitionId);
+                WriteEvent(60, hostId, partitionId);
             }
         }
 
-        [Event(21, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closing.")]
-        public void PartitionPumpCloseProcessorStart(string hostId, string partitionId)
+        [Event(61, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closing. Reason: {2}")]
+        public void PartitionPumpInvokeProcessorCloseStart(string hostId, string partitionId, string reason)
         {
             if (IsEnabled())
             {
-                WriteEvent(21, hostId, partitionId);
+                WriteEvent(61, hostId, partitionId, reason);
             }
         }
 
-        [Event(22, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closed.")]
-        public void PartitionPumpCloseProcessorStop(string hostId, string partitionId)
+        [Event(62, Level = EventLevel.Informational, Message = "{0}: Partition {1}: IEventProcessor closed.")]
+        public void PartitionPumpInvokeProcessorCloseStop(string hostId, string partitionId)
         {
             if (IsEnabled())
             {
-                WriteEvent(22, hostId, partitionId);
+                WriteEvent(62, hostId, partitionId);
             }
         }
 
+        [Event(63, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Invoking IEventProcessor.ProcessEventsAsync with {2} event(s).")]
+        public void PartitionPumpInvokeProcessorEventsStart(string hostId, string partitionId, int eventCount)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(63, hostId, partitionId, eventCount);
+            }
+        }
+
+        [Event(64, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Done invoking IEventProcessor.ProcessEventsAsync.")]
+        public void PartitionPumpInvokeProcessorEventsStop(string hostId, string partitionId)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(64, hostId, partitionId);
+            }
+        }
+
+        [Event(65, Level = EventLevel.Error, Message = "{0}: Partition {1}: Error invoking IEventProcessor.ProcessEventsAsync: {2}")]
+        public void PartitionPumpInvokeProcessorEventsError(string hostId, string partitionId, string exception)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(65, hostId, partitionId, exception);
+            }
+        }
+
+        [Event(66, Level = EventLevel.Informational, Message = "{0}: Partition {1}: {2}")]
+        public void PartitionPumpInfo(string hostId, string partitionId, string details)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(66, hostId, partitionId, details);
+            }
+        }
+
+        [Event(67, Level = EventLevel.Warning, Message = "{0}: Partition {1}: Warning: {2} {3}")]
+        public void PartitionPumpWarning(string hostId, string partitionId, string details, string exception = null)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(67, hostId, partitionId, details, exception ?? string.Empty);
+            }
+        }
+
+        [Event(68, Level = EventLevel.Error, Message = "{0}: Partition {1}: Error: {2} {3}")]
+        public void PartitionPumpError(string hostId, string partitionId, string details, string exception = null)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(68, hostId, partitionId, details, exception ?? string.Empty);
+            }
+        }
+
+        //
+        // 101-150 reserved for AzureStorageManager traces
+        //
+        [Event(101, Level = EventLevel.Informational, Message = "{0}: Partition {1}: AzureStorage: {2}")]
+        public void AzureStorageManagerInfo(string hostId, string partitionId, string details)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(101, hostId, partitionId, details);
+            }
+        }
+
+        [Event(102, Level = EventLevel.Warning, Message = "{0}: Partition {1}: AzureStorage Warning: {2} {3}")]
+        public void AzureStorageManagerWarning(string hostId, string partitionId, string details, string exception)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(102, hostId, partitionId, details, exception ?? string.Empty);
+            }
+        }
+
+        [Event(103, Level = EventLevel.Error, Message = "{0}: Partition {1}: AzureStorage Error: {2} {3}")]
+        public void AzureStorageManagerError(string hostId, string partitionId, string details, string exception)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(103, hostId, partitionId, details, exception);
+            }
+        }
 
         // TODO: Add Keywords if desired.
         //public class Keywords   // This is a bitvector

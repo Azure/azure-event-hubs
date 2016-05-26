@@ -84,10 +84,10 @@ namespace Microsoft.Azure.EventHubs.Processor
             Func<string, string> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
     	    if (initialOffsetProvider != null)
     	    {
-    		    this.host.LogPartitionInfo(this.PartitionId, "Calling user-provided initial offset provider");
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Calling user-provided initial offset provider");
     		    this.offset = initialOffsetProvider(this.PartitionId);
     		    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-	    	    this.host.LogPartitionInfo(this.PartitionId, "Initial offset/sequenceNumber provided: " + this.offset + "/" + this.sequenceNumber);
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Initial offset/sequenceNumber provided: " + this.offset + "/" + this.sequenceNumber);
     	    }
     	    else
     	    {
@@ -95,7 +95,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 this.offset = startingCheckpoint.Offset;
 	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
-	    	    this.host.LogPartitionInfo(this.PartitionId, "Retrieved starting offset/sequenceNumber: " + this.offset + "/" + this.sequenceNumber);
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Retrieved starting offset/sequenceNumber: " + this.offset + "/" + this.sequenceNumber);
             }
 
     	    return this.offset;
@@ -153,7 +153,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     string msg = "Ignoring out of date checkpoint " + checkpoint.Offset + "/" + checkpoint.SequenceNumber +
                             " because store is at " + inStoreCheckpoint.Offset + "/" + inStoreCheckpoint.SequenceNumber;
-                    this.host.LogPartitionError(checkpoint.PartitionId, msg);
+                    ProcessorEventSource.Log.PartitionPumpError(this.host.Id, checkpoint.PartitionId, msg);
                     throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
                 }
             }
