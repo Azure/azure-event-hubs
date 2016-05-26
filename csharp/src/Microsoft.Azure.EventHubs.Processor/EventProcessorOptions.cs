@@ -76,13 +76,8 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <summary>
         /// Returns whether the EventProcessorHost will call IEventProcessor.OnEvents(null) when a receive
         /// timeout occurs (true) or not (false).
-        /// <para>This option is currently hardwired to false and cannot be changed.</para>
-        /// EPH uses CoreCLR's EventHubClient receive handler support to get callbacks when messages arrive, instead of
-        /// implementing its own receive loop. EventHubClient does not call the callback when a receive call
-        /// times out, so EPH cannot pass that timeout down to the user's onEvents handler. Unless EventHubClient's
-        /// behavior changes, this option must remain false because we cannot provide any other behavior.
         /// </summary>
-        public bool InvokeProcessorAfterReceiveTimeout { get; }
+        public bool InvokeProcessorAfterReceiveTimeout { get; set; }
 
         internal void NotifyOfException(string hostname, Exception exception, string action)
         {
