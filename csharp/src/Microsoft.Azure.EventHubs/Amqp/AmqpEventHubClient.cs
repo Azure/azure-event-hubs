@@ -128,7 +128,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             {
                 var timeoutHelper = new TimeoutHelper(this.ConnectionSettings.OperationTimeout);
                 string serviceClientAddress = //this.ConnectionSettings.Endpoint.IsIoTDeviceUri() ?
-                                              //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
+                    //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
                     AmqpClientConstants.ManagementAddress;
 
                 string entityType = AmqpClientConstants.ManagementEventHubEntityTypeValue;
