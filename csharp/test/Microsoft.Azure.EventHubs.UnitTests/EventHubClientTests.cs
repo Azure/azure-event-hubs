@@ -23,6 +23,7 @@
             await TestRunner.RunAsync(() => eventHubClientTests.SendBatchAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionSenderSendAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverReceiveAsync());
+            //await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverEpochReceiveAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverSetReceiveHandlerAsync());
             await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
         }
@@ -88,6 +89,59 @@
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
             }
         }
+        async Task PartitionReceiverEpochReceiveAsync()
+        {
+            Console.WriteLine($"{DateTime.Now.TimeOfDay} Testing EpochReceiver semantics");
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
+            var epochReceiver1 = this.EventHubClient.CreateEpochReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", PartitionReceiver.StartOfStream, 1);
+            var epochReceiver2 = this.EventHubClient.CreateEpochReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", PartitionReceiver.StartOfStream, 2);
+            try
+            {
+                // Read the events from Epoch 1 Receiver until we're at the end of the stream
+                IEnumerable<EventData> events;
+                do
+                {
+                    events = await epochReceiver1.ReceiveAsync();
+                    int count = events != null ? events.Count() : 0;
+                }
+                while (events != null);
+
+                Console.WriteLine($"{DateTime.Now.TimeOfDay} Start up epoch 2 receiver");
+                var epoch2ReceiveTask = epochReceiver2.ReceiveAsync();
+
+                DateTime stopTime = DateTime.UtcNow.AddSeconds(30);
+                do
+                {
+                    events = await epochReceiver1.ReceiveAsync();
+                    int count = events != null ? events.Count() : 0;
+                    Console.WriteLine($"{DateTime.Now.TimeOfDay} epoch 1 receiver got {count} event(s)");
+                }
+                while (DateTime.UtcNow < stopTime);
+
+                throw new InvalidOperationException("Epoch 1 receiver should have encountered an exception by now!");
+            }
+            catch(ReceiverDisconnectedException disconnectedException)
+            {
+                Console.WriteLine($"{DateTime.Now.TimeOfDay} Received expected exception {disconnectedException.GetType()}: {disconnectedException.Message}");
+
+                try
+                {
+                    await epochReceiver1.ReceiveAsync();
+                    throw new InvalidOperationException("Epoch 1 receiver should throw ReceiverDisconnectedException here too!");
+                }
+                catch (ReceiverDisconnectedException e)
+                {
+                    Console.WriteLine($"{DateTime.Now.TimeOfDay} Received expected exception {e.GetType()}");
+                }
+            }
+            finally
+            {
+                await epochReceiver1?.CloseAsync();
+                await epochReceiver2?.CloseAsync();
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+            }
+        }
 
         async Task PartitionReceiverSetReceiveHandlerAsync()
         {
@@ -135,7 +189,7 @@
                     throw new InvalidOperationException("Handle Closed Event was not signalled.");
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 await partitionReceiver1.CloseAsync();
                 throw;
@@ -151,7 +205,7 @@
             Console.WriteLine(DateTime.Now.TimeOfDay + " Getting  EventHubRuntimeInformation");
             var eventHubRuntimeInformation = await this.EventHubClient.GetRuntimeInformationAsync();
 
-            if (eventHubRuntimeInformation.PartitionIds == null || eventHubRuntimeInformation.PartitionIds.Length == 0)
+            if (eventHubRuntimeInformation == null || eventHubRuntimeInformation.PartitionIds == null || eventHubRuntimeInformation.PartitionIds.Length == 0)
             {
                 throw new InvalidOperationException("Failed to get partition ids!");
             }

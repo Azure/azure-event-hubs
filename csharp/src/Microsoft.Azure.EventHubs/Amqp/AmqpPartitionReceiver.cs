@@ -63,33 +63,45 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task<IList<EventData>> OnReceiveAsync()
         {
-            var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
-            ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
-            IEnumerable<AmqpMessage> amqpMessages = null;
-            bool hasMessages = await Task.Factory.FromAsync(
-                (c, s) => receiveLink.BeginReceiveMessages(this.PrefetchCount, timeoutHelper.RemainingTime(), c, s),
-                (a) => receiveLink.EndReceiveMessages(a, out amqpMessages),
-                this);
-
-            if (hasMessages && amqpMessages != null)
+            try
             {
-                IList<EventData> eventDatas = null;
-                foreach (var amqpMessage in amqpMessages)
-                {
-                    if (eventDatas == null)
-                    {
-                        eventDatas = new List<EventData>();
-                    }
+                var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
+                ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
+                IEnumerable<AmqpMessage> amqpMessages = null;
+                bool hasMessages = await Task.Factory.FromAsync(
+                    (c, s) => receiveLink.BeginReceiveMessages(this.PrefetchCount, timeoutHelper.RemainingTime(), c, s),
+                    (a) => receiveLink.EndReceiveMessages(a, out amqpMessages),
+                    this);
 
-                    receiveLink.DisposeDelivery(amqpMessage, true, AmqpConstants.AcceptedOutcome);
-                    eventDatas.Add(AmqpMessageConverter.AmqpMessageToEventData(amqpMessage));
+                if (receiveLink.TerminalException != null)
+                {
+                    throw receiveLink.TerminalException;
                 }
 
-                return eventDatas;
+                if (hasMessages && amqpMessages != null)
+                {
+                    IList<EventData> eventDatas = null;
+                    foreach (var amqpMessage in amqpMessages)
+                    {
+                        if (eventDatas == null)
+                        {
+                            eventDatas = new List<EventData>();
+                        }
+
+                        receiveLink.DisposeDelivery(amqpMessage, true, AmqpConstants.AcceptedOutcome);
+                        eventDatas.Add(AmqpMessageConverter.AmqpMessageToEventData(amqpMessage));
+                    }
+
+                    return eventDatas;
+                }
+                else
+                {
+                    return null;
+                }
             }
-            else
+            catch (AmqpException amqpException)
             {
-                return null;
+                throw AmqpExceptionHelper.ToMessagingContract(amqpException.Error);
             }
         }
 
@@ -134,6 +146,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             var expiresAt = await cbsLink.SendTokenAsync(cbsTokenProvider, address, audience, resource, new[] { ClaimConstants.Listen }, timeoutHelper.RemainingTime());
 
             AmqpSession session = null;
+            bool succeeded = false;
             try
             {
                 // Create our Session
@@ -172,14 +185,16 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 link.AttachTo(session);
 
                 await link.OpenAsync(timeoutHelper.RemainingTime());
+                succeeded = true;
                 return link;
             }
-            catch (Exception e)
+            finally
             {
-                Console.WriteLine(e);
-                // Cleanup any session (and thus link) in case of exception.
-                session?.Abort();
-                throw;
+                if (!succeeded)
+                {
+                    // Cleanup any session (and thus link) in case of exception.
+                    session?.Abort();
+                }
             }
         }
 
