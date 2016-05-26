@@ -69,7 +69,7 @@
             {
                 while (true)
                 {
-                    IEnumerable<EventData> partition1Events = await partitionReceiver1.ReceiveAsync();
+                    IEnumerable<EventData> partition1Events = await partitionReceiver1.ReceiveAsync(10);
                     if (partition1Events == null)
                     {
                         break;
@@ -102,18 +102,18 @@
                 IEnumerable<EventData> events;
                 do
                 {
-                    events = await epochReceiver1.ReceiveAsync();
+                    events = await epochReceiver1.ReceiveAsync(10);
                     int count = events != null ? events.Count() : 0;
                 }
                 while (events != null);
 
                 Console.WriteLine($"{DateTime.Now.TimeOfDay} Start up epoch 2 receiver");
-                var epoch2ReceiveTask = epochReceiver2.ReceiveAsync();
+                var epoch2ReceiveTask = epochReceiver2.ReceiveAsync(10);
 
                 DateTime stopTime = DateTime.UtcNow.AddSeconds(30);
                 do
                 {
-                    events = await epochReceiver1.ReceiveAsync();
+                    events = await epochReceiver1.ReceiveAsync(10);
                     int count = events != null ? events.Count() : 0;
                     Console.WriteLine($"{DateTime.Now.TimeOfDay} epoch 1 receiver got {count} event(s)");
                 }
@@ -127,7 +127,7 @@
 
                 try
                 {
-                    await epochReceiver1.ReceiveAsync();
+                    await epochReceiver1.ReceiveAsync(10);
                     throw new InvalidOperationException("Epoch 1 receiver should throw ReceiverDisconnectedException here too!");
                 }
                 catch (ReceiverDisconnectedException e)
@@ -224,6 +224,13 @@
             public event EventHandler<Exception> ErrorReceived;
 
             public event EventHandler<Exception> Closed;
+
+            public TestPartitionReceiveHandler()
+            {
+                this.MaxBatchSize = 10;
+            }
+
+            public int MaxBatchSize { get; set; }
 
             Task IPartitionReceiveHandler.CloseAsync(Exception error)
             {
