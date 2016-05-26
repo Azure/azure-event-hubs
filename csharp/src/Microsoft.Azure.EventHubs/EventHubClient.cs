@@ -354,6 +354,10 @@ namespace Microsoft.Azure.EventHubs
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
             }
+            else if (epoch < PartitionReceiver.NullEpoch)
+            {
+                throw Fx.Exception.ArgumentOutOfRange(nameof(epoch), epoch, "Epoch cannot be negative. Please specify a zero or positive long value.");
+            }
 
             return this.OnCreateReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, null, epoch);
         }
@@ -377,6 +381,10 @@ namespace Microsoft.Azure.EventHubs
             if (string.IsNullOrWhiteSpace(consumerGroupName) || string.IsNullOrWhiteSpace(partitionId))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(consumerGroupName) ? nameof(consumerGroupName) : nameof(partitionId));
+            }
+            else if (epoch < PartitionReceiver.NullEpoch)
+            {
+                throw Fx.Exception.ArgumentOutOfRange(nameof(epoch), epoch, "Epoch cannot be negative. Please specify a zero or positive long value.");
             }
 
             return this.OnCreateReceiver(consumerGroupName, partitionId, null, false, startTime, epoch);
