@@ -12,7 +12,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <summary>
         /// Returns an EventProcessorOptions instance with all options set to the default values.
         /// The default values are:
-        /// <para>MaxBatchSize: 10 -- not currently honored!</para>
+        /// <para>MaxBatchSize: 10</para>
         /// <para>ReceiveTimeOut: 1 minute</para>
         /// <para>PrefetchCount: 300</para>
         /// <para>InitialOffsetProvider: uses the last offset checkpointed, or StartOfStream</para>
@@ -48,11 +48,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         }
 
         /// <summary>
-        /// Returns the maximum size of an event batch that IEventProcessor.OnEvents will be called with
-        /// <para>Right now this option is hardwired to 10 and cannot be changed, but is not honored
-        /// either. The batches are whatever size the underlying client returns. </para>
+        /// Returns the maximum size of an event batch that IEventProcessor.ProcessEventsAsync will be called with
         /// </summary>
-        public int MaxBatchSize { get; }
+        public int MaxBatchSize { get; set; }
 
         /// <summary>
         /// Gets or sets the timeout length for receive operations.
