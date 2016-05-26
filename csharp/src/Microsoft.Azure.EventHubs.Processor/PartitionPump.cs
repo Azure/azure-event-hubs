@@ -48,16 +48,16 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     this.Processor = this.Host.ProcessorFactory.CreateEventProcessor(this.PartitionContext);
                     action = EventProcessorHostActionStrings.OpeningEventProcessor;
-                    ProcessorEventSource.Log.PartitionPumpOpenProcessorStart(this.Host.Id, this.PartitionContext.PartitionId, this.Processor.GetType().ToString());
+                    ProcessorEventSource.Log.PartitionPumpInvokeProcessorOpenStart(this.Host.Id, this.PartitionContext.PartitionId, this.Processor.GetType().ToString());
                     await this.Processor.OpenAsync(this.PartitionContext);
-                    ProcessorEventSource.Log.PartitionPumpOpenProcessorStop(this.Host.Id, this.PartitionContext.PartitionId);
+                    ProcessorEventSource.Log.PartitionPumpInvokeProcessorOpenStop(this.Host.Id, this.PartitionContext.PartitionId);
                 }
                 catch (Exception e)
                 {
                     // If the processor won't create or open, only thing we can do here is pass the buck.
                     // Null it out so we don't try to operate on it further.
                     this.Processor = null;
-                    this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Failed " + action, e);
+                    ProcessorEventSource.Log.PartitionPumpError(this.Host.Id, this.PartitionContext.PartitionId, "Failed " + action, e.ToString());
                     this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, action);
                     this.PumpStatus = PartitionPumpStatus.OpenFailed;
                 }
@@ -83,7 +83,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public async Task CloseAsync(CloseReason reason)
         {
-            ProcessorEventSource.Log.PartitionPumpCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString("g"));
+            ProcessorEventSource.Log.PartitionPumpCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString());
             this.PumpStatus = PartitionPumpStatus.Closing;
             try
             {
@@ -96,11 +96,11 @@ namespace Microsoft.Azure.EventHubs.Processor
                         // When we take the lock, any existing ProcessEventsAsync call has finished.
                         // Because the client has been closed, there will not be any more
                         // calls to onEvents in the future. Therefore we can safely call CloseAsync.
-                        ProcessorEventSource.Log.PartitionPumpCloseProcessorStart(this.Host.Id, this.PartitionContext.PartitionId);
+                        ProcessorEventSource.Log.PartitionPumpInvokeProcessorCloseStart(this.Host.Id, this.PartitionContext.PartitionId, reason.ToString());
                         await this.Processor.CloseAsync(this.PartitionContext, reason);
-                        ProcessorEventSource.Log.PartitionPumpCloseProcessorStop(this.Host.Id, this.PartitionContext.PartitionId);
+                        ProcessorEventSource.Log.PartitionPumpInvokeProcessorCloseStop(this.Host.Id, this.PartitionContext.PartitionId);
                     }
-                }                    
+                }
             }
             catch (Exception e)
             {
@@ -124,33 +124,40 @@ namespace Microsoft.Azure.EventHubs.Processor
                 return;
             }
 
-            try
+            // Synchronize to serialize calls to the processor.
+            // The handler is not installed until after OpenAsync returns, so ProcessEventsAsync cannot conflict with OpenAsync.
+            // There could be a conflict between ProcessEventsAsync and CloseAsync, however. All calls to CloseAsync are
+            // protected by synchronizing too.
+            using (await this.ProcessingAsyncLock.LockAsync())
             {
-                // Synchronize to serialize calls to the processor.
-                // The handler is not installed until after OpenAsync returns, so ProcessEventsAsync cannot conflict with OpenAsync.
-                // There could be a conflict between ProcessEventsAsync and CloseAsync, however. All calls to CloseAsync are
-                // protected by synchronizing too.
-                using (await this.ProcessingAsyncLock.LockAsync())
+                int eventCount = events != null ? events.Count() : 0;
+                ProcessorEventSource.Log.PartitionPumpInvokeProcessorEventsStart(this.Host.Id, this.PartitionContext.PartitionId, eventCount);
+                try
                 {
                     await this.Processor.ProcessEventsAsync(this.PartitionContext, events);
-
-                    EventData last = events.LastOrDefault();
-                    if (last != null)
-                    {
-                        this.Host.LogPartitionInfo(
-                            this.PartitionContext.PartitionId,
-                            "Updating offset in partition context with end of batch " + last.SystemProperties.Offset + "/" + last.SystemProperties.SequenceNumber);
-                        this.PartitionContext.SetOffsetAndSequenceNumber(last);
-                    }
                 }
-            }
-            catch (Exception e)
-            {
-                // TODO -- do we pass errors from IEventProcessor.onEvents to IEventProcessor.onError?
-                // Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
-                // a convenient way of centralizing error handling.
-                // In the meantime, just trace it.
-                this.Host.LogPartitionError(this.PartitionContext.PartitionId, "Got exception from ProcessEventsAsync", e);
+                catch (Exception e)
+                {
+                    // TODO -- do we pass errors from IEventProcessor.ProcessEventsAsync to IEventProcessor.ProcessErrorAsync?
+                    // Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
+                    // a convenient way of centralizing error handling.
+                    // For the meantime just trace it.
+                    ProcessorEventSource.Log.PartitionPumpInvokeProcessorEventsError(this.Host.Id, this.PartitionContext.PartitionId, e.ToString());
+                }
+                finally
+                {
+                    ProcessorEventSource.Log.PartitionPumpInvokeProcessorEventsStop(this.Host.Id, this.PartitionContext.PartitionId);
+                }
+
+                EventData last = events.LastOrDefault();
+                if (last != null)
+                {
+                    ProcessorEventSource.Log.PartitionPumpInfo(
+                        this.Host.Id,
+                        this.PartitionContext.PartitionId,
+                        "Updating offset in partition context with end of batch " + last.SystemProperties.Offset + "/" + last.SystemProperties.SequenceNumber);
+                    this.PartitionContext.SetOffsetAndSequenceNumber(last);
+                }
             }
         }
 

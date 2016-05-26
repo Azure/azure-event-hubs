@@ -4,6 +4,7 @@
 namespace Microsoft.Azure.EventHubs.Processor.UnitTests
 {
     using System;
+    using System.Threading.Tasks;
 
     public class Program
     {
@@ -14,6 +15,9 @@ namespace Microsoft.Azure.EventHubs.Processor.UnitTests
 
             Console.Write("Please enter a storage connection string:");
             string storageConnectionString = Console.ReadLine().Trim();
+
+            // Warmup the Task infrastructure for tracing correlation.
+            Task.Run(() => { }).Wait();
 
             TestRunner.RunAsync(() => EventProcessorHostTests.RunAsync(eventHubConnectionString, storageConnectionString)).Wait();
 

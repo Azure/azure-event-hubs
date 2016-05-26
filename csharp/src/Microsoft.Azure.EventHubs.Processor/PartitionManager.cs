@@ -165,7 +165,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     if (partitionId != null)
                     {
-                        this.host.LogPartitionWarning(partitionId, retryMessage, e);
+                        ProcessorEventSource.Log.PartitionPumpWarning(this.host.Id, partitionId, retryMessage, e.ToString());
                     }
                     else
                     {
@@ -180,7 +180,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 if (partitionId != null)
                 {
-                    this.host.LogPartitionError(partitionId, finalFailureMessage);
+                    ProcessorEventSource.Log.PartitionPumpError(this.host.Id, partitionId, finalFailureMessage);
                 }
                 else
                 {
@@ -211,7 +211,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         Lease possibleLease = await getLeastTask;
                         if (possibleLease.IsExpired())
                         {
-                            this.host.LogPartitionInfo(possibleLease.PartitionId, "Trying to acquire lease.");
+                            ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, possibleLease.PartitionId, "Trying to acquire lease.");
                             if (await leaseManager.AcquireLeaseAsync(possibleLease))
                             {
                                 allLeases.Add(possibleLease.PartitionId, possibleLease);
@@ -219,7 +219,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         }
                         else if (possibleLease.Owner == this.host.HostName)
                         {
-                            this.host.LogPartitionInfo(possibleLease.PartitionId, "Trying to renew lease.");
+                            ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, possibleLease.PartitionId, "Trying to renew lease.");
                             if (await leaseManager.RenewLeaseAsync(possibleLease))
                             {
                                 allLeases.Add(possibleLease.PartitionId, possibleLease);
@@ -249,10 +249,10 @@ namespace Microsoft.Azure.EventHubs.Processor
                         {
                             try
                             {
-                                this.host.LogPartitionInfo(stealee.PartitionId, "Trying to acquire/steal lease.");
+                                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, stealee.PartitionId, "Trying to acquire/steal lease.");
                                 if (await leaseManager.AcquireLeaseAsync(stealee))
                                 {
-                                    this.host.LogPartitionInfo(stealee.PartitionId, "Stole lease");
+                                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, stealee.PartitionId, "Stole lease");
                                     allLeases.Add(stealee.PartitionId, stealee);
                                     ourLeasesCount++;
                                 }
@@ -313,7 +313,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 else
                 {
                     // Pump is working, just replace the lease.
-                    this.host.LogPartitionInfo(partitionId, "updating lease for pump");
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, partitionId, "Updating lease for pump");
                     capturedPump.SetLease(lease);
                 }
             }
@@ -329,7 +329,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, lease);
             await newPartitionPump.OpenAsync();
             this.partitionPumps.TryAdd(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
-            this.host.LogPartitionInfo(partitionId, "Created new PartitionPump");
+            ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, partitionId, "Created new PartitionPump");
         }
 
         async Task RemovePumpAsync(string partitionId, CloseReason reason)
@@ -347,7 +347,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 // PartitionManager main loop tries to remove pump for every partition that the host does not own, just to be sure.
                 // Not finding a pump for a partition is normal and expected most of the time.
-                this.host.LogPartitionInfo(partitionId, "No pump found to remove for Partition " + partitionId);
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, partitionId, "No pump found to remove for this partition");
             }
         }
 

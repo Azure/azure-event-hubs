@@ -288,6 +288,8 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostCloseStart(this.Id);    	
             try
             {
+                // Get off the calling thread.
+                await Task.Yield();
                 await this.PartitionManager.StopAsync();
 		    }
             catch (Exception e) // when (e is InterruptedException || e is ExecutionException)
@@ -311,29 +313,14 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostInfo(this.Id, details);
         }
 
-        internal void LogPartitionInfo(string partitionId, string details)
-        {
-            LogInfo($"Partition {partitionId}: {details}");
-        }
-
         internal void LogWarning(string details, Exception error = null)
         {
             ProcessorEventSource.Log.EventProcessorHostWarning(this.Id, details, error?.ToString());
         }
 
-        internal void LogPartitionWarning(string partitionId, string details, Exception error = null)
-        {
-            LogWarning($"Partition {partitionId}: {details}", error);
-        }
-
         internal void LogError(string details, Exception error = null)
         {
             ProcessorEventSource.Log.EventProcessorHostError(this.Id, details, error?.ToString());
-        }
-
-        internal void LogPartitionError(string partitionId, string details, Exception error = null)
-        {
-            LogError($"Partition {partitionId}: {details}", error);
         }
     }
 }

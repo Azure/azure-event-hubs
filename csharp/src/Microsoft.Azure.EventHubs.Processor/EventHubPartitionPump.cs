@@ -37,13 +37,15 @@ namespace Microsoft.Azure.EventHubs.Processor
 	        	    {
                         // TODO Assuming this is due to a receiver with a higher epoch.
                         // Is there a way to be sure without checking the exception text?
-                        this.Host.LogPartitionWarning(this.PartitionContext.PartitionId, "Receiver disconnected on create, bad epoch?", e);
+                        ProcessorEventSource.Log.PartitionPumpWarning(
+                            this.Host.Id, this.PartitionContext.PartitionId, "Receiver disconnected on create, bad epoch?", e.ToString());
                         // If it's a bad epoch, then retrying isn't going to help.
                         break;
                     }
 	        	    else
 	        	    {
-                        this.Host.LogPartitionWarning(this.PartitionContext.PartitionId, "Failure creating client or receiver, retrying", e);
+                        ProcessorEventSource.Log.PartitionPumpWarning(
+                            this.Host.Id, this.PartitionContext.PartitionId, "Failure creating client or receiver, retrying", e.ToString());
                         retryCount++;
                     }
                 }
@@ -104,14 +106,14 @@ namespace Microsoft.Azure.EventHubs.Processor
                     this.partitionReceiver.SetReceiveHandler(null);
                 }
 
-                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing PartitionReceiver");
+                ProcessorEventSource.Log.PartitionPumpInfo(this.Host.Id, this.PartitionContext.PartitionId, "Closing PartitionReceiver");
                 await this.partitionReceiver.CloseAsync();
                 this.partitionReceiver = null;
             }
 
             if (this.eventHubClient != null)
             {
-                this.Host.LogPartitionInfo(this.PartitionContext.PartitionId, "Closing EventHubClient");
+                ProcessorEventSource.Log.PartitionPumpInfo(this.Host.Id, this.PartitionContext.PartitionId, "Closing EventHubClient");
                 await this.eventHubClient.CloseAsync();
                 this.eventHubClient = null;
             }
@@ -160,14 +162,14 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 if (error is ReceiverDisconnectedException)
 			    {
-                    this.eventHubPartitionPump.Host.LogPartitionWarning(
-                        this.eventHubPartitionPump.PartitionContext.PartitionId,
+                    ProcessorEventSource.Log.PartitionPumpWarning(
+                        this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId,
                         "EventHub client disconnected, probably another host took the partition");
                 }
 			    else
 			    {
-                    this.eventHubPartitionPump.Host.LogPartitionError(
-                        this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client error: ", error);
+                    ProcessorEventSource.Log.PartitionPumpError(
+                        this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client error:", error.ToString());
                     await this.eventHubPartitionPump.ProcessErrorAsync(error);
                 }
 
@@ -178,11 +180,11 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 if (error == null)
                 {
-                    this.eventHubPartitionPump.Host.LogPartitionInfo(this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed");
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed");
                 }
                 else
                 {
-                    this.eventHubPartitionPump.Host.LogPartitionError(this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed", error);
+                    ProcessorEventSource.Log.PartitionPumpError(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed", error.ToString());
                 }
 
                 this.eventHubPartitionPump.PumpStatus = PartitionPumpStatus.Errored;
