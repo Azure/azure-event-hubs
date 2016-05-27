@@ -48,7 +48,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                 }
 
-                this.host.LogInfo("PartitionCount: " + this.partitionIds.Count);
+                ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, $"PartitionCount: {this.partitionIds.Count}");
             }
 
             return this.partitionIds;
@@ -95,19 +95,19 @@ namespace Microsoft.Azure.EventHubs.Processor
             }
             catch (Exception e)
             {
-                this.host.LogError("Exception from partition manager main loop, shutting down", e);
+                ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Exception from partition manager main loop, shutting down", e.ToString());
                 this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerMainLoop);
             }
 
             try
             {
                 // Cleanup
-                this.host.LogInfo("Shutting down all pumps");
+                ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, "Shutting down all pumps");
                 await this.RemoveAllPumpsAsync(CloseReason.Shutdown);
             }
             catch (Exception e)
 	    	{
-                this.host.LogError("Failure during shutdown", e);
+                ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Failure during shutdown", e.ToString());
                 this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerCleanup);
             }
         }
@@ -169,7 +169,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                     else
                     {
-                        this.host.LogWarning(retryMessage, e);
+                        ProcessorEventSource.Log.EventProcessorHostWarning(this.host.Id, retryMessage, e.ToString());
                     }
                     retryCount++;
                 }
@@ -184,7 +184,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 }
                 else
                 {
-                    this.host.LogError(finalFailureMessage, null);
+                    ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, finalFailureMessage, null);
                 }
 
                 throw new EventProcessorRuntimeException(finalFailureMessage, action);
@@ -243,7 +243,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                     catch (Exception e)
                     {
-                        this.host.LogWarning("Failure getting/acquiring/renewing lease, skipping", e);
+                        ProcessorEventSource.Log.EventProcessorHostWarning(this.host.Id, "Failure getting/acquiring/renewing lease, skipping", e.ToString());
                         this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.CheckingLeases);
                     }
                 }
@@ -267,12 +267,12 @@ namespace Microsoft.Azure.EventHubs.Processor
                                 }
                                 else
                                 {
-                                    this.host.LogWarning("Failed to steal lease for partition " + stealee.PartitionId, null);
+                                    ProcessorEventSource.Log.EventProcessorHostWarning(this.host.Id, "Failed to steal lease for partition " + stealee.PartitionId, null);
                                 }
                             }
                             catch (Exception e)
                             {
-                                this.host.LogError("Exception stealing lease for partition " + stealee.PartitionId, e);
+                                ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Exception stealing lease for partition " + stealee.PartitionId, e.ToString());
                                 this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.StealingLease);
                             }
                         }
@@ -283,7 +283,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 foreach (string partitionId in allLeases.Keys)
                 {
                     Lease updatedLease = allLeases[partitionId];
-                    this.host.LogInfo("Lease on partition " + updatedLease.PartitionId + " owned by " + updatedLease.Owner); // DEBUG
+                    ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, $"Lease on partition {updatedLease.PartitionId} owned by {updatedLease.Owner}");
                     if (updatedLease.Owner == this.host.HostName)
                     {
                         await this.AddPumpAsync(partitionId, updatedLease);
@@ -406,7 +406,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     if (l.Owner == biggestOwner)
                     {
                         stealTheseLeases.Add(l);
-                        this.host.LogInfo("Proposed to steal lease for partition " + l.PartitionId + " from " + biggestOwner);
+                        ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, $"Proposed to steal lease for partition {l.PartitionId} from {biggestOwner}");
                         break;
                     }
                 }
@@ -447,10 +447,10 @@ namespace Microsoft.Azure.EventHubs.Processor
 
             foreach (string owner in counts.Keys)
             {
-                this.host.LogInfo($"Host {owner} owns {counts[owner]} leases");
+                ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, $"Host {owner} owns {counts[owner]} leases");
             }
 
-            this.host.LogInfo($"Total hosts in list: {counts.Count}");
+            ProcessorEventSource.Log.EventProcessorHostInfo(this.host.Id, $"Total hosts in list: {counts.Count}");
             return counts;
         }
     }
