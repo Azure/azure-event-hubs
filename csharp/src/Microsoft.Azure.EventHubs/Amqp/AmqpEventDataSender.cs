@@ -49,6 +49,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                     ulong size = (ulong)amqpMessage.SerializedMessageSize;
                     if (size > amqpLink.Settings.MaxMessageSize.Value)
                     {
+                        // TODO: Add MessageSizeExceededException
                         throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
                         //throw Fx.Exception.AsError(new MessageSizeExceededException(
                         //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));

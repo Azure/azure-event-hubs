@@ -12,7 +12,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     using WindowsAzure.Storage.Blob;
     using WindowsAzure.Storage.Blob.Protocol;
 
-    class AzureStorageCheckpointLeaseManager : ICheckpointManager, ILeaseManager
+    sealed class AzureStorageCheckpointLeaseManager : ICheckpointManager, ILeaseManager
     {
         EventProcessorHost host;
         readonly string storageConnectionString;
@@ -29,11 +29,21 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         internal AzureStorageCheckpointLeaseManager(string storageConnectionString)
         {
+            if (string.IsNullOrEmpty(storageConnectionString))
+            {
+                throw new ArgumentNullException(nameof(storageConnectionString));
+            }
+
             this.storageConnectionString = storageConnectionString;
         }
 
         internal AzureStorageCheckpointLeaseManager(string storageConnectionString, string storageContainerName)
         {
+            if (string.IsNullOrEmpty(storageConnectionString))
+            {
+                throw new ArgumentNullException(nameof(storageConnectionString));
+            }
+
             this.storageConnectionString = storageConnectionString;
             this.storageContainerName = storageContainerName;
         }

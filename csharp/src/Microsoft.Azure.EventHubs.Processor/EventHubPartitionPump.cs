@@ -191,7 +191,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                         this.eventHubPartitionPump.Host.Id,
                         this.eventHubPartitionPump.PartitionContext.PartitionId,
                         "PartitionReceiveHandler closed",
-                        error.GetType().Name + ": " + error.Message);
+                        $"{error.GetType().Name}: {error.Message}");
                 }
                 else
                 {

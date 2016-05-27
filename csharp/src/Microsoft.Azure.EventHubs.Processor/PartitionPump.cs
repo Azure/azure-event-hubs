@@ -56,8 +56,8 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     // If the processor won't create or open, only thing we can do here is pass the buck.
                     // Null it out so we don't try to operate on it further.
-                    this.Processor = null;
                     ProcessorEventSource.Log.PartitionPumpError(this.Host.Id, this.PartitionContext.PartitionId, "Failed " + action, e.ToString());
+                    this.Processor = null;
                     this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, action);
                     this.PumpStatus = PartitionPumpStatus.OpenFailed;
                 }

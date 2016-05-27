@@ -150,7 +150,22 @@ namespace Microsoft.Azure.EventHubs.Processor
              string consumerGroupName,
              ICheckpointManager checkpointManager,
              ILeaseManager leaseManager)
-        {   	
+        {
+            if (string.IsNullOrEmpty(hostName) || string.IsNullOrEmpty(namespaceName) || string.IsNullOrEmpty(eventHubPath))
+            {
+                throw new ArgumentNullException(
+                    string.IsNullOrEmpty(hostName) ? nameof(hostName) : string.IsNullOrEmpty(namespaceName) ? nameof(namespaceName) : nameof(eventHubPath));
+            }
+            else if (string.IsNullOrEmpty(sharedAccessKeyName) || string.IsNullOrEmpty(sharedAccessKey) || string.IsNullOrEmpty(consumerGroupName))
+            {
+                throw new ArgumentNullException(
+                    string.IsNullOrEmpty(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : string.IsNullOrEmpty(sharedAccessKey) ? nameof(sharedAccessKey) : nameof(consumerGroupName));
+            }
+            else if (checkpointManager == null || leaseManager == null)
+            {
+                throw new ArgumentNullException(checkpointManager == null ? nameof(checkpointManager) : nameof(leaseManager));
+            }
+
             this.HostName = hostName;
             this.namespaceName = namespaceName;
             this.EventHubPath = eventHubPath;
@@ -288,11 +303,11 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostCloseStart(this.Id);    	
             try
             {
-                // Get off the calling thread.
+                // Get off the calling thread as a temporary workaround for PartitionReceiver.SetReceiveHandler(null) blocking for a while.
                 await Task.Yield();
                 await this.PartitionManager.StopAsync();
 		    }
-            catch (Exception e) // when (e is InterruptedException || e is ExecutionException)
+            catch (Exception e)
             {
                 // Log the failure but nothing really to do about it.
                 ProcessorEventSource.Log.EventProcessorHostCloseError(this.Id, e.ToString());
@@ -302,25 +317,6 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 ProcessorEventSource.Log.EventProcessorHostCloseStop(this.Id);
             }
-        }
-
-        //
-        // Centralized logging.
-        //
-
-        internal void LogInfo(string details)
-        {
-            ProcessorEventSource.Log.EventProcessorHostInfo(this.Id, details);
-        }
-
-        internal void LogWarning(string details, Exception error = null)
-        {
-            ProcessorEventSource.Log.EventProcessorHostWarning(this.Id, details, error?.ToString());
-        }
-
-        internal void LogError(string details, Exception error = null)
-        {
-            ProcessorEventSource.Log.EventProcessorHostError(this.Id, details, error?.ToString());
         }
     }
 }
