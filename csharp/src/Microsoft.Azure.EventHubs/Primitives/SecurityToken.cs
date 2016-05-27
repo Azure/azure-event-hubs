@@ -29,14 +29,9 @@ namespace Microsoft.Azure.EventHubs
 
         public SecurityToken(string tokenString, DateTime expiresAtUtc, string audience)
         {
-            if (tokenString == null)
+            if (tokenString == null || audience == null)
             {
-                throw Fx.Exception.ArgumentNull(nameof(tokenString));
-            }
-
-            if (audience == null)
-            {
-                throw Fx.Exception.ArgumentNull(nameof(audience));
+                throw Fx.Exception.ArgumentNull(tokenString == null ? nameof(tokenString) : nameof(audience));
             }
 
             this.token = tokenString;

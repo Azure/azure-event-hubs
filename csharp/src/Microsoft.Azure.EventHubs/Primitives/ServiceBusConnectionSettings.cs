@@ -32,7 +32,8 @@ namespace Microsoft.Azure.EventHubs
     public class ServiceBusConnectionSettings
     {
         static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(1);
-        static readonly string EndpointFormat = "amqps://{0}.servicebus.windows.net";
+        static readonly string EndpointScheme = "amqps";
+        static readonly string EndpointFormat = EndpointScheme + "://{0}.servicebus.windows.net";
         static readonly string EndpointConfigName = "Endpoint";
         static readonly string SharedAccessKeyNameConfigName = "SharedAccessKeyName";
         static readonly string SharedAccessKeyConfigName = "SharedAccessKey";
@@ -69,7 +70,16 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(string.IsNullOrWhiteSpace(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : nameof(sharedAccessKey));
             }
             
-            this.Endpoint = new Uri(EndpointFormat.FormatInvariant(namespaceName));
+            if (namespaceName.Contains("."))
+            {
+                // It appears to be a fully qualified host name, use it.
+                this.Endpoint = new Uri(EndpointScheme + "://" + namespaceName);
+            }
+            else
+            {
+                this.Endpoint = new Uri(EndpointFormat.FormatInvariant(namespaceName));
+            }
+
             this.EntityPath = entityPath;
             this.SasKey = sharedAccessKey;
             this.SasKeyName = sharedAccessKeyName;
