@@ -6,28 +6,24 @@
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using Xunit;
 
     public class EventHubClientTests
     {
-        public EventHubClientTests(string connectionString)
+        public EventHubClientTests()
         {
+            string connectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("EVENTHUBCONNECTIONSTRING environment variable was not found!");
+            }
+
             this.EventHubClient = EventHubClient.Create(connectionString);
         }
 
         EventHubClient EventHubClient { get; }
 
-        public static async Task RunAsync(string connectionString)
-        {
-            var eventHubClientTests = new EventHubClientTests(connectionString);
-            await TestRunner.RunAsync(() => eventHubClientTests.SendAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.SendBatchAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.PartitionSenderSendAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverReceiveAsync());
-            //await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverEpochReceiveAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.PartitionReceiverSetReceiveHandlerAsync());
-            await TestRunner.RunAsync(() => eventHubClientTests.GetEventHubRuntimeInformationAsync());
-        }
-
+        [Fact]
         async Task SendAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Sending single Event via EventHubClient.SendAsync(EventData, string)");
@@ -35,6 +31,7 @@
             await this.EventHubClient.SendAsync(eventData, "SomePartitionKeyHere");
         }
 
+        [Fact]
         async Task SendBatchAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Sending multiple Events via EventHubClient.SendAsync(IEnumerable<EventData>)");
@@ -44,6 +41,7 @@
             await this.EventHubClient.SendAsync(new[] { eventData1, eventData2 });
         }
 
+        [Fact]
         async Task PartitionSenderSendAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Sending single Event via PartitionSender.SendAsync(EventData)");
@@ -59,6 +57,7 @@
             }
         }
 
+        [Fact]
         async Task PartitionReceiverReceiveAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.ReceiveAsync");
@@ -89,6 +88,8 @@
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
             }
         }
+
+        //[Fact]
         async Task PartitionReceiverEpochReceiveAsync()
         {
             Console.WriteLine($"{DateTime.Now.TimeOfDay} Testing EpochReceiver semantics");
@@ -143,6 +144,7 @@
             }
         }
 
+        [Fact]
         async Task PartitionReceiverSetReceiveHandlerAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.SetReceiveHandler()");
@@ -200,6 +202,7 @@
             }
         }
 
+        [Fact]
         async Task GetEventHubRuntimeInformationAsync()
         {
             Console.WriteLine(DateTime.Now.TimeOfDay + " Getting  EventHubRuntimeInformation");
