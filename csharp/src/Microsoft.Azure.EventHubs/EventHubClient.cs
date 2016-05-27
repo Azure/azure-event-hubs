@@ -157,11 +157,7 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender.SendAsync(EventData)"/>
         public Task SendAsync(IEnumerable<EventData> eventDatas)
         {
-            if (eventDatas == null)
-            {
-                throw Fx.Exception.ArgumentNull(nameof(eventDatas));
-            }
-
+            // eventDatas null is check inside the following call:
             return this.SendAsync(eventDatas, null);
         }
 
@@ -211,11 +207,7 @@ namespace Microsoft.Azure.EventHubs
         /// <see cref="PartitionSender.SendAsync(EventData)"/>
         public async Task SendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
-            if (eventDatas == null)
-            {
-                throw Fx.Exception.ArgumentNull(nameof(eventDatas));
-            }
-
+            // eventDatas null check is inside ValidateEvents
             int count = EventDataSender.ValidateEvents(eventDatas, null, partitionKey);
             EventHubsEventSource.Log.EventSendStart(this.ClientId, count, partitionKey);
             try
@@ -231,7 +223,6 @@ namespace Microsoft.Azure.EventHubs
             {
                 EventHubsEventSource.Log.EventSendStop(this.ClientId);
             }
-
         }
 
         /// <summary>
@@ -247,9 +238,9 @@ namespace Microsoft.Azure.EventHubs
         /// <seealso cref="PartitionSender"/>
         public PartitionSender CreatePartitionSender(string partitionId)
         {
-            if (string.IsNullOrEmpty(partitionId))
+            if (string.IsNullOrWhiteSpace(partitionId))
             {
-                throw Fx.Exception.ArgumentNull(nameof(partitionId));
+                throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(partitionId));
             }
 
             return new PartitionSender(this, partitionId);
