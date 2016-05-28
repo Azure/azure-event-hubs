@@ -2,13 +2,28 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading.Tasks;
+    using Xunit;
+    using Xunit.Abstractions;
 
     public class EventProcessorHostTests
     {
-        public EventProcessorHostTests(string eventHubConnectionString, string storageConnectionString)
+        public EventProcessorHostTests()
         {
+            string eventHubConnectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
+            if (string.IsNullOrWhiteSpace(eventHubConnectionString))
+            {
+                throw new InvalidOperationException("EVENTHUBCONNECTIONSTRING environment variable was not found!");
+            }
+
+            string storageConnectionString = Environment.GetEnvironmentVariable("EVENTPROCESSORSTORAGECONNECTIONSTRING");
+            if (string.IsNullOrWhiteSpace(eventHubConnectionString))
+            {
+                throw new InvalidOperationException("EVENTPROCESSORSTORAGECONNECTIONSTRING environment variable was not found!");
+            }
+
             this.ConnectionSettings = new ServiceBusConnectionSettings(eventHubConnectionString);
             this.StorageConnectionString = storageConnectionString;
         }
@@ -17,16 +32,10 @@
 
         string StorageConnectionString { get; }
 
-        public static async Task RunAsync(string connectionString, string storageConnectionString)
-        {
-            var eventProcessorHostTests = new EventProcessorHostTests(connectionString, storageConnectionString);
-            await TestRunner.RunAsync(() => eventProcessorHostTests.RegisterAsync());
-            //await TestRunner.RunAsync(() => eventProcessorHostTests.RegisterTwoProcessorHostsAsync());            
-        }
-
+        [Fact]
         async Task RegisterAsync()
         {
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Testing EventProcessorHost");
+            WriteLine($"{DateTime.Now.TimeOfDay} Testing EventProcessorHost");
             var eventProcessorHost = new EventProcessorHost(
                 this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
@@ -35,36 +44,37 @@
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.StorageConnectionString);
 
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Calling RegisterEventProcessorAsync");
+            WriteLine($"{DateTime.Now.TimeOfDay} Calling RegisterEventProcessorAsync");
             var processorOptions = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(30) };
             var processorFactory = new TestEventProcessorFactory();
             processorFactory.OnCreateProcessor += (f, createArgs) =>
             {
                 var processor = createArgs.Item2;
-                processor.OnOpen += (_, partitionContext) => Console.WriteLine($"{DateTime.Now.TimeOfDay} {partitionContext} TestEventProcessor opened");
-                processor.OnClose += (_, closeArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} {closeArgs.Item1} TestEventProcessor closing");
-                processor.OnProcessError += (_, errorArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} {errorArgs.Item1} TestEventProcessor process error {errorArgs.Item2.Message}");
-                processor.OnProcessEvents += (_, eventsArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} {eventsArgs.Item1} TestEventProcessor process events {eventsArgs.Item2?.Count()}");
+                processor.OnOpen += (_, partitionContext) => WriteLine($"{DateTime.Now.TimeOfDay} {partitionContext} TestEventProcessor opened");
+                processor.OnClose += (_, closeArgs) => WriteLine($"{DateTime.Now.TimeOfDay} {closeArgs.Item1} TestEventProcessor closing");
+                processor.OnProcessError += (_, errorArgs) => WriteLine($"{DateTime.Now.TimeOfDay} {errorArgs.Item1} TestEventProcessor process error {errorArgs.Item2.Message}");
+                processor.OnProcessEvents += (_, eventsArgs) => WriteLine($"{DateTime.Now.TimeOfDay} {eventsArgs.Item1} TestEventProcessor process events {eventsArgs.Item2?.Count()}");
             };
 
             await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, processorOptions);
 
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Waiting for events...");
+            WriteLine($"{DateTime.Now.TimeOfDay} Waiting for events...");
             await Task.Delay(TimeSpan.FromSeconds(20));
 
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Calling UnregisterEventProcessorAsync");
+            WriteLine($"{DateTime.Now.TimeOfDay} Calling UnregisterEventProcessorAsync");
             await eventProcessorHost.UnregisterEventProcessorAsync();
         }
 
+        [Fact]
         async Task RegisterTwoProcessorHostsAsync()
         {
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Testing with 2 EventProcessorHost instances");
+            WriteLine($"{DateTime.Now.TimeOfDay} Testing with 2 EventProcessorHost instances");
             int hostCount = 2;
             var hosts = new List<EventProcessorHost>();
             for (int i = 0; i < hostCount; i++)
             {
                 int index = i;
-                Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} Creating EventProcessorHost");
+                WriteLine($"{DateTime.Now.TimeOfDay} Host{index} Creating EventProcessorHost");
                 var eventProcessorHost = new EventProcessorHost(
                     this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                     this.ConnectionSettings.EntityPath,
@@ -73,32 +83,39 @@
                     PartitionReceiver.DefaultConsumerGroupName,
                     this.StorageConnectionString);
                 hosts.Add(eventProcessorHost);
-                Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} Calling RegisterEventProcessorAsync");
+                WriteLine($"{DateTime.Now.TimeOfDay} Host{index} Calling RegisterEventProcessorAsync");
                 var processorOptions = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(30) };
                 var processorFactory = new TestEventProcessorFactory();
                 processorFactory.OnCreateProcessor += (f, createArgs) =>
                 {
                     var processor = createArgs.Item2;
-                    processor.OnOpen += (_, partitionContext) => Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {partitionContext} TestEventProcessor opened");
-                    processor.OnClose += (_, closeArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {closeArgs.Item1} TestEventProcessor closing");
-                    processor.OnProcessError += (_, errorArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {errorArgs.Item1} TestEventProcessor process error {errorArgs.Item2.Message}");
-                    processor.OnProcessEvents += (_, eventsArgs) => Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {eventsArgs.Item1} TestEventProcessor process events {eventsArgs.Item2?.Count()}");
+                    processor.OnOpen += (_, partitionContext) => WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {partitionContext} TestEventProcessor opened");
+                    processor.OnClose += (_, closeArgs) => WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {closeArgs.Item1} TestEventProcessor closing");
+                    processor.OnProcessError += (_, errorArgs) => WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {errorArgs.Item1} TestEventProcessor process error {errorArgs.Item2.Message}");
+                    processor.OnProcessEvents += (_, eventsArgs) => WriteLine($"{DateTime.Now.TimeOfDay} Host{index} {eventsArgs.Item1} TestEventProcessor process events {eventsArgs.Item2?.Count()}");
                 };
 
                 await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, processorOptions);
             }
 
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Waiting for events...");
+            WriteLine($"{DateTime.Now.TimeOfDay} Waiting for events...");
             await Task.Delay(TimeSpan.FromSeconds(60));
 
             var shutdownTasks = new List<Task>();
             for (int i = 0; i < hostCount; i++)
             {
-                Console.WriteLine($"{DateTime.Now.TimeOfDay} Host{i} Calling UnregisterEventProcessorAsync.");
+                WriteLine($"{DateTime.Now.TimeOfDay} Host{i} Calling UnregisterEventProcessorAsync.");
                 shutdownTasks.Add(hosts[i].UnregisterEventProcessorAsync());
             }
 
             await Task.WhenAll(shutdownTasks);
+        }
+
+        static void WriteLine(string message)
+        {
+            // Currently xunit2 for .net core doesn't seem to have any output mechanism.  If we find one, replace these here:
+            Debug.WriteLine(message);
+            Console.WriteLine(message);
         }
 
         class TestEventProcessor : IEventProcessor
@@ -145,7 +162,7 @@
 
         class TestEventProcessorFactory : IEventProcessorFactory
         {
-            public event EventHandler<Tuple<PartitionContext,TestEventProcessor>> OnCreateProcessor;
+            public event EventHandler<Tuple<PartitionContext, TestEventProcessor>> OnCreateProcessor;
 
             IEventProcessor IEventProcessorFactory.CreateEventProcessor(PartitionContext context)
             {

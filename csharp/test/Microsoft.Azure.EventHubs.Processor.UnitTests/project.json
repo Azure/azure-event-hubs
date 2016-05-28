@@ -1,16 +1,24 @@
 ﻿{
   "version": "1.0.0-*",
-  "buildOptions": {
-    "emitEntryPoint": true
-  },
-
+  "testRunner": "xunit",
   "dependencies": {
+    "xunit": "2.1.0",
+    "Microsoft.Azure.EventHubs.Processor": "1.0.0-*",
     "Microsoft.Azure.EventHubs": "1.0.0-*",
-    "Microsoft.Azure.EventHubs.Processor": "1.0.0-*"
+    "dotnet-test-xunit": "1.0.0-rc2-build10025"
   },
-
   "frameworks": {
-    "net46": {
+    "netcoreapp1.0": {
+      "dependencies": {
+        "Microsoft.NETCore.App": {
+          "type": "platform",
+          "version": "1.0.0-rc2-3002702"
+        }
+      },
+      "imports": [
+        "dnxcore50",
+        "portable-net45+win8"
+      ]
     }
   }
 }
