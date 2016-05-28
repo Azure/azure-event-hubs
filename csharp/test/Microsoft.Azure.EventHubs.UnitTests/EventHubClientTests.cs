@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Text;
     using System.Threading;
@@ -26,7 +27,7 @@
         [Fact]
         async Task SendAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Sending single Event via EventHubClient.SendAsync(EventData, string)");
+            WriteLine("Sending single Event via EventHubClient.SendAsync(EventData, string)");
             var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub by partitionKey!"));
             await this.EventHubClient.SendAsync(eventData, "SomePartitionKeyHere");
         }
@@ -34,7 +35,7 @@
         [Fact]
         async Task SendBatchAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Sending multiple Events via EventHubClient.SendAsync(IEnumerable<EventData>)");
+            WriteLine("Sending multiple Events via EventHubClient.SendAsync(IEnumerable<EventData>)");
             var eventData1 = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
             var eventData2 = new EventData(Encoding.UTF8.GetBytes("This is another message in the batch!"));
             eventData2.Properties = new Dictionary<string, object> { ["ContosoEventType"] = "some value here" };
@@ -44,7 +45,7 @@
         [Fact]
         async Task PartitionSenderSendAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Sending single Event via PartitionSender.SendAsync(EventData)");
+            WriteLine("Sending single Event via PartitionSender.SendAsync(EventData)");
             PartitionSender partitionSender1 = this.EventHubClient.CreatePartitionSender("1");
             try
             {
@@ -60,7 +61,7 @@
         [Fact]
         async Task PartitionReceiverReceiveAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.ReceiveAsync");
+            WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
@@ -74,11 +75,11 @@
                         break;
                     }
 
-                    Console.WriteLine($"Receive a batch of {partition1Events.Count()} events:");
+                    WriteLine($"Receive a batch of {partition1Events.Count()} events:");
                     foreach (var eventData in partition1Events)
                     {
                         ArraySegment<byte> body = eventData.Body;
-                        Console.WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
+                        WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
                     }
                 }
             }
@@ -92,7 +93,7 @@
         //[Fact]
         async Task PartitionReceiverEpochReceiveAsync()
         {
-            Console.WriteLine($"{DateTime.Now.TimeOfDay} Testing EpochReceiver semantics");
+            WriteLine("Testing EpochReceiver semantics");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             var epochReceiver1 = this.EventHubClient.CreateEpochReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", PartitionReceiver.StartOfStream, 1);
@@ -108,7 +109,7 @@
                 }
                 while (events != null);
 
-                Console.WriteLine($"{DateTime.Now.TimeOfDay} Start up epoch 2 receiver");
+                WriteLine("Start up epoch 2 receiver");
                 var epoch2ReceiveTask = epochReceiver2.ReceiveAsync(10);
 
                 DateTime stopTime = DateTime.UtcNow.AddSeconds(30);
@@ -116,7 +117,7 @@
                 {
                     events = await epochReceiver1.ReceiveAsync(10);
                     int count = events != null ? events.Count() : 0;
-                    Console.WriteLine($"{DateTime.Now.TimeOfDay} epoch 1 receiver got {count} event(s)");
+                    WriteLine($"Epoch 1 receiver got {count} event(s)");
                 }
                 while (DateTime.UtcNow < stopTime);
 
@@ -124,7 +125,7 @@
             }
             catch(ReceiverDisconnectedException disconnectedException)
             {
-                Console.WriteLine($"{DateTime.Now.TimeOfDay} Received expected exception {disconnectedException.GetType()}: {disconnectedException.Message}");
+                WriteLine($"Received expected exception {disconnectedException.GetType()}: {disconnectedException.Message}");
 
                 try
                 {
@@ -133,7 +134,7 @@
                 }
                 catch (ReceiverDisconnectedException e)
                 {
-                    Console.WriteLine($"{DateTime.Now.TimeOfDay} Received expected exception {e.GetType()}");
+                    WriteLine($"Received expected exception {e.GetType()}");
                 }
             }
             finally
@@ -147,7 +148,7 @@
         [Fact]
         async Task PartitionReceiverSetReceiveHandlerAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Receiving Events via PartitionReceiver.SetReceiveHandler()");
+            WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
@@ -157,13 +158,14 @@
                 var handler = new TestPartitionReceiveHandler();
                 handler.EventsReceived += (s, e) =>
                 {
-                    Console.WriteLine("Receive a batch of {0} events:", e != null ? e.Count() : 0);
+                    int count = e != null ? e.Count() : 0;
+                    WriteLine($"Receive a batch of {count} events:");
                     if (e != null)
                     {
                         foreach (var eventData in e)
                         {
                             ArraySegment<byte> body = eventData.Body;
-                            Console.WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
+                            WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
                         }
                     }
 
@@ -173,7 +175,7 @@
                 EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
                 handler.Closed += (s, error) =>
                 {
-                    Console.WriteLine($"IPartitionReceiveHandler.CloseAsync called.");
+                    WriteLine($"IPartitionReceiveHandler.CloseAsync called.");
                     handlerClosedEvent.Set();
                 };
 
@@ -184,7 +186,7 @@
                     throw new InvalidOperationException("Data Received Event was not signalled.");
                 }
 
-                Console.WriteLine("Closing PartitionReceiver");
+                WriteLine("Closing PartitionReceiver");
                 await partitionReceiver1.CloseAsync();
                 if (!handlerClosedEvent.WaitOne(TimeSpan.FromSeconds(20)))
                 {
@@ -205,7 +207,7 @@
         [Fact]
         async Task GetEventHubRuntimeInformationAsync()
         {
-            Console.WriteLine(DateTime.Now.TimeOfDay + " Getting  EventHubRuntimeInformation");
+            WriteLine("Getting  EventHubRuntimeInformation");
             var eventHubRuntimeInformation = await this.EventHubClient.GetRuntimeInformationAsync();
 
             if (eventHubRuntimeInformation == null || eventHubRuntimeInformation.PartitionIds == null || eventHubRuntimeInformation.PartitionIds.Length == 0)
@@ -213,11 +215,19 @@
                 throw new InvalidOperationException("Failed to get partition ids!");
             }
 
-            Console.WriteLine("Found partitions:");
+            WriteLine("Found partitions:");
             foreach (string partitionId in eventHubRuntimeInformation.PartitionIds)
             {
-                Console.WriteLine(partitionId);
+                WriteLine(partitionId);
             }
+        }
+
+        static void WriteLine(string message)
+        {
+            // Currently xunit2 for .net core doesn't seem to have any output mechanism.  If we find one, replace these here:
+            message = DateTime.Now.TimeOfDay + " " + message;
+            Debug.WriteLine(message);
+            Console.WriteLine(message);
         }
 
         class TestPartitionReceiveHandler : IPartitionReceiveHandler
