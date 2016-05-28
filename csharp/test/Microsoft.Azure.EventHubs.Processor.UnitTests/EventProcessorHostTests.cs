@@ -120,7 +120,7 @@
         [Fact]
         async Task InvokeAfterReceiveTimeoutTrue()
         {
-            WriteLine($"Creating EventProcessorHost");
+            WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=true");
             var eventProcessorHost = new EventProcessorHost(
                 this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
@@ -129,7 +129,6 @@
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.StorageConnectionString);
 
-            WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=true");
             var processorOptions = new EventProcessorOptions {
                 ReceiveTimeout = TimeSpan.FromSeconds(5),
                 InvokeProcessorAfterReceiveTimeout = true
@@ -168,7 +167,7 @@
         [Fact]
         async Task InvokeAfterReceiveTimeoutFalse()
         {
-            WriteLine($"Creating EventProcessorHost");
+            WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=false");
             var eventProcessorHost = new EventProcessorHost(
                 this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
@@ -177,7 +176,6 @@
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.StorageConnectionString);
 
-            WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=true");
             var processorOptions = new EventProcessorOptions
             {
                 ReceiveTimeout = TimeSpan.FromSeconds(5),
