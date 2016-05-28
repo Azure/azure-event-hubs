@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -80,6 +81,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private Exception lastKnownLinkError;
 	private Instant lastKnownErrorReportedAt;
 	private Object sendCall;
+	private Future operationTimerTask;
+	private Future sendPumpTask;
 
 	public static CompletableFuture<MessageSender> create(
 			final MessagingFactory factory,
@@ -425,7 +428,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			if (!this.linkFirstOpen.isDone())
 			{
 				this.linkFirstOpen.complete(this);
-				Timer.schedule(this.operationTimer, this.timerTimeout, TimerType.RepeatRun);
+				this.operationTimerTask = Timer.schedule(this.operationTimer, this.timerTimeout, TimerType.RepeatRun);
 			}
 			else if (!this.pendingSendsData.isEmpty())
 			{
@@ -843,6 +846,16 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			else if (this.sendLink == null || this.sendLink.getRemoteState() == EndpointState.CLOSED)
 			{
 				this.linkClose.complete(null);
+			}
+			
+			if (this.operationTimerTask != null)
+			{
+				this.operationTimerTask.cancel(false);
+			}
+			
+			if (this.sendPumpTask != null)
+			{
+				this.sendPumpTask.cancel(false);
 			}
 		}
 
