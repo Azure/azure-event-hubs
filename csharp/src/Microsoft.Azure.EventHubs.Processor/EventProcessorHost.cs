@@ -303,8 +303,6 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostCloseStart(this.Id);    	
             try
             {
-                // Get off the calling thread as a temporary workaround for PartitionReceiver.SetReceiveHandler(null) blocking for a while.
-                await Task.Yield();
                 await this.PartitionManager.StopAsync();
 		    }
             catch (Exception e)
