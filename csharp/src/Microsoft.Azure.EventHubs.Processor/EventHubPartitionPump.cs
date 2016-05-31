@@ -103,6 +103,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     // Disconnect the processor from the receiver we're about to close.
                     // Fortunately this is idempotent -- setting the handler to null when it's already been
                     // nulled by code elsewhere is harmless!
+                    await Task.Yield();
                     this.partitionReceiver.SetReceiveHandler(null);
                 }
 
@@ -121,18 +122,8 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         protected override async Task OnClosingAsync(CloseReason reason)
         {
-            // If an open operation is stuck, this lets us shut down anyway.
-            // TODO: Cancel any inflight work.
-
-            if (this.partitionReceiver != null)
-            {
-                // Disconnect any processor from the receiver so the processor won't get
-                // any more calls. But a call could be in progress right now. 
-                this.partitionReceiver.SetReceiveHandler(null);
-
-                // Close the EH clients. Errors are swallowed, nothing we could do about them anyway.
-                await CleanUpClientsAsync();
-            }
+            // Close the EH clients. Errors are swallowed, nothing we could do about them anyway.
+            await CleanUpClientsAsync();
         }
 
         class PartitionReceiveHandler : IPartitionReceiveHandler

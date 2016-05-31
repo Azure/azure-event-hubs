@@ -28,7 +28,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         protected AsyncLock ProcessingAsyncLock { get; }
 
-
         internal void SetLease(Lease newLease)
         {
             this.PartitionContext.Lease = newLease;
@@ -119,7 +118,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         protected async Task ProcessEventsAsync(IEnumerable<EventData> events)
         {
             // Assumes that .NET Core client will call with null on receive timeout.
-            if (events == null && this.Host.EventProcessorOptions.InvokeProcessorAfterReceiveTimeout == false)
+            if (events == null && !this.Host.EventProcessorOptions.InvokeProcessorAfterReceiveTimeout)
             {
                 return;
             }
