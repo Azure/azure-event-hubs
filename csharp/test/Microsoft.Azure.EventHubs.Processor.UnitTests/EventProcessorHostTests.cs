@@ -141,7 +141,7 @@
                     var processor = createArgs.Item2;
                     string partitionId = "Partition " + createArgs.Item1.PartitionId;
                     processor.OnOpen += (_, partitionContext) => WriteLine($"Host {index} {partitionId} TestEventProcessor opened");
-                    processor.OnClose += (_, closeArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor closing");
+                    processor.OnClose += (_, closeArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
                     processor.OnProcessError += (_, errorArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
                     processor.OnProcessEvents += (_, eventsArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor process events " + (eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0));
                 };
