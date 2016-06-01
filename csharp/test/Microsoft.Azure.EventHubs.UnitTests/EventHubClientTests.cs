@@ -25,7 +25,7 @@
         EventHubClient EventHubClient { get; }
 
         [Fact]
-        async Task SendAsync()
+        async Task EventHubClientSend()
         {
             WriteLine("Sending single Event via EventHubClient.SendAsync(EventData, string)");
             var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub by partitionKey!"));
@@ -33,7 +33,7 @@
         }
 
         [Fact]
-        async Task SendBatchAsync()
+        async Task EventHubClientSendBatch()
         {
             WriteLine("Sending multiple Events via EventHubClient.SendAsync(IEnumerable<EventData>)");
             var eventData1 = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
@@ -43,7 +43,7 @@
         }
 
         [Fact]
-        async Task PartitionSenderSendAsync()
+        async Task PartitionSenderSend()
         {
             WriteLine("Sending single Event via PartitionSender.SendAsync(EventData)");
             PartitionSender partitionSender1 = this.EventHubClient.CreatePartitionSender("1");
@@ -59,7 +59,25 @@
         }
 
         [Fact]
-        async Task PartitionReceiverReceiveAsync()
+        async Task PartitionSenderSendBatch()
+        {
+            WriteLine("Sending single Event via PartitionSender.SendAsync(IEnumerable<EventData>)");
+            PartitionSender partitionSender1 = this.EventHubClient.CreatePartitionSender("1");
+            try
+            {
+                var eventData1 = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+                var eventData2 = new EventData(Encoding.UTF8.GetBytes("This is another message in the batch!"));
+                eventData2.Properties = new Dictionary<string, object> { ["ContosoEventType"] = "some value here" };
+                await partitionSender1.SendAsync(new[] { eventData1, eventData2 });
+            }
+            finally
+            {
+                await partitionSender1.CloseAsync();
+            }
+        }
+
+        [Fact]
+        async Task PartitionReceiverReceive()
         {
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
@@ -91,7 +109,7 @@
         }
 
         //[Fact]
-        async Task PartitionReceiverEpochReceiveAsync()
+        async Task PartitionReceiverEpochReceive()
         {
             WriteLine("Testing EpochReceiver semantics");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
@@ -146,7 +164,7 @@
         }
 
         [Fact]
-        async Task PartitionReceiverSetReceiveHandlerAsync()
+        async Task PartitionReceiverSetReceiveHandler()
         {
             WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
@@ -205,7 +223,7 @@
         }
 
         [Fact]
-        async Task GetEventHubRuntimeInformationAsync()
+        async Task GetEventHubRuntimeInformation()
         {
             WriteLine("Getting  EventHubRuntimeInformation");
             var eventHubRuntimeInformation = await this.EventHubClient.GetRuntimeInformationAsync();
