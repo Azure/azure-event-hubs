@@ -16,6 +16,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
     class AmqpPartitionReceiver : PartitionReceiver
     {
         readonly object receivePumpLock;
+        IPartitionReceiveHandler receiveHandler;
         CancellationTokenSource receivePumpCancellationSource;
         Task receivePumpTask;
 
@@ -41,23 +42,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task OnCloseAsync()
         {
-            Task localReceivePumpTask;
-            CancellationTokenSource localReceivePumpCancellationSource;
-            lock (this.receivePumpLock)
-            {
-                localReceivePumpTask = this.receivePumpTask;
-                localReceivePumpCancellationSource = this.receivePumpCancellationSource;
-                this.receivePumpTask = null;
-                this.receivePumpCancellationSource = null;
-            }
-
-            if (localReceivePumpTask != null)
-            {
-                localReceivePumpCancellationSource.Cancel();
-                await localReceivePumpTask;
-                localReceivePumpCancellationSource.Dispose();
-            }
-
+            await this.ReceiveHandlerCloseAsync(null);
             await this.ReceiveLinkManager.CloseAsync();
         }
 
@@ -105,26 +90,36 @@ namespace Microsoft.Azure.EventHubs.Amqp
             }
         }
 
-        protected override void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler)
+        protected override void OnSetReceiveHandler(IPartitionReceiveHandler newReceiveHandler)
         {
             lock (this.receivePumpLock)
             {
-                if (this.receivePumpTask != null)
+                if (this.receiveHandler != null)
                 {
-                    // Shutdown previously running pump.
-                    Fx.Assert(this.receivePumpCancellationSource != null, $"{nameof(receivePumpCancellationSource)} and {nameof(receivePumpTask)} must be set together!");
-                    this.receivePumpCancellationSource.Cancel();
-                    this.receivePumpTask.Wait(this.EventHubClient.ConnectionSettings.OperationTimeout);
-
-                    this.receivePumpCancellationSource.Dispose();
-                    this.receivePumpCancellationSource = null;
-                    this.receivePumpTask = null;
+                    // Start closing the old receive handler (but don't wait).
+                    this.receiveHandler.CloseAsync(null); // .Fork();
                 }
 
-                if (receiveHandler != null)
+                this.receiveHandler = newReceiveHandler;
+                if (this.receiveHandler != null)
                 {
-                    this.receivePumpCancellationSource = new CancellationTokenSource();
-                    this.receivePumpTask = this.ReceivePumpAsync(receiveHandler, this.receivePumpCancellationSource.Token);
+                    // We have a new receiveHandler, ensure pump is running.
+                    if (this.receivePumpTask == null)
+                    {
+                        this.receivePumpCancellationSource = new CancellationTokenSource();
+                        this.receivePumpTask = this.ReceivePumpAsync(this.receivePumpCancellationSource.Token);
+                    }
+                }
+                else
+                {
+                    // We have no receiveHandler, ensure pump is shut down.
+                    if (this.receivePumpTask != null)
+                    {
+                        this.receivePumpCancellationSource.Cancel();
+                        this.receivePumpCancellationSource.Dispose();
+                        this.receivePumpCancellationSource = null;
+                        this.receivePumpTask = null;
+                    }
                 }
             }
         }
@@ -236,52 +231,123 @@ namespace Microsoft.Azure.EventHubs.Amqp
             return (long)millisecs;
         }
 
-        async Task ReceivePumpAsync(IPartitionReceiveHandler receiveHandler, CancellationToken cancellationToken)
+        async Task ReceivePumpAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                IEnumerable<EventData> receivedEvents = null;
-
+                IEnumerable<EventData> receivedEvents;
                 try
                 {
-                    receivedEvents = await this.ReceiveAsync(receiveHandler.MaxBatchSize);
+                    int batchSize;
+                    lock (this.receivePumpLock)
+                    {
+                        if (this.receiveHandler == null)
+                        {
+                            // Pump has been shutdown, nothing more to do.
+                            return;
+                        }
+                        else
+                        {
+                            batchSize = receiveHandler.MaxBatchSize;
+                        }
+                    }
+
+                    receivedEvents = await this.ReceiveAsync(batchSize);
                 }
-                catch (Exception e) // when (e is InterruptedException || e is ExecutionException || e is TimeoutException)
+                catch (Exception e)
                 {
                     ServiceBusException serviceBusException = e as ServiceBusException;
                     if (serviceBusException != null && serviceBusException.IsTransient)
                     {
                         try
                         {
-                            await receiveHandler.ProcessErrorAsync(e);
+                            await this.ReceiveHandlerProcessErrorAsync(e);
                             continue;
                         }
                         catch (Exception userCodeError)
                         {
-                            await receiveHandler.CloseAsync(userCodeError);
+                            await this.ReceiveHandlerCloseAsync(userCodeError);
                             return;
                         }
                     }
 					else
 					{
-                        await receiveHandler.CloseAsync(e);
+                        await this.ReceiveHandlerCloseAsync(e);
                         return;
                     }
                 }
 
                 try
                 {
-                    await receiveHandler.ProcessEventsAsync(receivedEvents);
+                    await this.ReceiveHandlerProcessEventsAsync(receivedEvents);
                 }
                 catch (Exception userCodeError)
                 {
-                    await receiveHandler.CloseAsync(userCodeError);
+                    await this.ReceiveHandlerCloseAsync(userCodeError);
                     return;
                 }
             }
 
             // Shutting down gracefully
-            await receiveHandler.CloseAsync(null);
+            await this.ReceiveHandlerCloseAsync(null);
+        }
+
+        // Encapsulates taking the receivePumpLock, checking this.receiveHandler for null,
+        // calls this.receiveHandler.CloseAsync (starting this operation inside the receivePumpLock).
+        Task ReceiveHandlerCloseAsync(Exception error)
+        {
+            Task closeTask = null;
+            lock (this.receivePumpLock)
+            {
+                if (this.receiveHandler != null)
+                {
+                    if (this.receivePumpTask != null)
+                    {
+                        this.receivePumpCancellationSource.Cancel();
+                        this.receivePumpCancellationSource.Dispose();
+                        this.receivePumpCancellationSource = null;
+                        this.receivePumpTask = null;
+                    }
+
+                    var receiveHandlerToClose = this.receiveHandler;
+                    this.receiveHandler = null;
+                    closeTask = receiveHandlerToClose.CloseAsync(error);
+                }
+            }
+
+            return closeTask ?? Task.CompletedTask;
+        }
+
+        // Encapsulates taking the receivePumpLock, checking this.receiveHandler for null,
+        // calls this.receiveHandler.ProcessErrorAsync (starting this operation inside the receivePumpLock).
+        Task ReceiveHandlerProcessErrorAsync(Exception error)
+        {
+            Task processErrorTask = null;
+            lock (this.receivePumpLock)
+            {
+                if (this.receiveHandler != null)
+                {
+                    processErrorTask = this.receiveHandler.ProcessErrorAsync(error);
+                }
+            }
+
+            return processErrorTask ?? Task.CompletedTask;
+        }
+
+        // Encapsulates taking the receivePumpLock, checking this.receiveHandler for null,
+        // calls this.receiveHandler.ProcessErrorAsync (starting this operation inside the receivePumpLock).
+        Task ReceiveHandlerProcessEventsAsync(IEnumerable<EventData> eventDatas)
+        {
+            Task processEventsTask = null;
+            lock (this.receivePumpLock)
+            {
+                if (this.receiveHandler != null)
+                {
+                    processEventsTask = this.receiveHandler.ProcessEventsAsync(eventDatas);
+                }
+            }
+
+            return processEventsTask ?? Task.CompletedTask;
         }
     }
 }
