@@ -98,17 +98,15 @@ namespace Microsoft.Azure.EventHubs.Processor
             if (this.partitionReceiver != null)
             {
                 // Taking the lock means that there is no ProcessEventsAsync call in progress.
+                Task closeTask;
                 using (await this.ProcessingAsyncLock.LockAsync())
                 {
-                    // Disconnect the processor from the receiver we're about to close.
-                    // Fortunately this is idempotent -- setting the handler to null when it's already been
-                    // nulled by code elsewhere is harmless!
-                    await Task.Yield();
-                    this.partitionReceiver.SetReceiveHandler(null);
+                    // Calling PartitionReceiver.CloseAsync will gracefully close the IPartitionReceiveHandler we have installed.
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.Host.Id, this.PartitionContext.PartitionId, "Closing PartitionReceiver");
+                    closeTask = this.partitionReceiver.CloseAsync();
                 }
 
-                ProcessorEventSource.Log.PartitionPumpInfo(this.Host.Id, this.PartitionContext.PartitionId, "Closing PartitionReceiver");
-                await this.partitionReceiver.CloseAsync();
+                await closeTask;
                 this.partitionReceiver = null;
             }
 
