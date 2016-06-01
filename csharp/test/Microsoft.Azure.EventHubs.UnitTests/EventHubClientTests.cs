@@ -81,34 +81,105 @@
         {
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
-            PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            const string partitionId = "1";
+            PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
+            PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
             try
             {
+                string uniqueEventId = Guid.NewGuid().ToString();
+                WriteLine($"Sending an event to Partition {partitionId} with custom property EventId {uniqueEventId}");
+                var sendEvent = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+                sendEvent.Properties = new Dictionary<string, object> { ["EventId"] = uniqueEventId };
+                await partitionSender.SendAsync(sendEvent);
+
+                bool expectedEventReceived = false;
+                do
+                {
+                    IEnumerable<EventData> eventDatas = await partitionReceiver.ReceiveAsync(10);
+                    if (eventDatas == null)
+                    {
+                        break;
+                    }
+
+                    WriteLine($"Received a batch of {eventDatas.Count()} events:");
+                    foreach (var eventData in eventDatas)
+                    {
+                        object objectValue;
+                        if (eventData.Properties != null && eventData.Properties.TryGetValue("EventId", out objectValue))
+                        {
+                            WriteLine($"Received message with EventId {objectValue}");
+                            string receivedId = objectValue.ToString();
+                            if (receivedId == uniqueEventId)
+                            {
+                                WriteLine("Success");
+                                expectedEventReceived = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                while (!expectedEventReceived);
+
+                Assert.True(expectedEventReceived, $"Did not receive expected event with EventId {uniqueEventId}");
+            }
+            finally
+            {
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+                await Task.WhenAll(
+                    partitionReceiver.CloseAsync(),
+                    partitionSender.CloseAsync());
+            }
+        }
+
+        [Fact]
+        async Task PartitionReceiverReceiveBatch()
+        {
+            const int MaxBatchSize = 5;
+            WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync(BatchSize)");
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            const string partitionId = "0";
+            PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
+            PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
+            try
+            {
+                int eventCount = 20;
+                WriteLine($"Sending {eventCount} events to Partition {partitionId}");
+                var sendEvents = new List<EventData>(eventCount);
+                for (int i = 0; i < eventCount; i++)
+                {
+                    sendEvents.Add(new EventData(Encoding.UTF8.GetBytes($"Hello EventHub! Message {i}")));
+                }
+                await partitionSender.SendAsync(sendEvents);
+
+                int maxReceivedBatchSize = 0;
                 while (true)
                 {
-                    IEnumerable<EventData> partition1Events = await partitionReceiver1.ReceiveAsync(10);
+                    IEnumerable<EventData> partition1Events = await partitionReceiver.ReceiveAsync(MaxBatchSize);
+                    int receivedEventCount = partition1Events != null ? partition1Events.Count() : 0;
+                    WriteLine($"Received {receivedEventCount} event(s)");
+
                     if (partition1Events == null)
                     {
                         break;
                     }
 
-                    WriteLine($"Receive a batch of {partition1Events.Count()} events:");
-                    foreach (var eventData in partition1Events)
-                    {
-                        ArraySegment<byte> body = eventData.Body;
-                        WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
-                    }
+                    maxReceivedBatchSize = Math.Max(maxReceivedBatchSize, receivedEventCount);
                 }
+
+                Assert.True(maxReceivedBatchSize == MaxBatchSize, $"A max batch size of {MaxBatchSize} events was not honored! Actual {maxReceivedBatchSize}.");
             }
             finally
             {
-                await partitionReceiver1.CloseAsync();
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+                await Task.WhenAll(
+                    partitionReceiver.CloseAsync(),
+                    partitionSender.CloseAsync());
             }
         }
 
-        //[Fact]
+        [Fact]
         async Task PartitionReceiverEpochReceive()
         {
             WriteLine("Testing EpochReceiver semantics");
@@ -119,6 +190,7 @@
             try
             {
                 // Read the events from Epoch 1 Receiver until we're at the end of the stream
+                WriteLine("Starting epoch 1 receiver");
                 IEnumerable<EventData> events;
                 do
                 {
@@ -127,7 +199,7 @@
                 }
                 while (events != null);
 
-                WriteLine("Start up epoch 2 receiver");
+                WriteLine("Starting epoch 2 receiver");
                 var epoch2ReceiveTask = epochReceiver2.ReceiveAsync(10);
 
                 DateTime stopTime = DateTime.UtcNow.AddSeconds(30);
@@ -157,8 +229,8 @@
             }
             finally
             {
-                await epochReceiver1?.CloseAsync();
-                await epochReceiver2?.CloseAsync();
+                await epochReceiver1.CloseAsync();
+                await epochReceiver2.CloseAsync();
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
             }
         }
@@ -169,28 +241,43 @@
             WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
-            PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", DateTime.UtcNow.AddHours(-2));
+            string partitionId = "1";
+            PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
+            PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             try
             {
+                string uniqueEventId = Guid.NewGuid().ToString();
+                WriteLine($"Sending an event to Partition {partitionId} with custom property EventId {uniqueEventId}");
+                var sendEvent = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+                sendEvent.Properties = new Dictionary<string, object> { ["EventId"] = uniqueEventId };
+                await partitionSender.SendAsync(sendEvent);
+
                 EventWaitHandle dataReceivedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+                EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
                 var handler = new TestPartitionReceiveHandler();
-                handler.EventsReceived += (s, e) =>
+                handler.ErrorReceived += (s, e) => WriteLine($"TestPartitionReceiveHandler.ProcessError {e.GetType().Name}: {e.Message}");
+                handler.EventsReceived += (s, eventDatas) =>
                 {
-                    int count = e != null ? e.Count() : 0;
-                    WriteLine($"Receive a batch of {count} events:");
-                    if (e != null)
+                    int count = eventDatas != null ? eventDatas.Count() : 0;
+                    WriteLine($"Received {count} event(s):");
+
+                    foreach (var eventData in eventDatas)
                     {
-                        foreach (var eventData in e)
+                        object objectValue;
+                        if (eventData.Properties != null && eventData.Properties.TryGetValue("EventId", out objectValue))
                         {
-                            ArraySegment<byte> body = eventData.Body;
-                            WriteLine($"Received event '{Encoding.UTF8.GetString(body.Array, body.Offset, body.Count)}' {eventData.SystemProperties.EnqueuedTimeUtc}");
+                            WriteLine($"Received message with EventId {objectValue}");
+                            string receivedId = objectValue.ToString();
+                            if (receivedId == uniqueEventId)
+                            {
+                                WriteLine("Success");
+                                dataReceivedEvent.Set();
+                                break;
+                            }
                         }
                     }
-
-                    dataReceivedEvent.Set();
                 };
 
-                EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
                 handler.Closed += (s, error) =>
                 {
                     WriteLine($"IPartitionReceiveHandler.CloseAsync called.");
@@ -201,7 +288,7 @@
 
                 if (!dataReceivedEvent.WaitOne(TimeSpan.FromSeconds(20)))
                 {
-                    throw new InvalidOperationException("Data Received Event was not signalled.");
+                    throw new InvalidOperationException("Data Received Event was not signaled.");
                 }
 
                 WriteLine("Closing PartitionReceiver");
@@ -219,6 +306,7 @@
             finally
             {
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+                await partitionSender.CloseAsync();
             }
         }
 
@@ -228,10 +316,9 @@
             WriteLine("Getting  EventHubRuntimeInformation");
             var eventHubRuntimeInformation = await this.EventHubClient.GetRuntimeInformationAsync();
 
-            if (eventHubRuntimeInformation == null || eventHubRuntimeInformation.PartitionIds == null || eventHubRuntimeInformation.PartitionIds.Length == 0)
-            {
-                throw new InvalidOperationException("Failed to get partition ids!");
-            }
+            Assert.True(eventHubRuntimeInformation != null, "eventHubRuntimeInformation was null!");
+            Assert.True(eventHubRuntimeInformation.PartitionIds != null, "eventHubRuntimeInformation.PartitionIds was null!");
+            Assert.True(eventHubRuntimeInformation.PartitionIds.Length != 0, "eventHubRuntimeInformation.PartitionIds.Length was 0!");
 
             WriteLine("Found partitions:");
             foreach (string partitionId in eventHubRuntimeInformation.PartitionIds)
