@@ -37,17 +37,19 @@ import com.microsoft.azure.eventhubs.*;
 public class ConnectionStringBuilder
 {
 	final static String endpointFormat = "amqps://%s.servicebus.windows.net";
-	
+
 	final static String EndpointConfigName = "Endpoint";
 	final static String SharedAccessKeyNameConfigName = "SharedAccessKeyName";
 	final static String SharedAccessKeyConfigName = "SharedAccessKey";
 	final static String EntityPathConfigName = "EntityPath";
 	final static String OperationTimeoutConfigName = "OperationTimeout";
+	final static String RetryPolicyConfigName = "RetryPolicy";
 	final static String KeyValueSeparator = "=";
 	final static String KeyValuePairDelimiter = ";";
 
 	private static final String AllKeyEnumerateRegex = "(" + EndpointConfigName + "|" + SharedAccessKeyNameConfigName
-			+ "|" + SharedAccessKeyConfigName + "|" + EntityPathConfigName + "|" + OperationTimeoutConfigName + ")";
+			+ "|" + SharedAccessKeyConfigName + "|" + EntityPathConfigName + "|" + OperationTimeoutConfigName
+			+ "|" + RetryPolicyConfigName + ")";
 
 	private static final String KeysWithDelimitersRegex = KeyValuePairDelimiter + AllKeyEnumerateRegex
 			+ KeyValueSeparator;
@@ -73,7 +75,7 @@ public class ConnectionStringBuilder
 					String.format(Locale.US, "Invalid namespace name: %s", namespaceName),
 					exception);
 		}
-		
+
 		this.sharedAccessKey = sharedAccessKey;
 		this.sharedAccessKeyName = sharedAccessKeyName;
 		this.operationTimeout = operationTimeout;
@@ -105,7 +107,7 @@ public class ConnectionStringBuilder
 		this.parseConnectionString(connectionString);
 		this.connectionString = connectionString;
 	}
-	
+
 	/**
 	 * Get the endpoint which can be used to connect to the ServiceBus Namespace
 	 * @return Endpoint
@@ -132,7 +134,7 @@ public class ConnectionStringBuilder
 	{
 		return this.sharedAccessKeyName;
 	}
-	
+
 	/**
 	 * Get the entity path value from the connection string
 	 * @return Entity Path
@@ -141,7 +143,7 @@ public class ConnectionStringBuilder
 	{
 		return this.entityPath;
 	}
-	
+
 	/**
 	 * OperationTimeout is applied in erroneous situations to notify the caller about the relevant {@link ServiceBusException}
 	 * @return operationTimeout
@@ -150,7 +152,7 @@ public class ConnectionStringBuilder
 	{
 		return (this.operationTimeout == null ? MessagingFactory.DefaultOperationTimeout : this.operationTimeout);
 	}
-	
+
 	/**
 	 * Set the OperationTimeout value in the Connection String. This value will be used by all operations which uses this {@link ConnectionStringBuilder}, unless explicitly over-ridden.
 	 * <p>ConnectionString with operationTimeout is not interoperable between java and clients in other platforms.
@@ -160,7 +162,7 @@ public class ConnectionStringBuilder
 	{
 		this.operationTimeout = operationTimeout;
 	}
-	
+
 	/**
 	 * Get the retry policy instance that was created as part of this builder's creation.
 	 * @return RetryPolicy applied for any operation performed using this ConnectionString
@@ -168,6 +170,16 @@ public class ConnectionStringBuilder
 	public RetryPolicy getRetryPolicy()
 	{
 		return (this.retryPolicy == null ? RetryPolicy.getDefault() : this.retryPolicy);
+	}
+
+	/**
+	 * Set the retry policy.
+	 * <p>RetryPolicy is not Serialized as part of {@link ConnectionStringBuilder#toString()} and is not interoperable with ServiceBus clients in other platforms. 
+	 * @param retryPolicy RetryPolicy applied for any operation performed using this ConnectionString
+	 */
+	public void setRetryPolicy(final RetryPolicy retryPolicy)
+	{
+		this.retryPolicy = retryPolicy;
 	}
 
 	/**
@@ -183,33 +195,39 @@ public class ConnectionStringBuilder
 			if (this.endpoint != null)
 			{
 				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", EndpointConfigName, KeyValueSeparator,
-					this.endpoint.toString(), KeyValuePairDelimiter));
+						this.endpoint.toString(), KeyValuePairDelimiter));
 			}
-			
+
 			if (!StringUtil.isNullOrWhiteSpace(this.entityPath))
 			{
 				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", EntityPathConfigName,
-					KeyValueSeparator, this.entityPath, KeyValuePairDelimiter));
+						KeyValueSeparator, this.entityPath, KeyValuePairDelimiter));
 			}
-			
+
 			if (!StringUtil.isNullOrWhiteSpace(this.sharedAccessKeyName))
 			{
 				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", SharedAccessKeyNameConfigName,
-					KeyValueSeparator, this.sharedAccessKeyName, KeyValuePairDelimiter));
+						KeyValueSeparator, this.sharedAccessKeyName, KeyValuePairDelimiter));
 			}
-			
+
 			if (!StringUtil.isNullOrWhiteSpace(this.sharedAccessKey))
 			{
 				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s", SharedAccessKeyConfigName,
-					KeyValueSeparator, this.sharedAccessKey));
+						KeyValueSeparator, this.sharedAccessKey));
 			}
-			
+
 			if (this.operationTimeout != null)
 			{
 				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", KeyValuePairDelimiter, OperationTimeoutConfigName,
 						KeyValueSeparator, this.operationTimeout.toString()));
 			}
-			
+
+			if (this.retryPolicy != null)
+			{
+				connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", KeyValuePairDelimiter, RetryPolicyConfigName,
+						KeyValueSeparator, this.retryPolicy.toString()));
+			}
+
 			this.connectionString = connectionStringBuilder.toString();
 		}
 
@@ -248,13 +266,13 @@ public class ConnectionStringBuilder
 
 			String key = keys.group();
 			key = key.substring(1, key.length() - 1);
-			
+
 			if (values.length < valueIndex + 1)
 			{
 				throw new IllegalConnectionStringFormatException(
 						String.format(Locale.US, "Value for the connection string parameter name: %s, not found", key));
 			}
-			
+
 			if (key.equalsIgnoreCase(EndpointConfigName))
 			{
 				try
@@ -290,6 +308,17 @@ public class ConnectionStringBuilder
 				{
 					throw new IllegalConnectionStringFormatException("Invalid value specified for property 'Duration' in the ConnectionString.", exception);
 				}
+			}
+			else if (key.equalsIgnoreCase(RetryPolicyConfigName))
+			{
+				this.retryPolicy = values[valueIndex].equals(ClientConstants.DEFAULT_RETRY)
+						? RetryPolicy.getDefault()
+								: (values[valueIndex].equals(ClientConstants.NO_RETRY) ? RetryPolicy.getNoRetry() : null);
+
+						if (this.retryPolicy == null)
+							throw new IllegalConnectionStringFormatException(
+									String.format(Locale.US, "Connection string parameter '%s'='%s' is not recognized",
+											RetryPolicyConfigName, values[valueIndex]));
 			}
 			else
 			{
