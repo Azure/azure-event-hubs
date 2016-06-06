@@ -56,7 +56,7 @@ class AzureBlobLease extends Lease
 	long getSequenceNumber() { return this.sequenceNumber; }
 
 	@Override
-	boolean isExpired() throws Exception
+	public boolean isExpired() throws Exception
 	{
 		this.blob.downloadAttributes(); // Get the latest metadata
 		LeaseState currentState = this.blob.getProperties().getLeaseState();
