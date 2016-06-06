@@ -11,7 +11,7 @@ public class LeaseManagerTest
 	// Setup variables.
 	//
 	private boolean useAzureStorage = true; // false tests InMemoryLeaseManager, true tests AzureStorageCheckpointLeaseManager
-	private String azureStorageConnectionString = ""; // must be set to valid connection string to test AzureStorageCheckpointLeaseManager
+	private String azureStorageConnectionString = TestUtilities.getStorageConnectionString(); // EPHTESTSTORAGE environment variable must be set to valid connection string to test AzureStorageCheckpointLeaseManager
 	private int partitionCount = 4;
 	
 	private ILeaseManager[] leaseManagers;
