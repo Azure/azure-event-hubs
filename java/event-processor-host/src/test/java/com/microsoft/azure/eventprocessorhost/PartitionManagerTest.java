@@ -202,6 +202,49 @@ public class PartitionManagerTest
 		
 		System.out.println("DONE");
 	}
+
+	@Test
+	public void partitionBalancingTooManyHostsTest() throws Exception
+	{
+		EventProcessorHost.setSkipExecutorShutdown(true);
+		
+		System.out.println("partitionBalancingTooManyHostsTest");
+		
+		setup(10, 4); // ten hosts, four partitions
+		this.countOfChecks = 0;
+		this.desiredDistributionDetected = 0;
+		this.keepGoing = true;
+		this.expectEqualDistribution = false;
+		this.ignoreZeroes = false;
+		this.maxChecks = 20;
+		startManagers();
+		
+		// Poll until checkPartitionDistribution() declares that it's time to stop.
+		while (this.keepGoing)
+		{
+			try
+			{
+				Thread.sleep(15000);
+			}
+			catch (InterruptedException e)
+			{
+				System.out.println("Sleep interrupted, emergency bail");
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		
+		stopManagers();
+		
+		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
+
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		assertTrue("failed while cleaning up lease store", boolret);
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		assertTrue("failed while cleaning up checkpoint store", boolret);
+		
+		System.out.println("DONE");
+	}
 	
 	synchronized void checkPartitionDistribution(boolean ignoreStopped)
 	{

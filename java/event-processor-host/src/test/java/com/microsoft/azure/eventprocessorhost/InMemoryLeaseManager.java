@@ -440,7 +440,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 		}
 		
 		@Override
-	    boolean isExpired() throws Exception
+	    public boolean isExpired() throws Exception
 	    {
 			boolean hasExpired = (System.currentTimeMillis() >= this.expirationTimeMillis);
 			if (hasExpired)

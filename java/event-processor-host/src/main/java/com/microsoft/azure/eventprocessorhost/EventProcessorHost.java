@@ -10,6 +10,7 @@ import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
@@ -45,6 +46,8 @@ public final class EventProcessorHost
     
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
+	
+	private static final Object uuidSynchronizer = new Object();
     
 
     /**
@@ -135,7 +138,7 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
-        this("javahost-" + UUID.randomUUID().toString(), namespaceName, eventHubPath, sharedAccessKeyName,
+        this("javahost-" + EventProcessorHost.safeCreateUUID(), namespaceName, eventHubPath, sharedAccessKeyName,
                 sharedAccessKey, consumerGroupName, checkpointManager, leaseManager);
     }
 
@@ -371,7 +374,7 @@ public final class EventProcessorHost
     void log(Level logLevel, String logMessage)
     {
   		EventProcessorHost.TRACE_LOGGER.log(logLevel, logMessage);
-    	//System.out.println(logLevel.toString() + ": " + logMessage);
+    	//System.out.println(LocalDateTime.now().toString() + ": " + logLevel.toString() + ": " + logMessage);
     }
     
     void logWithHost(Level logLevel, String logMessage)
@@ -436,5 +439,21 @@ public final class EventProcessorHost
     void logWithHostAndPartition(Level logLevel, PartitionContext context, String logMessage, Throwable e)
     {
     	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage, e);
+    }
+    
+    //
+    // We have been seeing null and/or empty strings returned from randomUUID.toString when used from multiple
+    // threads and there is no clear answer on the net about whether it is really thread-safe or not.
+    // Centralize and synchronize on a static object and see if this helps.
+    // Make it public so that user-created classes derived from our interfaces can use.
+    //
+    public static String safeCreateUUID()
+    {
+    	String uuid = "not generated";
+    	synchronized (EventProcessorHost.uuidSynchronizer)
+    	{
+    		uuid = UUID.randomUUID().toString();
+    	}
+    	return uuid;
     }
 }

@@ -343,7 +343,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	
     	CloudBlockBlob leaseBlob = lease.getBlob();
     	boolean retval = true;
-    	String newLeaseId = UUID.randomUUID().toString();
+    	String newLeaseId = EventProcessorHost.safeCreateUUID();
     	try
     	{
     		String newToken = null;
@@ -365,7 +365,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	}
     	catch (StorageException se)
     	{
-    		if (wasLeaseLost(se))
+    		if (wasLeaseLost(se, lease.getPartitionId()))
     		{
     			retval = false;
     		}
@@ -397,7 +397,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	}
     	catch (StorageException se)
     	{
-    		if (wasLeaseLost(se))
+    		if (wasLeaseLost(se, lease.getPartitionId()))
     		{
     			retval = false;
     		}
@@ -433,7 +433,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	}
     	catch (StorageException se)
     	{
-    		if (wasLeaseLost(se))
+    		if (wasLeaseLost(se, lease.getPartitionId()))
     		{
     			retval = false;
     		}
@@ -477,12 +477,12 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	try
     	{
     		String jsonToUpload = this.gson.toJson(lease);
-    		this.host.logWithHost(Level.FINE, "Raw JSON uploading: " + jsonToUpload);
+    		//this.host.logWithHost(Level.FINE, "Raw JSON uploading: " + jsonToUpload);
     		leaseBlob.uploadText(jsonToUpload, null, AccessCondition.generateLeaseCondition(token), null, null);
     	}
     	catch (StorageException se)
     	{
-    		if (wasLeaseLost(se))
+    		if (wasLeaseLost(se, lease.getPartitionId()))
     		{
     			throw new LeaseLostException(lease, se);
     		}
@@ -498,17 +498,21 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private AzureBlobLease downloadLease(CloudBlockBlob blob) throws StorageException, IOException
     {
     	String jsonLease = blob.downloadText();
-    	this.host.logWithHost(Level.FINE, "Raw JSON downloaded: " + jsonLease);
+    	//this.host.logWithHost(Level.FINE, "Raw JSON downloaded: " + jsonLease);
     	AzureBlobLease rehydrated = this.gson.fromJson(jsonLease, AzureBlobLease.class);
     	AzureBlobLease blobLease = new AzureBlobLease(rehydrated, blob);
     	return blobLease;
     }
     
-    private boolean wasLeaseLost(StorageException se)
+    private boolean wasLeaseLost(StorageException se, String partitionId)
     {
     	boolean retval = false;
-		this.host.logWithHost(Level.FINE, "WAS LEASE LOST?");
-		this.host.logWithHost(Level.FINE, "Http " + se.getHttpStatusCode());
+		this.host.logWithHostAndPartition(Level.FINE, partitionId, "WAS LEASE LOST?");
+		this.host.logWithHostAndPartition(Level.FINE, partitionId, "Http " + se.getHttpStatusCode());
+		if (se.getExtendedErrorInformation() != null)
+		{
+			this.host.logWithHostAndPartition(Level.FINE, partitionId, "Http " + se.getExtendedErrorInformation().getErrorCode() + " :: " + se.getExtendedErrorInformation().getErrorMessage());
+		}
     	if ((se.getHttpStatusCode() == 409) || // conflict
     		(se.getHttpStatusCode() == 412)) // precondition failed
     	{
@@ -516,8 +520,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		if (extendedErrorInfo != null)
     		{
     			String errorCode = extendedErrorInfo.getErrorCode();
-				this.host.logWithHost(Level.FINE, "Error code: " + errorCode);
-				this.host.logWithHost(Level.FINE, "Error message: " + extendedErrorInfo.getErrorMessage());
+				this.host.logWithHostAndPartition(Level.FINE, partitionId, "Error code: " + errorCode);
+				this.host.logWithHostAndPartition(Level.FINE, partitionId, "Error message: " + extendedErrorInfo.getErrorMessage());
     			if ((errorCode.compareTo(StorageErrorCodeStrings.LEASE_LOST) == 0) ||
     				(errorCode.compareTo(StorageErrorCodeStrings.LEASE_ID_MISMATCH_WITH_LEASE_OPERATION) == 0) ||
     				(errorCode.compareTo(StorageErrorCodeStrings.LEASE_ID_MISMATCH_WITH_BLOB_OPERATION) == 0))
