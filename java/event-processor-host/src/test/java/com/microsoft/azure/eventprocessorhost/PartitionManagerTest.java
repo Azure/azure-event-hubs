@@ -31,8 +31,6 @@ public class PartitionManagerTest
 	@Test
 	public void partitionBalancingExactMultipleTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		System.out.println("partitionBalancingExactMultipleTest");
 		
 		setup(2, 4); // two hosts, four partitions
@@ -74,8 +72,6 @@ public class PartitionManagerTest
 	@Test
 	public void partitionBalancingUnevenTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		System.out.println("partitionBalancingUnevenTest");
 		
 		setup(5, 16); // five hosts, sixteen partitions
@@ -117,8 +113,6 @@ public class PartitionManagerTest
 	@Test
 	public void partitionRebalancingTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		System.out.println("partitionRebalancingTest");
 		
 		setup(3,8); // three hosts, eight partitions
@@ -211,8 +205,6 @@ public class PartitionManagerTest
 	@Test
 	public void partitionBalancingTooManyHostsTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		System.out.println("partitionBalancingTooManyHostsTest");
 		
 		setup(10, 4); // ten hosts, four partitions

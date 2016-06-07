@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -16,7 +17,7 @@ public class TemporaryTest
 {
     public static void main(String args[])
     {
-    	final int hostCount = 2;
+    	final int hostCount = 1;
     	int runCase = 3;
     	final boolean useInMemory = false;
     	final boolean useEH = true;
@@ -27,6 +28,7 @@ public class TemporaryTest
     	final String ehKeyname = "";
     	final String ehKey = "";
     	final String storageConnectionString = "this is not a valid storage connection string";
+    	final String storageContainerName = "tt-" + UUID.randomUUID().toString();
     	
     	if (runCase == 1)
     	{
@@ -127,7 +129,7 @@ public class TemporaryTest
         		}
         		else
         		{
-        			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, storageConnectionString); 
+        			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, storageConnectionString, storageContainerName); 
         		}
     			if (!useEH)
     			{
@@ -290,6 +292,7 @@ public class TemporaryTest
 	            hosts[i].unregisterEventProcessor();
 	            System.out.println("Completed");
             }
+            EventProcessorHost.forceExecutorShutdown(120);
         }
         catch(Exception e)
         {

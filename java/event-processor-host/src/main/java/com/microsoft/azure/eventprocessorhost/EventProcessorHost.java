@@ -42,7 +42,7 @@ public final class EventProcessorHost
     private static ExecutorService executorService = Executors.newCachedThreadPool();
     private static int executorRefCount = 0;
     private static Boolean weOwnExecutor = true;
-    private static boolean skipExecutorShutdown = false; // test support
+    private static boolean autoShutdownExecutor = false;
     
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
@@ -206,11 +206,10 @@ public final class EventProcessorHost
     public String getEventHubConnectionString() { return this.eventHubConnectionString; }
     
     // TEST USE ONLY
-    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
-    static void setSkipExecutorShutdown(boolean skip) { EventProcessorHost.skipExecutorShutdown = skip; }
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     
     // All of these accessors are for internal use only.
+    static ExecutorService getExecutorService() { return EventProcessorHost.executorService; }
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
     PartitionManager getPartitionManager() { return this.partitionManager; }
@@ -287,9 +286,14 @@ public final class EventProcessorHost
      */
     public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
-    	// This is where we would set the timeout if javaClient supported it.
+    	if (EventProcessorHost.executorService.isShutdown() || EventProcessorHost.executorService.isTerminated())
+    	{
+    		this.logWithHost(Level.SEVERE, "Calling registerEventProcessor/Factory after executor service has been shut down");
+    		throw new RejectedExecutionException("EventProcessorHost executor service has been shut down");
+    	}
+    	
         this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
-                this.sharedAccessKeyName, this.sharedAccessKey /*, processorOptions.getReceiveTimeOut(), RetryPolicy.getDefault()*/).toString();
+                this.sharedAccessKeyName, this.sharedAccessKey).toString();
 
         if (this.initializeLeaseManager)
         {
@@ -332,7 +336,7 @@ public final class EventProcessorHost
 	        	// Otherwise the first one will block forever here.
 	        	// This could race with stopExecutor() but that is harmless: it is legal to call awaitTermination()
 	        	// at any time, whether executorServer.shutdown() has been called yet or not.
-	        	if (EventProcessorHost.executorRefCount <= 0)
+	        	if ((EventProcessorHost.executorRefCount <= 0) && EventProcessorHost.autoShutdownExecutor)
 	        	{
 	        		EventProcessorHost.executorService.awaitTermination(10, TimeUnit.MINUTES);
 	        	}
@@ -349,7 +353,7 @@ public final class EventProcessorHost
     // PartitionManager calls this after all shutdown tasks have been submitted to the ExecutorService.
     void stopExecutor()
     {
-        if (EventProcessorHost.weOwnExecutor && !EventProcessorHost.skipExecutorShutdown)
+        if (EventProcessorHost.weOwnExecutor && EventProcessorHost.autoShutdownExecutor)
         {
         	synchronized(EventProcessorHost.weOwnExecutor)
         	{
@@ -364,6 +368,34 @@ public final class EventProcessorHost
         		}
         	}
         }
+    }
+
+    
+    /**
+     * EventProcessorHost can automatically shut down its internal ExecutorService when the last host shuts down
+     * due to an unregisterEventProcessor() call. However, doing so means that any EventProcessorHost instances
+     * created after that will be unable to function. Set this option to true only if you are sure that you will
+     * only ever call unregisterEventProcess() when the process is shutting down.
+     * <p>
+     * If you leave this option as the default false, then you should call forceExecutorShutdown() at the appropriate time.
+     * 
+     * @param auto  true for automatic shutdown, false for manual via forceExecutorShutdown()
+     */
+    public static void setAutoExecutorShutdown(boolean auto) { EventProcessorHost.autoShutdownExecutor = auto; }
+
+    /**
+     * If you do not want to use the automatic shutdown option, then you must call forceExecutorShutdown() during
+     * process termination, after the last call to unregisterEventProcessor() has returned. Be sure that you will
+     * not need to create any new EventProcessorHost instances, because calling this method means that any new
+     * instances will fail when a register* method is called.
+     * 
+     * @param secondsToWait  How long to wait for the ExecutorService to shut down
+     * @throws InterruptedException
+     */
+    public static void forceExecutorShutdown(long secondsToWait) throws InterruptedException
+    {
+    	EventProcessorHost.executorService.shutdown();
+    	EventProcessorHost.executorService.awaitTermination(secondsToWait, TimeUnit.SECONDS);
     }
 
     

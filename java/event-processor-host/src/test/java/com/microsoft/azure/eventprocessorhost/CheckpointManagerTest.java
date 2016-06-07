@@ -27,8 +27,6 @@ public class CheckpointManagerTest
 	@Test
 	public void singleManagerCheckpointSmokeTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		this.leaseManagers = new ILeaseManager[1];
 		this.checkpointManagers = new ICheckpointManager[1];
 		this.hosts = new EventProcessorHost[1];
@@ -110,8 +108,6 @@ public class CheckpointManagerTest
 	@Test
 	public void twoManagerCheckpointSmokeTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-		
 		this.leaseManagers = new ILeaseManager[2];
 		this.checkpointManagers = new ICheckpointManager[2];
 		this.hosts = new EventProcessorHost[2];
@@ -198,8 +194,6 @@ public class CheckpointManagerTest
 	//@Test
 	public void checkpointBrutalityTest() throws Exception
 	{
-		EventProcessorHost.setSkipExecutorShutdown(true);
-
 		final int checkpointers = 4;
 		this.leaseManagers = new ILeaseManager[checkpointers];
 		this.checkpointManagers = new ICheckpointManager[checkpointers];
@@ -289,7 +283,6 @@ public class CheckpointManagerTest
 				try {
 					Thread.sleep(1000);
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				System.out.println("******************* total per second ish " + returnAndClearPerSecondCount());
