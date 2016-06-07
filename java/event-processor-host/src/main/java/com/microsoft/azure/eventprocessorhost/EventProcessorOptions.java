@@ -150,25 +150,27 @@ public final class EventProcessorOptions
      * Returns whether the EventProcessorHost will call IEventProcessor.onEvents(null) when a receive
      * timeout occurs (true) or not (false).
      * 
-     * This option is currently hardwired to false and cannot be changed.
+     * Defaults to false.
      * 
-     * @return false
+     * @return true if EventProcessorHost will call IEventProcessor.OnEvents on receive timeout, false otherwise
      */
     public Boolean getInvokeProcessorAfterReceiveTimeout()
     {
         return this.invokeProcessorAfterReceiveTimeout;
     }
 
-    /*
-     * EPH uses javaClient's receive handler support to get callbacks when messages arrive, instead of
-     * implementing its own receive loop. JavaClient does not call the callback when a receive call
-     * times out, so EPH cannot pass that timeout down to the user's onEvents handler. Unless javaClient's
-     * behavior changes, this option must remain false because we cannot provide any other behavior.
+    /**
+     * Changes whether the EventProcessorHost will call IEventProcessor.onEvents(null) when a receive
+     * timeout occurs (true) or not (false).
+     * 
+     * The default is false (no call).
+     * 
+     * @param invokeProcessorAfterReceiveTimeout  the new value for what to do
+     */
     public void setInvokeProcessorAfterReceiveTimeout(Boolean invokeProcessorAfterReceiveTimeout)
     {
         this.invokeProcessorAfterReceiveTimeout = invokeProcessorAfterReceiveTimeout;
     }
-    */
     
     void notifyOfException(String hostname, Exception exception, String action)
     {
