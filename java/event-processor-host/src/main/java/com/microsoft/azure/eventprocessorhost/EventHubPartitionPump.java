@@ -199,20 +199,5 @@ class EventHubPartitionPump extends PartitionPump
 			}
 			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 		}
-
-		@Override
-		public void onClose(Throwable error)
-		{
-			if (error == null)
-			{
-				error = new Throwable("normal shutdown"); // TODO -- is this true?
-			}
-			EventHubPartitionPump.this.host.logWithHostAndPartition(Level.INFO, EventHubPartitionPump.this.partitionContext, "EventHub client closed: " + error.toString());
-			if (error instanceof Exception)
-			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client closed continued", (Exception)error);
-			}
-			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
-		}
     }
 }
