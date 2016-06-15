@@ -122,6 +122,7 @@ abstract class PartitionPump
     	// depends on the user setting. See EventProcessorOptions.
     	if ((events == null) && (this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout() == false))
     	{
+    		this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Ignoring receive timeout");
     		return;
     	}
     	
@@ -135,17 +136,20 @@ abstract class PartitionPump
         	{
         		this.processor.onEvents(this.partitionContext, events);
         		
-        		Iterator<EventData> blah = events.iterator();
-        		EventData last = null;
-        		while (blah.hasNext())
+        		if (events != null)
         		{
-        			last = blah.next();
-        		}
-        		if (last != null)
-        		{
-        			this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Updating offset in partition context with end of batch " +
-        					last.getSystemProperties().getOffset() + "//" + last.getSystemProperties().getSequenceNumber());
-        			this.partitionContext.setOffsetAndSequenceNumber(last);
+	        		Iterator<EventData> blah = events.iterator();
+	        		EventData last = null;
+	        		while (blah.hasNext())
+	        		{
+	        			last = blah.next();
+	        		}
+	        		if (last != null)
+	        		{
+	        			this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Updating offset in partition context with end of batch " +
+	        					last.getSystemProperties().getOffset() + "//" + last.getSystemProperties().getSequenceNumber());
+	        			this.partitionContext.setOffsetAndSequenceNumber(last);
+	        		}
         		}
         	}
         }
