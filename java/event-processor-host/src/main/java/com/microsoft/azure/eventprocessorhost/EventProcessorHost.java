@@ -20,10 +20,7 @@ import java.util.logging.Level;
 public final class EventProcessorHost
 {
     private final String hostName;
-    private final String namespaceName;
     private final String eventHubPath;
-    private final String sharedAccessKeyName;
-    private final String sharedAccessKey;
     private final String consumerGroupName;
     private String eventHubConnectionString;
 
@@ -48,130 +45,128 @@ public final class EventProcessorHost
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
 	
 	private static final Object uuidSynchronizer = new Object();
-    
+
+	/**
+	 * Create a new host to process events from an Event Hub.
+	 * 
+     * Since Event Hubs are generally used for scale-out, high-traffic scenarios, generally there will
+     * be only one host per process, and the processes will be run on separate machines. However, it is
+     * supported to run multiple hosts on one machine, or even within one process, if throughput is less
+     * of a concern, or for development and testing.
+     * <p>
+     * This overload of the constructor uses the built-in lease and checkpoint managers. The
+     * Azure Storage account specified by the storageConnectionString parameter is used by the built-in
+     * managers to record leases and checkpoints.
+     * <p>
+     * The Event Hub connection string may be conveniently constructed using the ConnectionStringBuilder class
+     * from the Java Event Hub client.
+	 * 
+	 * @param eventHubPath 				Specifies the Event Hub to receive events from.
+	 * @param consumerGroupName			The name of the consumer group to use when receiving from the Event Hub.
+	 * @param eventHubConnectionString	Connection string for the Event Hub to receive from.
+	 * @param storageConnectionString	Connection string for the Azure Storage account to use for persisting leases and checkpoints.
+	 */
+    public EventProcessorHost(
+            final String eventHubPath,
+            final String consumerGroupName,
+            final String eventHubConnectionString,
+            final String storageConnectionString)
+    {
+        this(EventProcessorHost.createHostName(null), eventHubPath, consumerGroupName, eventHubConnectionString, storageConnectionString);
+    }
 
     /**
      * Create a new host to process events from an Event Hub.
      * 
-     * <p>
-     * Since Event Hubs are frequently used for scale-out, high-traffic scenarios, generally there will
-     * be only one host per process, and the processes will be run on separate machines. However, it is
-     * supported to run multiple hosts on one machine, or even within one process, if throughput is not
-     * a concern.
-     * <p>
-     * This overload of the constructor uses the default, built-in lease and checkpoint managers. The
-     * Azure Storage account specified by the storageConnectionString parameter is used by the built-in
-     * managers to record leases and checkpoints.
+     * The hostName parameter is a name for this event processor host, which must be unique among all event processor hosts
+     * receiving from this Event Hub/consumer group combination. The overload which does not have a hostName argument defaults to
+     * "javahost-" followed by a UUID, which is created by calling EventProcessorHost.createHostName(null). An easy way to
+     * generate a unique hostName which also includes other information is to call EventProcessorHost.createHostName("mystring"). 
      * 
-     * @param namespaceName				The name of the Service Bus namespace in which the Event Hub exists.
-     * @param eventHubPath				The path of the Event Hub.
-     * @param sharedAccessKeyName		The name of the shared access key to use for authn/authz.
-     * @param sharedAccessKey			The shared access key (base64 encoded)
-     * @param consumerGroupName			The name of the consumer group within the Event Hub.
-     * @param storageConnectionString	Connection string to Azure Storage account used for leases and checkpointing.
+     * @param hostName		A name for this event processor host. See method notes.
+     * @param eventHubPath
+     * @param consumerGroupName
+     * @param eventHubConnectionString
+     * @param storageConnectionString
      */
     public EventProcessorHost(
-            final String namespaceName,
+            final String hostName,
             final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
             final String consumerGroupName,
+            final String eventHubConnectionString,
             final String storageConnectionString)
     {
-        this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
-                new AzureStorageCheckpointLeaseManager(storageConnectionString));
+        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, new AzureStorageCheckpointLeaseManager(storageConnectionString));
         this.initializeLeaseManager = true;
     }
 
     /**
      * Create a new host to process events from an Event Hub.
      * 
-     * <p>
-     * This overload of the constructor uses the default, built-in lease and checkpoint managers, but
-     * uses a non-default storage container name. The first parameters are the same as the other overloads.
-	 *
-     * @param storageContainerName	Azure Storage container name in which all leases and checkpointing will occur.
+     * This overload adds an argument to specify the Azure Storage container name that will be used to persist leases and checkpoints.
+     * 
+     * @param hostName
+     * @param eventHubPath
+     * @param consumerGroupName
+     * @param eventHubConnectionString
+     * @param storageConnectionString
+     * @param storageContainerName		Azure Storage container name for use by built-in lease and checkpoint manager.
      */
     public EventProcessorHost(
-            final String namespaceName,
+            final String hostName,
             final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
             final String consumerGroupName,
+            final String eventHubConnectionString,
             final String storageConnectionString,
             final String storageContainerName)
     {
-        this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
+        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString,
                 new AzureStorageCheckpointLeaseManager(storageConnectionString, storageContainerName));
         this.initializeLeaseManager = true;
     }
     
     // Because Java won't let you do ANYTHING before calling another constructor. In particular, you can't
-    // new up an object and pass it as two parameters of the other constructor.
+    // new up an object and pass it as TWO parameters of the other constructor.
     private EventProcessorHost(
-            final String namespaceName,
+            final String hostName,
             final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
             final String consumerGroupName,
+            final String eventHubConnectionString,
             final AzureStorageCheckpointLeaseManager combinedManager)
     {
-        this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName,
-                combinedManager, combinedManager);
+        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager);
     }
 
     /**
      * Create a new host to process events from an Event Hub.
      * 
-     * This overload of the constructor allows the caller to provide their own lease and checkpoint
-     * managers. The first parameters are the same as other overloads.
+     * This overload allows the caller to provide their own lease and checkpoint managers to replace the built-in
+     * ones based on Azure Storage.
      * 
-     * @param checkpointManager	Object implementing ICheckpointManager which handles partition checkpointing.
-     * @param leaseManager		Object implementing ILeaseManager which handles leases for partitions.
-     */
-    public EventProcessorHost(
-            final String namespaceName,
-            final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
-            final String consumerGroupName,
-            ICheckpointManager checkpointManager,
-            ILeaseManager leaseManager)
-    {
-        this("javahost-" + EventProcessorHost.safeCreateUUID(), namespaceName, eventHubPath, sharedAccessKeyName,
-                sharedAccessKey, consumerGroupName, checkpointManager, leaseManager);
-    }
-
-    /**
-     * Create a new host to process events from an Event Hub.
-     * 
-     * This overload of the constructor allows maximum flexibility. In addition to all the parameters from
-     * other overloads, this one allows the caller to specify the name of the processor host. The other overloads
-     * automatically generate a unique processor host name. Unless there is a need to include some other
-     * information, such as machine name, in the processor host name, it is best to stick to those. 
-     * 
-     * @param hostName	Name of the processor host. MUST BE UNIQUE. Strongly recommend including a UUID to ensure uniqueness. 
+     * @param hostName
+     * @param eventHubPath
+     * @param consumerGroupName
+     * @param eventHubConnectionString
+     * @param checkpointManager			Implementation of ICheckpointManager, to be replacement checkpoint manager.
+     * @param leaseManager				Implementation of ILeaseManager, to be replacement lease manager.
      */
     public EventProcessorHost(
             final String hostName,
-            final String namespaceName,
             final String eventHubPath,
-            final String sharedAccessKeyName,
-            final String sharedAccessKey,
             final String consumerGroupName,
+            final String eventHubConnectionString,
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
     	EventProcessorHost.TRACE_LOGGER.setLevel(Level.SEVERE);
     	
         this.hostName = hostName;
-        this.namespaceName = namespaceName;
         this.eventHubPath = eventHubPath;
-        this.sharedAccessKeyName = sharedAccessKeyName;
-        this.sharedAccessKey = sharedAccessKey;
         this.consumerGroupName = consumerGroupName;
+        this.eventHubConnectionString = eventHubConnectionString;
         this.checkpointManager = checkpointManager;
         this.leaseManager = leaseManager;
+        
         if (EventProcessorHost.weOwnExecutor)
         {
 	        synchronized(EventProcessorHost.weOwnExecutor)
@@ -292,9 +287,6 @@ public final class EventProcessorHost
     		throw new RejectedExecutionException("EventProcessorHost executor service has been shut down");
     	}
     	
-        this.eventHubConnectionString = new ConnectionStringBuilder(this.namespaceName, this.eventHubPath,
-                this.sharedAccessKeyName, this.sharedAccessKey).toString();
-
         if (this.initializeLeaseManager)
         {
             try
@@ -472,13 +464,41 @@ public final class EventProcessorHost
     {
     	logWithHostAndPartition(logLevel, context.getPartitionId(), logMessage, e);
     }
+
+    /**
+     * Convenience method for generating unique host names, safe to pass to the EventProcessorHost constructors
+     * that take a hostName argument.
+     * 
+     * If a prefix is supplied, the constructed name begins with that string. If the prefix argument is null or
+     * an empty string, the constructed name begins with "javahost". Then a dash '-' and a UUID are appended to
+     * create a unique name.
+     * 
+     * @param prefix	String to use as the beginning of the name. If null or empty, a default is used.
+     * @return			A unique host name to pass to EventProcessorHost constructors.
+     */
+    public static String createHostName(String prefix)
+    {
+    	String usePrefix = prefix;
+    	if ((usePrefix == null) || usePrefix.isEmpty())
+    	{
+    		usePrefix = "javahost";
+    	}
+    	return usePrefix + "-" + safeCreateUUID();
+    }
     
-    //
-    // We have been seeing null and/or empty strings returned from randomUUID.toString when used from multiple
-    // threads and there is no clear answer on the net about whether it is really thread-safe or not.
-    // Centralize and synchronize on a static object and see if this helps.
-    // Make it public so that user-created classes derived from our interfaces can use.
-    //
+    /**
+     * Synchronized string UUID generation convenience method.
+     * 
+     * We saw null and empty strings returned from UUID.randomUUID().toString() when used from multiple
+     * threads and there is no clear answer on the net about whether it is really thread-safe or not. Synchronizing
+     * on a static object has made the problem go away.
+     * <p>
+     * One of the major users of UUIDs is the built-in lease and checkpoint manager, which can be replaced by
+     * user implementations. This UUID generation method is public so user implementations can use it as well and
+     * avoid the problems.
+     * 
+     * @return A string UUID with dashes but no curly brackets.
+     */
     public static String safeCreateUUID()
     {
     	String uuid = "not generated";

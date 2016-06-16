@@ -233,10 +233,10 @@ public class LeaseManagerTest
 			checkpointMgr = azMgr;
 		}
 		
-		// Host name needs to be unique per host so use index. Namespace, event hub, etc. frequently should be the same for all hosts in a test, so
+		// Host name needs to be unique per host so use index. Event hub and consumer group should be the same for all hosts in a test, so
 		// use the supplied suffix.
-    	EventProcessorHost host = new EventProcessorHost("dummyHost" + String.valueOf(index), "dummyNamespace" + suffix, "dummyEventHub" + suffix, "dummyKeyName" + suffix,
-				"dummyKey" + suffix, "dummyConsumerGroup" + suffix, checkpointMgr, leaseMgr);
+    	EventProcessorHost host = new EventProcessorHost("dummyHost" + String.valueOf(index), "dummyEventHub" + suffix,
+				"dummyConsumerGroup" + suffix, "dummyEventHubConnectionString", checkpointMgr, leaseMgr);
     	
     	try
     	{

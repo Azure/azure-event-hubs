@@ -341,8 +341,7 @@ public class PartitionManagerTest
 			
 			// In order to test hosts competing for partitions, each host must have a unique name, but they must share the
 			// target eventhub/consumer group.
-			this.hosts[i] = new EventProcessorHost("dummyHost" + String.valueOf(i), "dummyNamespace", "dummyEventHub", "dummyKeyName",
-					"dummyKey", "dummyConsumerGroup", cm, lm);
+			this.hosts[i] = new EventProcessorHost("dummyHost" + String.valueOf(i), "dummyEventHub", "dummyConsumerGroup", "dummyEventHubConnectionString", cm, lm);
 			
 			lm.initialize(this.hosts[i]);
 			this.leaseManagers[i] = lm;

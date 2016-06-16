@@ -13,6 +13,7 @@ package com.microsoft.azure.eventhubs.samples;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
 import java.util.function.Consumer;
 
@@ -31,11 +32,14 @@ public class EventProcessorSample
     	String sasKey = "----SharedAccessSignatureKey----";
     	String storageConnectionString = "----AzureStorageConnectionString----";
     	
-		// Create the instance of EventProcessorHost using the basic constructor. This constructor uses Azure Storage for
+    	// To conveniently construct the Event Hub connection string from the raw information, use the ConnectionStringBuilder class.
+    	ConnectionStringBuilder eventHubConnectionString = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
+    	
+		// Create the instance of EventProcessorHost using the most basic constructor. This constructor uses Azure Storage for
 		// persisting partition leases and checkpoints, with a default Storage container name made from the Event Hub name
-		// and consumer group name, and the host name (a string that uniquely identifies the instance of EventProcessorHost)
+		// and consumer group name. The host name (a string that uniquely identifies the instance of EventProcessorHost)
 		// is automatically generated as well.
-		EventProcessorHost host = new EventProcessorHost(namespaceName, eventHubName, sasKeyName, sasKey, consumerGroupName, storageConnectionString);
+		EventProcessorHost host = new EventProcessorHost(eventHubName, consumerGroupName, eventHubConnectionString.toString(), storageConnectionString);
 		
 		// Registering an event processor class with an instance of EventProcessorHost starts event processing. The host instance
 		// obtains leases on some partitions of the Event Hub, possibly stealing some from other host instances, in a way that

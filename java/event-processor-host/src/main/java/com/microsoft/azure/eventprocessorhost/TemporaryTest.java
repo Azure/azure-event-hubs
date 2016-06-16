@@ -12,6 +12,7 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
 public class TemporaryTest
 {
@@ -45,7 +46,8 @@ public class TemporaryTest
     			leaseMgr = azMgr;
     			checkpointMgr = azMgr;
     		}
-	    	EventProcessorHost blah = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", checkpointMgr, leaseMgr);
+	    	EventProcessorHost blah = new EventProcessorHost(EventProcessorHost.createHostName(null), "fakeEventHub", "$Default",
+	    			"fakeEventHubConnectionString", checkpointMgr, leaseMgr);
 	    	try
 	    	{
 	    		if (useInMemory)
@@ -89,8 +91,10 @@ public class TemporaryTest
 		    	leaseMgr2 = azMgr2;
 		    	checkMgr2 = azMgr2;
     		}
-	    	EventProcessorHost blah1 = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", checkMgr1, leaseMgr1);
-	    	EventProcessorHost blah2 = new EventProcessorHost("namespace", "eventhub", "keyname", "key", "$Default", checkMgr2, leaseMgr2);
+	    	EventProcessorHost blah1 = new EventProcessorHost(EventProcessorHost.createHostName(null), "fakeEventhub", "$Default",
+	    			"fakeEventhubConnectionString", checkMgr1, leaseMgr1);
+	    	EventProcessorHost blah2 = new EventProcessorHost(EventProcessorHost.createHostName(null), "fakeEventhub", "$Default",
+	    			"fakeEventhubConnectionString", checkMgr2, leaseMgr2);
 	    	try
 	    	{
 	    		if (useInMemory)
@@ -119,17 +123,19 @@ public class TemporaryTest
     		EventProcessorHost[] hosts = new EventProcessorHost[hostCount];
     		for (int i = 0; i < hostCount; i++)
     		{
+    			ConnectionStringBuilder ehConnStr = new ConnectionStringBuilder(ehNamespace, ehEventhub, ehKeyname, ehKey);
         		if (useInMemory)
         		{
         			InMemoryLeaseManager leaseMgr = new InMemoryLeaseManager();
         			InMemoryCheckpointManager checkMgr = new InMemoryCheckpointManager();
-        			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, checkMgr, leaseMgr);
+        			hosts[i] = new EventProcessorHost(EventProcessorHost.createHostName(null), ehEventhub, ehConsumerGroup, ehConnStr.toString(), checkMgr, leaseMgr);
         			leaseMgr.initialize(hosts[i]);
         			checkMgr.initialize(hosts[i]);
         		}
         		else
         		{
-        			hosts[i] = new EventProcessorHost(ehNamespace, ehEventhub, ehKeyname, ehKey, ehConsumerGroup, storageConnectionString, storageContainerName); 
+        			hosts[i] = new EventProcessorHost(EventProcessorHost.createHostName(null), ehEventhub, ehConsumerGroup, ehConnStr.toString(),
+        					storageConnectionString, storageContainerName); 
         		}
     			if (!useEH)
     			{
