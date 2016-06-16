@@ -180,8 +180,9 @@ public class PartitionContext
     	}
     	else
     	{
-    		String msg = "Ignoring out of date checkpoint " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber() +
-        			" because store is at " + inStoreCheckpoint.getOffset() + "//" + inStoreCheckpoint.getSequenceNumber(); 
+    		String msg = "Ignoring out of date checkpoint with offset " + persistThis.getOffset() + "/sequence number " + persistThis.getSequenceNumber() +
+        			" because current persisted checkpoint has higher offset " + inStoreCheckpoint.getOffset() +
+        			"/sequence number " + inStoreCheckpoint.getSequenceNumber(); 
     		this.host.logWithHostAndPartition(Level.SEVERE, persistThis.getPartitionId(), msg);
     		throw new IllegalArgumentException(msg);
     	}
