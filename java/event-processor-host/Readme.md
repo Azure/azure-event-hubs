@@ -55,7 +55,7 @@ pattern is not appropriate for every application.
     ``` Java
     class EventProcessor implements IEventProcessor
     {
-    	@Override
+        @Override
         public void onOpen(PartitionContext context) throws Exception
         {
       	    System.out.println("Partition " + context.getPartitionId() + " is opening");
@@ -79,7 +79,7 @@ pattern is not appropriate for every application.
             System.out.println("SAMPLE: Partition " + context.getPartitionId() + " got message batch");
             for (EventData data : messages)
             {
-		// Do something useful with the event here.
+                // Do something useful with the event here.
 
                 context.checkpoint(data);
             }
@@ -99,11 +99,11 @@ notification is primarily informational.
     ``` Java
     class ErrorNotificationHandler implements Consumer<ExceptionReceivedEventArgs>
     {
-	@Override
-	public void accept(ExceptionReceivedEventArgs t)
-	{
-	    // Handle the notification here
-	}
+        @Override
+        public void accept(ExceptionReceivedEventArgs t)
+        {
+            // Handle the notification here
+        }
     }
     ```
 
@@ -145,20 +145,20 @@ ExecutionException from the get call. The actual failure is available as the inn
     options.setExceptionNotification(new ErrorNotificationHandler());
     try
     {
-	host.registerEventProcessor(EventProcessor.class, options).get();
+        host.registerEventProcessor(EventProcessor.class, options).get();
     }
     catch (Exception e)
     {
-	System.out.print("Failure while registering: ");
-	if (e instanceof ExecutionException)
-	{
-	    Throwable inner = e.getCause();
-	    System.out.println(inner.toString());
-	}
-	else
-	{
-	    System.out.println(e.toString());
-	}
+        System.out.print("Failure while registering: ");
+        if (e instanceof ExecutionException)
+        {
+            Throwable inner = e.getCause();
+            System.out.println(inner.toString());
+        }
+        else
+        {
+            System.out.println(e.toString());
+        }
     }
     ```
 
