@@ -5,10 +5,7 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.ArrayList;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -277,7 +274,20 @@ public class TemporaryTest
     		System.out.println("Registering host " + i + " named " + hosts[i].getHostName());
     		EventProcessorOptions options = EventProcessorOptions.getDefaultOptions();
     		options.setExceptionNotification(new GeneralErrorHandler());
-    		hosts[i].registerEventProcessor(EventProcessor.class, options);
+    		try 
+    		{
+				hosts[i].registerEventProcessor(EventProcessor.class, options).get();
+			}
+    		catch (Exception e)
+    		{
+            	System.out.println("Sample caught from register " + e.toString());
+            	StackTraceElement[] stack = e.getStackTrace();
+            	for (int j = 0; j < stack.length; j++)
+            	{
+            		System.out.println(stack[j].toString());
+            	}
+            	return;
+			}
     		try
     		{
     			Thread.sleep(3000);

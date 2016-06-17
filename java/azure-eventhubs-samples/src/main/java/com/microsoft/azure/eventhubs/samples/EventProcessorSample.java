@@ -15,6 +15,7 @@ import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.*;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 public class EventProcessorSample
@@ -55,7 +56,27 @@ public class EventProcessorSample
 		System.out.println("Registering host named " + host.getHostName());
 		EventProcessorOptions options = new EventProcessorOptions();
 		options.setExceptionNotification(new ErrorNotificationHandler());
-		host.registerEventProcessor(EventProcessor.class, options);
+		try
+		{
+			// The Future returned by the register* APIs completes when initialization is done and
+			// message pumping is about to start. It is important to call get() on the Future because
+			// initialization failures will result in an ExecutionException, with the failure as the
+			// inner exception, and are not otherwise reported.
+			host.registerEventProcessor(EventProcessor.class, options).get();
+		}
+		catch (Exception e)
+		{
+			System.out.print("Failure while registering: ");
+			if (e instanceof ExecutionException)
+			{
+				Throwable inner = e.getCause();
+				System.out.println(inner.toString());
+			}
+			else
+			{
+				System.out.println(e.toString());
+			}
+		}
 
         System.out.println("Press enter to stop");
         try

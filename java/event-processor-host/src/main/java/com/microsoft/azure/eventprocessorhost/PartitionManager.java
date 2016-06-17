@@ -40,7 +40,7 @@ import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 
-class PartitionManager implements Runnable
+class PartitionManager
 {
 	// Protected instead of private for testability
     protected final EventProcessorHost host;
@@ -48,6 +48,7 @@ class PartitionManager implements Runnable
 
     private List<String> partitionIds = null;
     
+    private Future<?> partitionsFuture = null;
     private boolean keepGoing = true;
 
     PartitionManager(EventProcessorHost host)
@@ -121,87 +122,92 @@ class PartitionManager implements Runnable
     {
     }
     
-    void stopPartitions()
+    Future<?> stopPartitions()
     {
     	this.keepGoing = false;
+    	return this.partitionsFuture;
     }
     
-    @Override
-    public void run()
+    // Return Void so it can be called from a lambda.
+    public Void initialize() throws Exception
     {
-    	boolean initializedOK = false;
-    	
     	this.pump = createPumpTestHook();
     	
     	try
     	{
     		initializeStores();
-    		initializedOK = true;
     		onInitializeCompleteTestHook();
     	}
     	catch (ExceptionWithAction e)
     	{
-    		this.host.logWithHost(Level.SEVERE, "Exception while initializing stores, not starting partition manager", e.getCause());
-    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
+    		this.host.logWithHost(Level.SEVERE, "Exception while initializing stores (" + e.getAction() + "), not starting partition manager", e.getCause());
+    		throw e;
     	}
     	catch (Exception e)
     	{
     		this.host.logWithHost(Level.SEVERE, "Exception while initializing stores, not starting partition manager", e);
-    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.INITIALIZING_STORES);
+    		throw e;
     	}
     	
-    	if (initializedOK)
+    	this.partitionsFuture = EventProcessorHost.getExecutorService().submit(() -> runAndCleanUp());
+    	
+    	return null;
+    }
+    
+    // Return Void so it can be called from a lambda.
+    private Void runAndCleanUp()
+	{
+    	try
     	{
-	    	try
-	    	{
-	    		runLoop();
-	    		this.host.logWithHost(Level.INFO, "Partition manager main loop exited normally, shutting down");
-	    	}
-	    	catch (ExceptionWithAction e)
-	    	{
-	    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e.getCause());
-	    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
-	    	}
-	    	catch (Exception e)
-	    	{
-	    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e);
-	    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, "Partition Manager Main Loop");
-	    	}
-	    	
-	    	// Cleanup
-	    	this.host.logWithHost(Level.INFO, "Shutting down all pumps");
-	    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
-	    	
-	    	// All of the shutdown threads have been launched, we can shut down the executor now.
-	    	// Shutting down the executor only prevents new tasks from being submitted.
-	    	// We can't wait for executor termination here because this thread is in the executor.
-	    	this.host.stopExecutor();
-	    	
-	    	// Wait for shutdown threads.
-	    	for (Future<?> removal : pumpRemovals)
-	    	{
-	    		try
-	    		{
-					removal.get();
-				}
-	    		catch (InterruptedException | ExecutionException e)
-	    		{
-	    			this.host.logWithHost(Level.SEVERE, "Failure during shutdown", e);
-	    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
-	    			
-	    			// By convention, bail immediately on interrupt, even though we're just cleaning
-	    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
-	    			// free to bail without serious side effects.
-	    			if (e instanceof InterruptedException)
-	    			{
-	    				Thread.currentThread().interrupt();
-	    				throw new RuntimeException(e);
-	    			}
-				}
-	    	}
+    		runLoop();
+    		this.host.logWithHost(Level.INFO, "Partition manager main loop exited normally, shutting down");
+    	}
+    	catch (ExceptionWithAction e)
+    	{
+    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e.getCause());
+    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
+    	}
+    	catch (Exception e)
+    	{
+    		this.host.logWithHost(Level.SEVERE, "Exception from partition manager main loop, shutting down", e);
+    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, "Partition Manager Main Loop");
+    	}
+    	
+    	// Cleanup
+    	this.host.logWithHost(Level.INFO, "Shutting down all pumps");
+    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+    	
+    	// All of the shutdown threads have been launched, we can shut down the executor now.
+    	// Shutting down the executor only prevents new tasks from being submitted.
+    	// We can't wait for executor termination here because this thread is in the executor.
+    	this.host.stopExecutor();
+    	
+    	// Wait for shutdown threads.
+    	for (Future<?> removal : pumpRemovals)
+    	{
+    		try
+    		{
+				removal.get();
+			}
+    		catch (InterruptedException | ExecutionException e)
+    		{
+    			this.host.logWithHost(Level.SEVERE, "Failure during shutdown", e);
+    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
+    			
+    			// By convention, bail immediately on interrupt, even though we're just cleaning
+    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
+    			// free to bail without serious side effects.
+    			if (e instanceof InterruptedException)
+    			{
+    				Thread.currentThread().interrupt();
+    				throw new RuntimeException(e);
+    			}
+			}
     	}
     	
     	this.host.logWithHost(Level.INFO, "Partition manager exiting");
+    	
+    	return null;
     }
     
     private void initializeStores() throws InterruptedException, ExecutionException, ExceptionWithAction

@@ -5,7 +5,6 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;
@@ -28,7 +27,6 @@ public final class EventProcessorHost
     private ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false; 
     private PartitionManager partitionManager;
-    private Future<?> partitionManagerFuture = null;
     private IEventProcessorFactory<?> processorFactory;
     private EventProcessorOptions processorOptions;
 
@@ -227,8 +225,9 @@ public final class EventProcessorHost
      *  
      * @param eventProcessorType	Class that implements IEventProcessor.
      * @return						Future that does not complete until the processor host shuts down.
+     * @throws Exception 
      */
-    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType)
+    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType) throws Exception
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
@@ -244,8 +243,9 @@ public final class EventProcessorHost
      * @param eventProcessorType	Class that implements IEventProcessor.
      * @param processorOptions		Options for the processor host and event processor(s).
      * @return						Future that does not complete until the processor host shuts down.
+     * @throws Exception 
      */
-    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions)
+    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions) throws Exception
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
@@ -264,8 +264,9 @@ public final class EventProcessorHost
      * 
      * @param factory	User-supplied event processor factory object.
      * @return			Future that does not complete until the processor host shuts down.
+     * @throws Exception 
      */
-    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory)
+    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory) throws Exception
     {
         return registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());
     }
@@ -278,8 +279,9 @@ public final class EventProcessorHost
      * @param factory			User-supplied event processor factory object.			
      * @param processorOptions	Options for the processor host and event processor(s).
      * @return					Future that does not complete until the processor host shuts down.
+     * @throws Exception 
      */
-    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
+    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions) throws Exception
     {
     	if (EventProcessorHost.executorService.isShutdown() || EventProcessorHost.executorService.isTerminated())
     	{
@@ -303,9 +305,7 @@ public final class EventProcessorHost
         logWithHost(Level.INFO, "Starting event processing");
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        this.partitionManagerFuture = EventProcessorHost.executorService.submit(this.partitionManager);
-        
-        return this.partitionManagerFuture;
+        return EventProcessorHost.executorService.submit(() -> this.partitionManager.initialize()); 
     }
 
     /**
@@ -318,10 +318,10 @@ public final class EventProcessorHost
     {
     	logWithHost(Level.INFO, "Stopping event processing");
     	
-        this.partitionManager.stopPartitions();
         try
         {
-			this.partitionManagerFuture.get();
+            this.partitionManager.stopPartitions().get();
+            
 	        if (EventProcessorHost.weOwnExecutor)
 	        {
 	        	// If there are multiple EventProcessorHosts in one process, only await the shutdown on the last one.

@@ -10,7 +10,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 public class PartitionManagerTest
 {
@@ -18,7 +17,7 @@ public class PartitionManagerTest
 	private ICheckpointManager[] checkpointManagers;
 	private EventProcessorHost[] hosts;
 	private TestPartitionManager[] partitionManagers;
-	private Future<?>[] managerFutures;
+	private boolean[] running;
 	
 	private int countOfChecks;
 	private int desiredDistributionDetected;
@@ -272,7 +271,7 @@ public class PartitionManagerTest
 		int lowest = Integer.MAX_VALUE;
 		for (int i = 0; i < countsPerHost.length; i++)
 		{
-			if ((this.managerFutures[i] == null) && ignoreStopped)
+			if (!this.running[i] && ignoreStopped)
 			{
 				// Skip
 			}
@@ -332,7 +331,7 @@ public class PartitionManagerTest
 		this.checkpointManagers = new ICheckpointManager[hostCount];
 		this.hosts = new EventProcessorHost[hostCount];
 		this.partitionManagers = new TestPartitionManager[hostCount];
-		this.managerFutures = new Future<?>[hostCount];
+		this.running = new boolean[hostCount];
 		
 		for (int i = 0; i < hostCount; i++)
 		{
@@ -347,18 +346,19 @@ public class PartitionManagerTest
 			this.leaseManagers[i] = lm;
 			cm.initialize(this.hosts[i]);
 			this.checkpointManagers[i] = cm;
+			this.running[i] = false;
 			
 			this.partitionManagers[i] = new TestPartitionManager(this.hosts[i], partitionCount);
 			this.hosts[i].setPartitionManager(this.partitionManagers[i]);
 		}
 	}
 	
-	private void startManagers()
+	private void startManagers() throws Exception
 	{
 		startManagers(this.partitionManagers.length);
 	}
 	
-	private void startManagers(int maxIndex)
+	private void startManagers(int maxIndex) throws Exception
 	{
 		for (int i = 0; i < maxIndex; i++)
 		{
@@ -366,11 +366,12 @@ public class PartitionManagerTest
 		}
 	}
 	
-	private void startSingleManager(int index)
+	private void startSingleManager(int index) throws Exception
 	{
 		try
 		{
-			this.managerFutures[index] = EventProcessorHost.getExecutorService().submit(this.partitionManagers[index]);
+			EventProcessorHost.getExecutorService().submit(() -> this.partitionManagers[index].initialize()).get();
+			this.running[index] = true;
 		}
 		catch (Exception e)
 		{
@@ -379,48 +380,23 @@ public class PartitionManagerTest
 		}
 	}
 	
-	private void stopManagers()
+	private void stopManagers() throws InterruptedException, ExecutionException
 	{
 		for (int i = 0; i < this.partitionManagers.length; i++)
 		{
-			if (this.managerFutures[i] != null)
+			if (this.running[i])
 			{
-				this.partitionManagers[i].stopPartitions();
-			}
-		}
-		for (int i = 0; i < this.partitionManagers.length; i++)
-		{
-			if (this.managerFutures[i] != null)
-			{
-				try
-				{
-					this.managerFutures[i].get();
-					this.managerFutures[i] = null;
-				}
-				catch (InterruptedException | ExecutionException e)
-				{
-					System.out.println("Error stopping manager " + i + ": " + e.toString());
-					e.printStackTrace();
-				}
+				this.partitionManagers[i].stopPartitions().get();
 			}
 		}
 	}
 	
-	private void stopSingleManager(int index)
+	private void stopSingleManager(int index) throws InterruptedException, ExecutionException
 	{
-		if (this.managerFutures[index] != null)
+		if (this.running[index])
 		{
-			this.partitionManagers[index].stopPartitions();
-			try
-			{
-				this.managerFutures[index].get();
-				this.managerFutures[index] = null;
-			}
-			catch (InterruptedException | ExecutionException e)
-			{
-				System.out.println("Error stopping manager " + index + ": " + e.toString());
-				e.printStackTrace();
-			}
+			this.partitionManagers[index].stopPartitions().get();
+			this.running[index] = false;
 		}
 	}
 	
