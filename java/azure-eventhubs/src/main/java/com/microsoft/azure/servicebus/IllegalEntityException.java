@@ -4,8 +4,18 @@
  */
 package com.microsoft.azure.servicebus;
 
+/**
+ * This exception is thrown for the following reasons:
+ * <ul>
+ * <li> When the entity user attempted to connect does not exist
+ * <li> The entity user wants to connect is disabled
+ * </ul>
+ * <remark>For detail guideline on how to handle service bus exceptions please refer to http://go.microsoft.com/fwlink/?LinkId=761101</remark>
+ */
 public class IllegalEntityException extends ServiceBusException 
 {
+	private static final long serialVersionUID = 1842057379278310290L;
+
 	IllegalEntityException()
 	{
 		super(false);
