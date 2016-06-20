@@ -4,8 +4,20 @@
  */
 package com.microsoft.azure.servicebus;
 
+/**
+ * This exception is thrown when there is a client side connectivity issue. When receiving this exception user should
+ * check client connectivity settings to the service:
+ * <ul>
+ * <li> Check for any possible proxy settings that can block amqp ports
+ * <li> Check for any firewall settings that can block amqp ports
+ * <li> Check for any general network connectivity issues, as well as network latency.
+ * </ul>
+ * <remark>For detail guideline on how to handle service bus exceptions please refer to http://go.microsoft.com/fwlink/?LinkId=761101</remark>
+ */
 public class MessagingCommunicationException extends ServiceBusException
 {
+	private static final long serialVersionUID = 7968596830506494332L;
+
 	MessagingCommunicationException()
 	{
 		super(true);
