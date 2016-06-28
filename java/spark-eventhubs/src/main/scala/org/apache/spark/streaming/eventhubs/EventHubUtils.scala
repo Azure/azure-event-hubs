@@ -61,7 +61,7 @@ object EventHubUtils {
       storageLevel: StorageLevel,
       offsetStore: OffsetStore,
       receiverClient: EventHubInstance): Receiver[EventData] = {
-    val enabled = ssc.conf.getBoolean("spark.streaming.receiver.writeAheadLog.enable", false)
+    val enabled = ssc.conf.getBoolean("spark.streaming.receiver.writeAheadLog.enable", defaultValue = false)
     if (enabled) {
       new ReliableEventHubReceiver(eventHubParams, partitionId, storageLevel, offsetStore, receiverClient)
     } else {
