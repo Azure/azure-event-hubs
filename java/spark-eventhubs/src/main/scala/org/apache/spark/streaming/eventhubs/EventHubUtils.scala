@@ -5,7 +5,7 @@
 package org.apache.spark.streaming.eventhubs
 
 import com.microsoft.azure.eventhubs.EventData
-import org.apache.spark.SparkException
+import org.apache.spark.SparkContext
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.{DStream, ReceiverInputDStream}
@@ -13,13 +13,30 @@ import org.apache.spark.streaming.receiver.Receiver
 
 object EventHubUtils {
 
+  def createPartitionRDD (
+      sc: SparkContext,
+      eventHubParams: Map[String, String],
+      offsetRange: OffsetRange,
+      client: EventHubInstance = new EventHubInstance
+  ): EventHubRDD = sc.withScope {
+      new EventHubRDD(sc, eventHubParams, None, Some(offsetRange), client)
+  }
+
+  def createRDD (
+      sc: SparkContext,
+      eventHubParams: Map[String, String],
+      offsetRanges: Array[OffsetRange],
+      client: EventHubInstance = new EventHubInstance
+  ): EventHubRDD = sc.withScope {
+        new EventHubRDD(sc, eventHubParams, Some(offsetRanges), None, client)
+  }
+
   def createStream (
       ssc: StreamingContext,
       eventHubParams: Map[String, String],
+      partitionCount: Int,
       storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
   ): DStream[EventData] = {
-    val partitionCount = eventHubParams.getOrElse("partitionCount",
-      throw new SparkException("Please specify the number of partitions in your EventHubs instance")).toInt
     val streams = (0 until partitionCount).map { partitionId =>
       createPartitionStream(ssc, eventHubParams, partitionId.toString, storageLevel)
     }
