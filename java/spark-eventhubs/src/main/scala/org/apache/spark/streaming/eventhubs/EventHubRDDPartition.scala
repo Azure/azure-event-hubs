@@ -6,7 +6,7 @@ package org.apache.spark.streaming.eventhubs
 
 import org.apache.spark.Partition
 
-private[eventhub]
+private[eventhubs]
 class EventHubRDDPartition(
     val index: Int,
     val partitionId: String,
