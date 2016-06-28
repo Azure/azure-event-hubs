@@ -11,14 +11,38 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 object Driver {
   def main(args : Array[String]): Unit = {
-    //Samples.partitionRDDSample()
-    Samples.rddSample()
+    Samples.partitionRDDSample()
+    //Samples.rddSample()
     //Samples.streamSample()
     //Samples.partitionStreamSample()
   }
 }
 
 object Samples {
+  //Create a partition RDD and output messages
+  def partitionRDDSample(): Unit = {
+    val conf = new SparkConf().setAppName("EventHubs-Spark Test").setMaster("local")
+    val sc = new SparkContext(conf)
+    val eventHubParams: Map[String, String] = Map(
+      "namespaceName" -> "sgrewa-test-ns",
+      "eventHubName" -> "sgrewa-test",
+      "sasKeyName" -> "RootManageSharedAccessKey",
+      "sasKey" -> "F72qroEfDwPkuGrjn6mVVajTvHt5O7SlUn25fIosYpE=")
+    val offsetRange1 = OffsetRange(partitionId = "1", startingOffset = -1, batchSize = 50)
+    val offsetRange2 = OffsetRange(partitionId = "3", startingOffset = -1, batchSize = 50)
+
+    println("creating RDDs....")
+    val ehRDD1: RDD[EventData] = EventHubUtils.createPartitionRDD(sc, eventHubParams, offsetRange1)
+    val ehRDD2: RDD[EventData] = EventHubUtils.createPartitionRDD(sc, eventHubParams, offsetRange2)
+
+    val ehRDD3: RDD[String] = ehRDD1.union(ehRDD2).map[String] { case (x) => new String(x.getBody) }
+
+    for (elem <- ehRDD3)
+      println(elem)
+
+    sc.stop()
+  }
+
   //Create a RDD and output messages
   def rddSample(): Unit = {
     val conf = new SparkConf().setAppName("EventHubs-Spark Test").setMaster("local")
