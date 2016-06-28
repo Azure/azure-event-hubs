@@ -49,10 +49,10 @@ object OffsetRange {
   def apply(partitionId: String, startingOffset: Long, batchSize: Long): OffsetRange =
     new OffsetRange(partitionId, startingOffset, batchSize)
 
-  private[eventhub]
+  private[eventhubs]
   type OffsetRangeTuple = (String, Long, Long)
 
-  private[eventhub]
+  private[eventhubs]
   def apply(t: OffsetRangeTuple) =
     new OffsetRange(t._1, t._2, t._3)
 }
