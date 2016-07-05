@@ -26,7 +26,7 @@ There are two options when creating DStreams with Event Hubs - you can make a DS
 
 *namespaceName*, *eventHubName*, *sasKeyName*, *sasKey*, and *checkpointDir* must be provided in your eventHubParams for either type of DStream.
 
-### createStream
+#### createStream
 Returns a DStream of your entire Event Hubs instance.
 
 ```scala 
@@ -36,22 +36,22 @@ def createStream (
     partitionCount: Int
 ) 
 ```
-### createPartitionStream
+#### createPartitionStream
 Returns a DStream of a single Event Hubs partition.
 
 ```scala
 createPartitionStream
 def createPartitionStream (
-      ssc: StreamingContext,
-      eventHubParams: Map[String, String],
-      partitionId: String
-  )
+    ssc: StreamingContext,
+    eventHubParams: Map[String, String],
+    partitionId: String
+)
 ```  
 ## Apache Spark
 Just like the Spark Streaming adapters, the Apache Spark adapters have two varieties - you can make a RDD for your entire Event Hubs instance or for a particular partition.
 
 *namespaceName*, *eventHubName*, *sasKeyName*, and *sasKey* must be provided in your eventHubParams for either type of DStream.
-### createRDD
+#### createRDD
 Returns a RDD of your entire Event Hubs instance.
 ```scala
 def createRDD (
@@ -60,7 +60,7 @@ def createRDD (
     offsetRanges: Array[OffsetRange]
 )
 ```
-### createPartitionRDD
+#### createPartitionRDD
 Returns a RDD of a single Event Hubs partition.
 ```scala
 def createPartitionRDD (
