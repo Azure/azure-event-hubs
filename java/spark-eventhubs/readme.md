@@ -60,6 +60,10 @@ def createRDD (
     offsetRanges: Array[OffsetRange]
 )
 ```
+The offsetRanges array can be created like so:
+```scala
+val offsetRanges = OffsetRange.createArray(numPartitions = 4, startingOffset = -1, batchSize = 50)
+```
 #### createPartitionRDD
 Returns a RDD of a single Event Hubs partition.
 ```scala
@@ -68,4 +72,8 @@ def createPartitionRDD (
     eventHubParams: Map[String, String],
 	offsetRange: OffsetRange
 )
+```
+The offsetRange can be created like so:
+```scala
+val offsetRange = OffsetRange(numPartitions = 4, startingOffset = -1, batchSize = 50)
 ```
