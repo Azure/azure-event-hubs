@@ -13,6 +13,10 @@ import org.apache.spark.util.ThreadUtils
 import scala.collection.JavaConverters._
 import scala.util.control.ControlThrowable
 
+/**
+  * The receiver used by the the ReceiverInputDStream in createStream and createPartitionStream
+  * within EventHubUtils
+  */
 private[eventhubs]
 class EventHubReceiver(
   eventHubParams: Map[String, String],
@@ -22,6 +26,7 @@ class EventHubReceiver(
   client: EventHubInstance
 ) extends Receiver[EventData](storageLevel) with Logging {
 
+  /** Create offset store if one does not exist*/
   var myOffsetStore: OffsetStore = offsetStore
   if(myOffsetStore == null) {
     myOffsetStore = new DfsBasedOffsetStore(
@@ -32,14 +37,24 @@ class EventHubReceiver(
     )
   }
 
+  /** Flag to communicate from main thread to the MessageHandler thread
+    * that the message handler should be stopped. */
   private var stopMessageHandler = false
+
+  /** Latest sequence number received from Event Hubs. Used to throw away duplicate
+    * messages when receiver gets restarted. */
   private var latestSequenceNo: Long = Long.MinValue
+
+  /** Offset that will be saved at the end of current checkpoint interval. */
   protected var offsetToSave: String = null
+
+  /** The last offset that was successfully stored. */
   protected var savedOffset: String = null
 
   def onStop(): Unit = {
     logInfo(s"Stopping EventHubReceiver for partitionId: $partitionId")
     stopMessageHandler = true
+    // All other clean up is done in the message handler thread
   }
 
   def onStart(): Unit = {
@@ -51,7 +66,7 @@ class EventHubReceiver(
     try {
       executorPool.submit(new EventHubMessageHandler)
     } finally {
-      executorPool.shutdown()
+      executorPool.shutdown() // exits thread when everything is done
     }
   }
 
@@ -75,6 +90,7 @@ class EventHubReceiver(
 
       try {
         myOffsetStore.open()
+        // if offset isn't available in offset store, we use -1 as starting offset
         client.createReceiver(eventHubParams, partitionId, myOffsetStore.read())
 
         //TODO need to change hardcoding
@@ -94,6 +110,7 @@ class EventHubReceiver(
           }
         }
       } catch {
+        // TODO add retries for certain exception types...we don't need to restart every time
         case c: ControlThrowable => throw c
         case e: Throwable =>
           restart("Error handling message; restarting receiver", e)
