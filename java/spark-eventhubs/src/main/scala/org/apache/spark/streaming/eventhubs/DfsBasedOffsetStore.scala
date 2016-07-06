@@ -7,6 +7,9 @@ package org.apache.spark.streaming.eventhubs
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+/**
+  * A DFS-based OffsetStore implementation
+  */
 @SerialVersionUID(1L)
 class DfsBasedOffsetStore(
     directory: String,

@@ -6,6 +6,9 @@ package org.apache.spark.streaming.eventhubs
 
 import scala.collection.mutable.ArrayBuffer
 
+/**
+  * Contains starting offset and batch size for EventHubRDD
+  */
 final class OffsetRange private(
     val partitionId: String,
     val startingOffset: Long,

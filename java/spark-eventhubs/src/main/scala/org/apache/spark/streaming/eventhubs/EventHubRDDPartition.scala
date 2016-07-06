@@ -6,6 +6,7 @@ package org.apache.spark.streaming.eventhubs
 
 import org.apache.spark.Partition
 
+/** An identifier for a event hubs partition in an RDD */
 private[eventhubs]
 class EventHubRDDPartition(
     val index: Int,
