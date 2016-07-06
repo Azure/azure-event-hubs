@@ -9,9 +9,12 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
+/**
+  * Sample usage of EventHubs/Apache Spark adapters
+  */
 object Driver {
   def main(args : Array[String]): Unit = {
-    Samples.partitionRDDSample()
+    //Samples.partitionRDDSample()
     //Samples.rddSample()
     //Samples.streamSample()
     //Samples.partitionStreamSample()

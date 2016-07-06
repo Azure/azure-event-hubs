@@ -18,6 +18,14 @@ import scala.reflect.ClassTag
 
 object EventHubUtils {
 
+  /**
+    * Create a RDD for a single Event Hubs partition
+    * @param sc SparkContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param offsetRange contains the offsets and partitonId where data will be consumed
+    * @return RDD of the single specified partition
+    */
   def createPartitionRDD (
       sc: SparkContext,
       eventHubParams: Map[String, String],
@@ -27,6 +35,14 @@ object EventHubUtils {
     new EventHubRDD(sc, eventHubParams, None, Some(offsetRange), client)
   }
 
+  /**
+    * Create a RDD for a single Event Hubs partition
+    * @param jsc JavaSparkContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param offsetRange contains the offsets and partitonId where data will be consumed
+    * @return RDD of the single specified partition
+    */
   def createPartitionRDD (
       jsc: JavaSparkContext,
       eventHubParams: Map[String, String],
@@ -37,6 +53,14 @@ object EventHubUtils {
     new EventHubRDD(jsc.sc, eventHubParams, None, Some(offsetRange), client)
   }
 
+  /**
+    * Create a RDD for an Event Hubs instance
+    * @param sc SparkContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param offsetRanges contains the offsets and partitonId where data will be consumed
+    * @return RDD of the Event Hubs instance
+    */
   def createRDD (
       sc: SparkContext,
       eventHubParams: Map[String, String],
@@ -46,6 +70,14 @@ object EventHubUtils {
     new EventHubRDD(sc, eventHubParams, Some(offsetRanges), None, client)
   }
 
+  /**
+    * Create a RDD for an Event Hubs instance
+    * @param jsc JavaSparkContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param offsetRanges contains the offsets and partitonId where data will be consumed
+    * @return RDD of the Event Hubs instance
+    */
   def createRDD (
       jsc: JavaSparkContext,
       eventHubParams: Map[String, String],
@@ -56,6 +88,14 @@ object EventHubUtils {
     new EventHubRDD(jsc.sc, eventHubParams, Some(offsetRanges), None, client)
   }
 
+  /**
+    * Create a input DStream for
+    * @param ssc StreamingContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param partitionCount number of partitions in Event Hub instance
+    * @return Input DStream of the Event Hubs instance
+    */
   def createStream (
       ssc: StreamingContext,
       eventHubParams: Map[String, String],
@@ -68,6 +108,14 @@ object EventHubUtils {
     ssc.union[EventData](streams)
   }
 
+  /**
+    * Create a input DStream for
+    * @param jssc JavaStreamingContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param partitionCount number of partitions in Event Hub instance
+    * @return Input DStream of the Event Hubs instance
+    */
   def createStream (
       jssc: JavaStreamingContext,
       eventHubParams: Map[String, String],
@@ -81,6 +129,14 @@ object EventHubUtils {
     jssc.ssc.union[EventData](streams)
   }
 
+  /**
+    * Create a input DStream for a single partition in Event Hubs
+    * @param ssc StreamingContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param partitionId partition ID that will be streamed
+    * @return Input DStream a partition in an Event Hubs instance
+    */
   def createPartitionStream (
       ssc: StreamingContext,
       eventHubParams: Map[String, String],
@@ -92,6 +148,14 @@ object EventHubUtils {
     ssc.receiverStream(getReceiver(ssc, eventHubParams, partitionId, storageLevel, offsetStore, receiverClient))
   }
 
+  /**
+    * Create a input DStream for a single partition in Event Hubs
+    * @param jssc JavaStreamingContext object
+    * @param eventHubParams Map of event hubs parameters - see the readme here:
+    *                       https://github.com/sabeegrewal/azure-event-hubs/tree/master/java/spark-eventhubs
+    * @param partitionId partition ID that will be streamed
+    * @return Input DStream a partition in an Event Hubs instance
+    */
   def createPartitionStream (
       jssc: JavaStreamingContext,
       eventHubParams: Map[String, String],
@@ -104,6 +168,9 @@ object EventHubUtils {
     jssc.ssc.receiverStream(getReceiver(jssc.ssc, eventHubParams, partitionId, storageLevel, offsetStore, receiverClient))
   }
 
+  /**
+    * Helper function to create the corre3ct type of receiver
+    */
   private def getReceiver(
       ssc: StreamingContext,
       eventHubParams: Map[String, String],
