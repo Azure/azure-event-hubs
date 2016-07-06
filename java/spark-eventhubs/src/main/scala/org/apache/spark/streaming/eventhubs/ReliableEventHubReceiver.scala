@@ -48,7 +48,8 @@ class ReliableEventHubReceiver(
   }
 
   override def processReceivedMessage(events: Iterable[EventData]): Unit = {
-    //TODO this entire method...
+    for (event <- events)
+      blockGenerator.addDataWithCallback(event, event.getSystemProperties.getOffset)
   }
 
   private def storeBlockAndCommitOffset(
