@@ -24,10 +24,12 @@ import org.apache.qpid.proton.engine.Handler;
 import org.apache.qpid.proton.engine.HandlerException;
 import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.reactor.Reactor;
+import org.apache.qpid.proton.reactor.Task;
 
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
+import com.microsoft.azure.servicebus.amqp.ITaskScheduler;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 
@@ -35,7 +37,7 @@ import com.microsoft.azure.servicebus.amqp.ReactorHandler;
  * Abstracts all amqp related details and exposes AmqpConnection object
  * Manages connection life-cycle
  */
-public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITimeoutErrorHandler
+public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITimeoutErrorHandler, ITaskScheduler
 {
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
 
@@ -47,6 +49,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private final ConnectionHandler connectionHandler;
 	private final ReactorHandler reactorHandler;
 	private final LinkedList<Link> registeredLinks;
+	private final Object reactorSync;
 
 	private Reactor reactor;
 	private Thread reactorThread;
@@ -76,6 +79,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.registeredLinks = new LinkedList<Link>();
 		this.resetConnectionSync = new Object();
 		this.closeTask = new CompletableFuture<Void>();
+		this.reactorSync = new Object();
 		this.connectionHandler = new ConnectionHandler(this, 
 				builder.getEndpoint().getHost(), builder.getSasKeyName(), builder.getSasKey());
 
@@ -96,6 +100,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	{
 		return this.hostName;
 	}
+	
+	private Reactor getReactor()
+	{
+		synchronized (this.reactorSync)
+		{
+			return this.reactor;
+		}
+	}
 
 	private void createConnection(ConnectionStringBuilder builder) throws IOException
 	{
@@ -106,8 +118,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 	private void startReactor(ReactorHandler reactorHandler) throws IOException
 	{
-		this.reactor = ProtonUtil.reactor(reactorHandler);
-		this.reactorThread = new Thread(new RunReactor(this.reactor));
+		final Reactor newReactor = ProtonUtil.reactor(reactorHandler);
+		synchronized (this.reactorSync)
+		{
+			this.reactor = newReactor;
+		}
+		
+		this.reactorThread = new Thread(new RunReactor(newReactor));
 		this.reactorThread.start();
 	}
 
@@ -284,7 +301,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 	void resetConnection()
 	{		
-		this.reactor.free();
+		this.getReactor().free();
 		this.onReactorError(new ServiceBusException(true, String.format(Locale.US, "Client invoked connection reset, %s", ExceptionUtil.getTrackingIDAndTimeToLog())));
 	}
 
@@ -424,5 +441,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	public void resetTimeoutErrorTracking()
 	{
 		this.timeoutErrorStart = Instant.MAX;
+	}
+
+	@Override
+	public Task schedule(final int delay, final Handler handler)
+	{
+		return this.getReactor().schedule(delay, handler);
 	}	
 }
