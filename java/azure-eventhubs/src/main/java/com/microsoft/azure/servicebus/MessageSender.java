@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
 import org.apache.qpid.proton.amqp.messaging.Accepted;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.amqp.messaging.Rejected;
@@ -264,19 +265,39 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		int payloadSize = this.getPayloadSize(amqpMessage);
 
 		// EventData - accepts only PartitionKey - which is a String & stuffed into MessageAnnotation
-		MessageAnnotations msgAnnotations = amqpMessage.getMessageAnnotations();
-		if (msgAnnotations == null)
-		{
-			return payloadSize;
-		}
-
+		MessageAnnotations messageAnnotations = amqpMessage.getMessageAnnotations();
+		ApplicationProperties applicationProperties = amqpMessage.getApplicationProperties();
+		
 		int annotationsSize = 0;
-		for(Object value: msgAnnotations.getValue().values())
+		int applicationPropertiesSize = 0;
+		
+		if (messageAnnotations != null)
 		{
-			annotationsSize += value.toString().length();
+			for(Object value: messageAnnotations.getValue().keySet())
+			{
+				annotationsSize += (value.toString().length() << 1);
+			}
+			
+			for(Object value: messageAnnotations.getValue().values())
+			{
+				annotationsSize += (value.toString().length() << 1);
+			}
 		}
-
-		return annotationsSize + payloadSize;
+		
+		if (applicationProperties != null)
+		{
+			for(Object value: applicationProperties.getValue().keySet())
+			{
+				applicationPropertiesSize += (value.toString().length() << 1);
+			}
+			
+			for(Object value: applicationProperties.getValue().values())
+			{
+				applicationPropertiesSize += (value.toString().length() << 1);
+			}
+		}
+		
+		return annotationsSize + applicationPropertiesSize + payloadSize;
 	}
 
 	public CompletableFuture<Void> send(final Iterable<Message> messages)
