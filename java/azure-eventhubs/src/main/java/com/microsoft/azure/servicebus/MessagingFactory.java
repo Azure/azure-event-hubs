@@ -37,12 +37,11 @@ import com.microsoft.azure.servicebus.amqp.ReactorHandler;
  * Abstracts all amqp related details and exposes AmqpConnection object
  * Manages connection life-cycle
  */
-public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITimeoutErrorHandler, ITaskScheduler
+public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITaskScheduler
 {
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
 
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-	private static final int TIMEOUT_ERROR_THRESHOLD_IN_SECS = 100000;
 	private final Object connectionLock = new Object();
 	private final String hostName;
 	private final CompletableFuture<Void> closeTask;
@@ -415,32 +414,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	public void deregisterForConnectionError(Link link)
 	{
 		this.registeredLinks.remove(link);	
-	}
-
-	@Override
-	public void reportTimeoutError()
-	{
-		if (this.timeoutErrorStart.equals(Instant.MAX))
-		{
-			this.timeoutErrorStart = Instant.now();
-		}
-		else if (this.timeoutErrorStart.isBefore(Instant.now().minus(TIMEOUT_ERROR_THRESHOLD_IN_SECS, ChronoUnit.SECONDS)))
-		{
-			synchronized (this.resetConnectionSync)
-			{
-				if (this.timeoutErrorStart.isBefore(Instant.now().minus(TIMEOUT_ERROR_THRESHOLD_IN_SECS, ChronoUnit.SECONDS)))
-				{
-					this.resetTimeoutErrorTracking();
-					this.resetConnection();
-				}
-			}
-		}
-	}
-
-	@Override
-	public void resetTimeoutErrorTracking()
-	{
-		this.timeoutErrorStart = Instant.MAX;
 	}
 
 	@Override
