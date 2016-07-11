@@ -17,7 +17,7 @@ object Driver {
     //Samples.partitionRDDSample()
     //Samples.rddSample()
     //Samples.streamSample()
-    //Samples.partitionStreamSample()
+    Samples.partitionStreamSample()
   }
 }
 
