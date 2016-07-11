@@ -89,24 +89,27 @@ class EventHubReceiver(
       logInfo(s"Begin EventHubMessageHandler for partition $partitionId")
 
       try {
-        myOffsetStore.open()
         // if offset isn't available in offset store, we use -1 as starting offset
-        client.createReceiver(eventHubParams, partitionId, myOffsetStore.read())
+        myOffsetStore.open()
+        val offset = myOffsetStore.read()
+        logInfo(s"Retrieved offset $offset from offset store. NOTE: default value is -1 if no offset store is provided")
+        client.createReceiver(eventHubParams, partitionId, offset)
 
         //TODO need to change hardcoding
         while (!stopMessageHandler) {
           val batch = client.receiver.receive(1).get
-          if(batch != null)
+          if (batch != null)
             processReceivedMessage(batch.asScala)
-        }
 
-        val now = System.currentTimeMillis()
-        if(now > nextTime) {
-          if(offsetToSave != savedOffset) {
-            logInfo(s"Saving offset: $offsetToSave for partitionId: $partitionId")
-            myOffsetStore.write(offsetToSave)
-            savedOffset = offsetToSave
-            nextTime = now + checkpointInterval
+          val now = System.currentTimeMillis()
+          if (now > nextTime) {
+            if (offsetToSave != savedOffset) {
+              logInfo(s"Saving offset: $offsetToSave for partitionId: $partitionId")
+              myOffsetStore.write(offsetToSave)
+              savedOffset = offsetToSave
+              nextTime = now + checkpointInterval
+            }
+            logInfo(s"Offset wasn't stored because offset hasn't change since last checkpoint")
           }
         }
       } catch {
