@@ -51,10 +51,10 @@ object Samples {
     val conf = new SparkConf().setAppName("EventHubs-Spark Test").setMaster("local")
     val sc = new SparkContext(conf)
     val eventHubParams: Map[String, String] = Map(
-      "namespaceName" -> "sgrewa-test-ns",
-      "eventHubName" -> "sgrewa-test",
-      "sasKeyName" -> "RootManageSharedAccessKey",
-      "sasKey" -> "F72qroEfDwPkuGrjn6mVVajTvHt5O7SlUn25fIosYpE=")
+      "namespaceName" -> "XXXXX-ns",
+      "eventHubName" -> "XXXXX",
+      "sasKeyName" -> "SAS_KEY_NAME",
+      "sasKey" -> "SAS_KEY")
     val offsetRanges = OffsetRange.createArray(numPartitions = 4, startingOffset = -1, batchSize = 50)
 
     println("creating RDDs....")
