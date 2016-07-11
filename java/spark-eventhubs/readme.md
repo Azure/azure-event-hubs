@@ -12,7 +12,7 @@ Every adapter takes in information about your Event Hubs instance in the form of
 * sasKey
 * checkpointDir (for DStreams only)
 
-Below is an example of eventHubParams initialization is: 
+Below is an example of eventHubParams initialization: 
 ```scala 
 val eventHubParams: Map[String, String] = Map(
 	"namespaceName" -> "XXXXX-ns",
@@ -68,7 +68,7 @@ val offsetRanges = OffsetRange.createArray(numPartitions = 4, startingOffset = -
 Returns a RDD of a single Event Hubs partition.
 ```scala
 def createPartitionRDD (
-	jsc: JavaSparkContext,
+	sc: SparkContext,
     eventHubParams: Map[String, String],
 	offsetRange: OffsetRange
 )
