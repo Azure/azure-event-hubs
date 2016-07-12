@@ -6,20 +6,8 @@ package org.apache.spark.streaming.eventhubs
 
 import com.microsoft.azure.eventhubs.EventData
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-
-/**
-  * Sample usage of EventHubs/Apache Spark adapters
-  */
-object Driver {
-  def main(args : Array[String]): Unit = {
-    //Samples.partitionRDDSample()
-    //Samples.rddSample()
-    //Samples.streamSample()
-    Samples.partitionStreamSample()
-  }
-}
+import org.apache.spark.{SparkConf, SparkContext}
 
 object Samples {
   //Create a partition RDD and output messages
@@ -27,10 +15,10 @@ object Samples {
     val conf = new SparkConf().setAppName("EventHubs-Spark Test").setMaster("local")
     val sc = new SparkContext(conf)
     val eventHubParams: Map[String, String] = Map(
-      "namespaceName" -> "sgrewa-test-ns",
-      "eventHubName" -> "sgrewa-test",
-      "sasKeyName" -> "RootManageSharedAccessKey",
-      "sasKey" -> "F72qroEfDwPkuGrjn6mVVajTvHt5O7SlUn25fIosYpE=")
+      "namespaceName" -> "XXXXX-ns",
+      "eventHubName" -> "XXXXX",
+      "sasKeyName" -> "SAS_KEY_NAME",
+      "sasKey" -> "SAS_KEY")
     val offsetRange1 = OffsetRange(partitionId = "1", startingOffset = -1, batchSize = 50)
     val offsetRange2 = OffsetRange(partitionId = "3", startingOffset = -1, batchSize = 50)
 
@@ -68,6 +56,7 @@ object Samples {
 
     sc.stop()
   }
+
   //Create a stream and output messages
   def streamSample(): Unit = {
     val conf = new SparkConf().setAppName("Event Hub Partition DStream Test").setMaster("local[6]")
@@ -78,11 +67,11 @@ object Samples {
     ssc.checkpoint("_checkpoint")
 
     val eventHubParams: Map[String, String] = Map(
-      "namespaceName" -> "sgrewa-test-ns",
-      "eventHubName" -> "sgrewa-test",
-      "sasKeyName" -> "RootManageSharedAccessKey",
-      "sasKey" -> "F72qroEfDwPkuGrjn6mVVajTvHt5O7SlUn25fIosYpE=",
-      "checkpointDir" -> "C:\\Users\\t-sgrewa\\Documents")
+      "namespaceName" -> "XXXXX-ns",
+      "eventHubName" -> "XXXXX",
+      "sasKeyName" -> "SAS_KEY_NAME",
+      "sasKey" -> "SAS_KEY",
+      "checkpointDir" -> "CHECKPOINT_DIR")
 
     println("Setting up stream...")
     val stream = EventHubUtils.createStream(ssc, eventHubParams, partitionCount = 4)
@@ -108,11 +97,11 @@ object Samples {
     ssc.checkpoint("_checkpoint")
 
     val eventHubParams: Map[String, String] = Map(
-      "namespaceName" -> "sgrewa-test-ns",
-      "eventHubName" -> "sgrewa-test",
-      "sasKeyName" -> "RootManageSharedAccessKey",
-      "sasKey" -> "F72qroEfDwPkuGrjn6mVVajTvHt5O7SlUn25fIosYpE=",
-      "checkpointDir" -> "C:\\Users\\t-sgrewa\\Documents")
+      "namespaceName" -> "XXXXX-ns",
+      "eventHubName" -> "XXXXX",
+      "sasKeyName" -> "SAS_KEY_NAME",
+      "sasKey" -> "SAS_KEY",
+      "checkpointDir" -> "CHECKPOINT_DIR")
 
     println("Setting up Partition DStream...")
     val partitionDStream = EventHubUtils.createPartitionStream(ssc, eventHubParams, partitionId = "1")
