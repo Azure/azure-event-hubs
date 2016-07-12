@@ -6,8 +6,6 @@ package com.microsoft.azure.servicebus;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
@@ -29,7 +27,6 @@ import org.apache.qpid.proton.reactor.Task;
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
-import com.microsoft.azure.servicebus.amqp.ITaskScheduler;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 
@@ -37,7 +34,7 @@ import com.microsoft.azure.servicebus.amqp.ReactorHandler;
  * Abstracts all amqp related details and exposes AmqpConnection object
  * Manages connection life-cycle
  */
-public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITaskScheduler
+public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory
 {
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
 
@@ -49,7 +46,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private final ReactorHandler reactorHandler;
 	private final LinkedList<Link> registeredLinks;
 	private final Object reactorSync;
-
+	
 	private Reactor reactor;
 	private Thread reactorThread;
 	private Connection connection;
@@ -60,9 +57,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private CompletableFuture<MessagingFactory> open;
 	private CompletableFuture<Connection> openConnection;
 	private TimeoutTracker connectionCreateTracker;
-	private Instant timeoutErrorStart;
-	private Object resetConnectionSync;
-
+	
 	/**
 	 * @param reactor parameter reactor is purely for testing purposes and the SDK code should always set it to null
 	 */
@@ -72,11 +67,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 		Timer.register(this.getClientId());
 		this.hostName = builder.getEndpoint().getHost();
-		this.timeoutErrorStart = Instant.MAX;
+		
 		this.operationTimeout = builder.getOperationTimeout();
 		this.retryPolicy = builder.getRetryPolicy();
 		this.registeredLinks = new LinkedList<Link>();
-		this.resetConnectionSync = new Object();
 		this.closeTask = new CompletableFuture<Void>();
 		this.reactorSync = new Object();
 		this.connectionHandler = new ConnectionHandler(this, 
@@ -416,8 +410,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.registeredLinks.remove(link);	
 	}
 
-	@Override
-	public Task schedule(final int delay, final Handler handler)
+	public Task scheduleOnReactorThread(final int delay, final Handler handler)
 	{
 		return this.getReactor().schedule(delay, handler);
 	}	

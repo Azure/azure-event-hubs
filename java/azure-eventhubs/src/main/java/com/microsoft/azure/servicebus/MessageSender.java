@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -51,7 +52,6 @@ import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
-import com.microsoft.azure.servicebus.amqp.ITaskScheduler;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
 import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
@@ -70,11 +70,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
 	private final CompletableFuture<Void> linkClose;
-	private final ITaskScheduler scheduler;
 	private final Object pendingSendSync;
 	private final ConcurrentHashMap<String, ReplayableWorkItem<Void>> pendingSendsData;
 	private final PriorityQueue<WeightedDeliveryTag> pendingSends;
-	
+	private final BaseHandler sendPump;
+
 	private Sender sendLink;
 	private CompletableFuture<MessageSender> linkFirstOpen; 
 	private AtomicInteger linkCredit;
@@ -89,10 +89,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final String sendLinkName,
 			final String senderPath)
 	{
-		final MessageSender msgSender = new MessageSender(factory, factory, sendLinkName, senderPath);
+		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
 		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
 		msgSender.linkCreateScheduled = true;
+
 		Timer.schedule(new Runnable()
 		{
 			@Override
@@ -104,7 +105,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		return msgSender.linkFirstOpen;
 	}
 
-	private MessageSender(final MessagingFactory factory, final ITaskScheduler scheduler, final String sendLinkName, final String senderPath)
+	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath)
 	{
 		super(sendLinkName, factory);
 
@@ -114,7 +115,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		
 		this.lastKnownLinkError = null;
 		this.lastKnownErrorReportedAt = Instant.EPOCH;
-		this.scheduler = scheduler;
 		
 		this.retryPolicy = factory.getRetryPolicy();
 
@@ -125,6 +125,20 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 		this.linkCreateLock = new Object();
 		this.linkClose = new CompletableFuture<Void>();
+		
+		this.sendPump = new BaseHandler()
+		{ 
+			@Override
+			public void onTimerTask(Event e) 
+			{
+				MessageSender.this.processSendWork();
+
+				if (MessageSender.this.linkCredit.get() > 0 && !MessageSender.this.getIsClosingOrClosed())
+				{
+					MessageSender.this.underlyingFactory.scheduleOnReactorThread(SEND_WORK_POLL_INTERVAL, this);
+				}
+			}
+		};
 	}
 
 	public String getSendPath()
@@ -144,7 +158,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final CompletableFuture<Void> onSend,
 			final TimeoutTracker tracker,
 			final String deliveryTag,
-			final Exception lastKnownError)
+			final Exception lastKnownError,
+			final ScheduledFuture<?> timeoutTask)
 	{
 		this.throwIfClosed(this.lastKnownLinkError);
 
@@ -158,6 +173,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 
 			this.throwSenderTimeout(onSend, null);
+			if (timeoutTask != null)
+			{
+				timeoutTask.cancel(false);
+			}
+			
 			return onSend;
 		}
 
@@ -178,7 +198,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		synchronized (this.pendingSendSync)
 		{
 			this.pendingSendsData.put(tag, sendWaiterData);
-			this.pendingSends.offer(new WeightedDeliveryTag(tag, isRetrySend ? 1 : 0));	
+			this.pendingSends.offer(new WeightedDeliveryTag(tag, isRetrySend ? 1 : 0));
 		}
 		
 		return onSendFuture;
@@ -191,7 +211,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final CompletableFuture<Void> onSend,
 			final TimeoutTracker tracker)
 	{
-		return this.sendCore(bytes, arrayOffset, messageFormat, onSend, tracker, null, null);
+		return this.sendCore(bytes, arrayOffset, messageFormat, onSend, tracker, null, null, null);
 	}
 
 	private int getPayloadSize(Message msg)
@@ -377,21 +397,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					}
 				}
 			}
-			
-			this.scheduler.schedule(SEND_WORK_POLL_INTERVAL, new BaseHandler()
-			{ 
-				@Override
-				public void onTimerTask(Event e) 
-				{
-					if (MessageSender.this.getIsClosingOrClosed())
-					{
-						return;
-					}
-				
-					MessageSender.this.onSendWorkTimer();
-					MessageSender.this.scheduler.schedule(SEND_WORK_POLL_INTERVAL, this);
-				}
-			});
 		}
 		else
 		{	
@@ -423,9 +428,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				{
 					ExceptionUtil.completeExceptionally(pendingSend.getValue().getWork(),
 							completionException == null
-							? new OperationCancelledException("Send cancelled as the Sender instance is Closed before the sendOperation completed.")
-									: completionException,
-									this);					
+								? new OperationCancelledException("Send cancelled as the Sender instance is Closed before the sendOperation completed.")
+								: completionException,
+							this);					
 				}
 	
 				this.pendingSendsData.clear();
@@ -507,7 +512,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		if (TRACE_LOGGER.isLoggable(Level.FINEST))
 			TRACE_LOGGER.log(Level.FINEST, String.format(Locale.US, "path[%s], linkName[%s], deliveryTag[%s]", MessageSender.this.sendPath, this.sendLink.getName(), deliveryTag));
 
-		final ReplayableWorkItem<Void> pendingSendWorkItem = this.pendingSendsData.get(deliveryTag);
+		final ReplayableWorkItem<Void> pendingSendWorkItem = this.pendingSendsData.remove(deliveryTag);
 
 		if (pendingSendWorkItem != null)
 		{
@@ -516,8 +521,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			{
 				this.lastKnownLinkError = null;
 				this.retryPolicy.resetRetryCount(this.getClientId());
-				this.pendingSendsData.remove(deliveryTag);
 				pendingSend.complete(null);
+				pendingSendWorkItem.getTimeoutTask().cancel(false);
 			}
 			else if (outcome instanceof Rejected)
 			{
@@ -535,22 +540,19 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 						this.getClientId(), exception, pendingSendWorkItem.getTimeoutTracker().remaining());
 				if (retryInterval == null)
 				{
-					this.pendingSendsData.remove(deliveryTag);
 					ExceptionUtil.completeExceptionally(pendingSend, exception, this);
 				}
 				else
 				{
 					pendingSendWorkItem.setLastKnownException(exception);
-					this.scheduler.schedule(
-							(int) Long.min(retryInterval.toMillis(), Integer.MAX_VALUE),
-							new BaseHandler()
-							{
-								@Override
-								public void onTimerTask(Event e) 
-								{
-									MessageSender.this.reSend(deliveryTag, false);
-								}
-							});
+					Timer.schedule(new Runnable()
+					{
+						@Override
+						public void run()
+						{
+							MessageSender.this.reSend(deliveryTag, pendingSendWorkItem, false);
+						}
+					}, retryInterval, TimerType.OneTimeRun);
 				}
 			}
 			else if (outcome instanceof Released)
@@ -559,7 +561,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			else 
 			{
-				this.pendingSendsData.remove(deliveryTag);
 				ExceptionUtil.completeExceptionally(pendingSend, new ServiceBusException(false, outcome.toString()), this);
 			}
 		}
@@ -569,14 +570,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				TRACE_LOGGER.log(Level.WARNING, 
 						String.format(Locale.US, "path[%s], linkName[%s], delivery[%s] - mismatch", this.sendPath, this.sendLink.getName(), deliveryTag));
 		}
-
-		delivery.settle();
 	}
 
-	private void reSend(final String deliveryTag, boolean reuseDeliveryTag)
+	private void reSend(final String deliveryTag, final ReplayableWorkItem<Void> pendingSend, boolean reuseDeliveryTag)
 	{
-		ReplayableWorkItem<Void> pendingSend = this.pendingSendsData.remove(deliveryTag);
-
 		if (pendingSend != null)
 		{
 			this.sendCore(pendingSend.getMessage(), 
@@ -585,7 +582,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					pendingSend.getWork(),
 					pendingSend.getTimeoutTracker(),
 					reuseDeliveryTag ? deliveryTag : null,
-							pendingSend.getLastKnownException());
+					pendingSend.getLastKnownException(),
+					pendingSend.getTimeoutTask());
 		}
 	}
 
@@ -685,12 +683,12 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				? this.sendLink.getRemoteProperties().get(ClientConstants.TRACKING_ID_PROPERTY).toString()
 						: ((this.sendLink != null) ? this.sendLink.getName(): null);
 
-				SenderContext errorContext = new SenderContext(
-						this.underlyingFactory!=null ? this.underlyingFactory.getHostName() : null,
-								this.sendPath,
-								referenceId,
-								isLinkOpened ? this.sendLink.getCredit() : null);
-				return errorContext;
+		SenderContext errorContext = new SenderContext(
+				this.underlyingFactory!=null ? this.underlyingFactory.getHostName() : null,
+						this.sendPath,
+						referenceId,
+						isLinkOpened ? this.sendLink.getCredit() : null);
+		return errorContext;
 	}
 
 	@Override
@@ -709,18 +707,23 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			TRACE_LOGGER.log(Level.FINE, String.format(Locale.US, "path[%s], linkName[%s], remoteLinkCredit[%s], pendingSendsWaitingForCredit[%s], pendingSendsWaitingDelivery[%s]",
 					this.sendPath, this.sendLink.getName(), updatedCredit, numberOfSendsWaitingforCredit, this.pendingSendsData.size() - numberOfSendsWaitingforCredit));
 		}
+		
+		if (this.linkCredit.get() <= 0)
+		{
+			this.underlyingFactory.scheduleOnReactorThread(0, this.sendPump);
+		}
 
 		this.linkCredit.addAndGet(updatedCredit);
 	}
 	
 	// actual send on the SenderLink should happen only in this method
-	private void onSendWorkTimer()
+	private void processSendWork()
 	{
 		final Sender sendLinkCurrent = this.sendLink;
-		int currentSendBatch = 0;
+		
 		while (sendLinkCurrent != null
 				&& sendLinkCurrent.getLocalState() != EndpointState.CLOSED && sendLinkCurrent.getRemoteState() != EndpointState.CLOSED
-				&& this.linkCredit.get() > 0 && currentSendBatch++ < 50)
+				&& this.linkCredit.get() > 0)
 		{
 			final WeightedDeliveryTag deliveryTag;
 			final ReplayableWorkItem<Void> sendData;
@@ -735,19 +738,33 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			if (sendData != null)
 			{
 				Delivery delivery = null;
-				delivery = this.sendLink.delivery(deliveryTag.getDeliveryTag().getBytes());
-				delivery.setMessageFormat(sendData.getMessageFormat());
-				
-				int sentMsgSize = this.sendLink.send(sendData.getMessage(), 0, sendData.getEncodedMessageSize());
-				assert sentMsgSize == sendData.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
+				boolean linkAdvance = false;
+				int sentMsgSize = 0;
+				Exception sendException = null;
 
-				if (this.sendLink.advance())
+				try
+				{
+					delivery = this.sendLink.delivery(deliveryTag.getDeliveryTag().getBytes());
+					delivery.setMessageFormat(sendData.getMessageFormat());
+					
+					sentMsgSize = this.sendLink.send(sendData.getMessage(), 0, sendData.getEncodedMessageSize());
+					assert sentMsgSize == sendData.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
+	
+					linkAdvance = this.sendLink.advance();
+				}
+				catch(Exception exception)
+				{
+					sendException = exception;
+				}
+				
+				if (linkAdvance)
 				{
 					this.linkCredit.decrementAndGet();
-					this.scheduler.schedule((int) Math.min(this.operationTimeout.toMillis(), Integer.MAX_VALUE), new BaseHandler()
+					
+					ScheduledFuture<?> timeoutTask = Timer.schedule(new Runnable()
 					{
 						@Override
-						public void onTimerTask(Event e)
+						public void run()
 						{
 							if (!sendData.getWork().isDone())
 							{
@@ -755,7 +772,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 								MessageSender.this.pendingSendsData.remove(deliveryTag);
 							}
 						}
-					});
+					}, this.operationTimeout, TimerType.OneTimeRun);
+					
+					sendData.setTimeoutTask(timeoutTask);
 				}
 				else
 				{
@@ -766,8 +785,16 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 								this.sendPath, this.sendLink.getName(), deliveryTag, sentMsgSize, sendData.getEncodedMessageSize()));
 					}
 
-					delivery.free();
-					sendData.getWork().completeExceptionally(new ServiceBusException(false, "")); // TODO: Add trycatch for delivery append failure and throw
+					if (delivery != null)
+					{
+						delivery.free();
+					}
+					
+					sendData.getWork().completeExceptionally(
+						sendException != null
+							? new OperationCancelledException("Send operation failed. Please see cause for more details", sendException)
+							: new OperationCancelledException(
+									String.format(Locale.US, "Send operation failed while advancing delivery(tag: %s) on SendLink(path: %s).", this.sendPath, deliveryTag)));
 				}
 			}
 			else

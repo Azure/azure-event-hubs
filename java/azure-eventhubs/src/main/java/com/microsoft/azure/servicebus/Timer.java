@@ -7,7 +7,7 @@ package com.microsoft.azure.servicebus;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -31,7 +31,7 @@ final class Timer
 	/**
 	 * @param runFrequency implemented only for TimeUnit granularity - Seconds
 	 */
-	public static Future<?> schedule(Runnable runnable, Duration runFrequency, TimerType timerType)
+	public static ScheduledFuture<?> schedule(Runnable runnable, Duration runFrequency, TimerType timerType)
 	{
 		switch (timerType)
 		{
