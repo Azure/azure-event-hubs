@@ -5,6 +5,7 @@
 package org.apache.spark.streaming.eventhubs
 
 import com.microsoft.azure.eventhubs.EventData
+import com.microsoft.azure.servicebus.ServiceBusException
 import org.apache.spark.Logging
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.receiver.Receiver
@@ -113,8 +114,13 @@ class EventHubReceiver(
           }
         }
       } catch {
-        // TODO add retries for certain exception types...we don't need to restart every time
         case c: ControlThrowable => throw c
+        case s: ServiceBusException =>
+          if (s.getIsTransient()) {
+            logInfo(s"ServiceBusException caught. Retrying receiver...")
+          } else {
+            restart("Error handling message; restarting receiver", s)
+          }
         case e: Throwable =>
           restart("Error handling message; restarting receiver", e)
       } finally {
