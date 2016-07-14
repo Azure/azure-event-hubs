@@ -722,7 +722,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		final Sender sendLinkCurrent = this.sendLink;
 		
 		while (sendLinkCurrent != null
-				&& sendLinkCurrent.getLocalState() != EndpointState.CLOSED && sendLinkCurrent.getRemoteState() != EndpointState.CLOSED
+				&& sendLinkCurrent.getLocalState() == EndpointState.ACTIVE && sendLinkCurrent.getRemoteState() == EndpointState.ACTIVE
 				&& this.linkCredit.get() > 0)
 		{
 			final WeightedDeliveryTag deliveryTag;
@@ -730,7 +730,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			synchronized (this.pendingSendSync)
 			{
 				deliveryTag = this.pendingSends.poll();
-				sendData = deliveryTag != null
+				sendData = deliveryTag != null 
 						? this.pendingSendsData.get(deliveryTag.getDeliveryTag())
 						: null;
 			}
@@ -741,7 +741,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				boolean linkAdvance = false;
 				int sentMsgSize = 0;
 				Exception sendException = null;
-
+				
 				try
 				{
 					delivery = this.sendLink.delivery(deliveryTag.getDeliveryTag().getBytes());
@@ -799,6 +799,16 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			else
 			{
+				if (deliveryTag != null)
+				{
+					if (TRACE_LOGGER.isLoggable(Level.SEVERE))
+					{
+						TRACE_LOGGER.log(Level.SEVERE,
+								String.format(Locale.US, "path[%s], linkName[%s], deliveryTag[%s] - sendData not found for this delivery.",
+								this.sendPath, this.sendLink.getName(), deliveryTag));
+					}
+				}
+
 				break;
 			}
 		}
