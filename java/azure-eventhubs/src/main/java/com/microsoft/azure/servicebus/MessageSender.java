@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
@@ -253,7 +254,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 		if (messageAnnotations != null)
 		{
-			for(Object value: messageAnnotations.getValue().keySet())
+			for(Symbol value: messageAnnotations.getValue().keySet())
 			{
 				annotationsSize += sizeof(value);
 			}
@@ -285,6 +286,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		if (obj instanceof String)
 		{
 			return obj.toString().length() << 1;
+		}
+		
+		if (obj instanceof Symbol)
+		{
+			return ((Symbol) obj).length() << 1;
 		}
 		
 		if (obj instanceof Integer)
