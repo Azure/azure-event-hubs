@@ -256,12 +256,12 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		{
 			for(Symbol value: messageAnnotations.getValue().keySet())
 			{
-				annotationsSize += sizeof(value);
+				annotationsSize += Util.sizeof(value);
 			}
 			
 			for(Object value: messageAnnotations.getValue().values())
 			{
-				annotationsSize += sizeof(value);
+				annotationsSize += Util.sizeof(value);
 			}
 		}
 		
@@ -269,61 +269,16 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		{
 			for(Object value: applicationProperties.getValue().keySet())
 			{
-				applicationPropertiesSize += sizeof(value);
+				applicationPropertiesSize += Util.sizeof(value);
 			}
 			
 			for(Object value: applicationProperties.getValue().values())
 			{
-				applicationPropertiesSize += sizeof(value);
+				applicationPropertiesSize += Util.sizeof(value);
 			}
 		}
 		
 		return annotationsSize + applicationPropertiesSize + payloadSize;
-	}
-	
-	private static int sizeof(Object obj)
-	{
-		if (obj instanceof String)
-		{
-			return obj.toString().length() << 1;
-		}
-		
-		if (obj instanceof Symbol)
-		{
-			return ((Symbol) obj).length() << 1;
-		}
-		
-		if (obj instanceof Integer)
-		{
-			return Integer.BYTES;
-		}
-		
-		if (obj instanceof Long)
-		{
-			return Long.BYTES;
-		}
-		
-		if (obj instanceof Short)
-		{
-			return Short.BYTES;
-		}
-		
-		if (obj instanceof Character)
-		{
-			return Character.BYTES;
-		}
-		
-		if (obj instanceof Float)
-		{
-			return Float.BYTES;
-		}
-		
-		if (obj instanceof Double)
-		{
-			return Double.BYTES;
-		}
-		
-		throw new IllegalArgumentException(String.format(Locale.US, "Encoding Type: %s is not supported", obj.getClass()));
 	}
 
 	public CompletableFuture<Void> send(final Iterable<Message> messages)
