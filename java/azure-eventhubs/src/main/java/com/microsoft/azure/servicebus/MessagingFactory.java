@@ -78,7 +78,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.reactorLock = new Object();
 		this.connectionHandler = new ConnectionHandler(this, 
 				builder.getEndpoint().getHost(), builder.getSasKeyName(), builder.getSasKey());
-
+		this.openConnection = new CompletableFuture<Connection>();
+		
 		this.reactorHandler = new ReactorHandler()
 		{
 			@Override
@@ -134,9 +135,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public Connection getConnection()
+	public CompletableFuture<Connection> getConnection()
 	{
-		return this.connection;
+		return this.openConnection;
 	}
 
 	public Duration getOperationTimeout()
@@ -169,18 +170,12 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		if (exception == null)
 		{
 			this.open.complete(this);
-			if(this.openConnection != null)
-			{
-				this.openConnection.complete(this.connection);
-			}
+			this.openConnection.complete(this.connection);
 		}
 		else
 		{
 			this.open.completeExceptionally(exception);
-			if (this.openConnection != null)
-			{
-				this.openConnection.completeExceptionally(exception);
-			}
+			this.openConnection.completeExceptionally(exception);
 		}
 	}
 
@@ -196,6 +191,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			final Connection currentConnection = this.connection;
 			Iterator<Link> literator = this.registeredLinks.iterator();
 
+			this.openConnection = new CompletableFuture<Connection>();
+			this.connection = this.getReactor().connection(this.connectionHandler);
+
 			while (literator.hasNext())
 			{
 				Link link = literator.next();
@@ -210,8 +208,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				currentConnection.close();
 			}
 			
-			this.connection = this.getReactor().connection(this.connectionHandler);
-
 			literator = this.registeredLinks.iterator();
 			while (literator.hasNext())
 			{

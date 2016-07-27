@@ -417,7 +417,16 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 	private Receiver createReceiveLink()
 	{	
-		Connection connection= this.underlyingFactory.getConnection();
+		Connection connection = null;
+		try {
+			connection = this.underlyingFactory.getConnection().get();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		Source source = new Source();
 		source.setAddress(receivePath);

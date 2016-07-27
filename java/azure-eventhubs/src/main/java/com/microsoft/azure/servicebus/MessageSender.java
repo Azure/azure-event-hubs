@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -79,8 +80,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private CompletableFuture<MessageSender> linkFirstOpen; 
 	private int linkCredit;
 	private TimeoutTracker openLinkTracker;
-	private boolean linkCreateScheduled;
-	private Object linkCreateLock;
 	private Exception lastKnownLinkError;
 	private Instant lastKnownErrorReportedAt;
 
@@ -92,15 +91,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
 		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
-		msgSender.linkCreateScheduled = true;
-
+		
 		try {
 			msgSender.underlyingFactory.scheduleOnReactorThread(new BaseHandler()
 			{
 				@Override
 				public void onTimerTask(Event e)
 				{
-					msgSender.sendLink = msgSender.createSendLink();
+					msgSender.createSendLink();
 				}
 			});
 		} catch (IOException e) {
@@ -129,7 +127,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		this.pendingSends = new PriorityQueue<WeightedDeliveryTag>(1000, new DeliveryTagComparator());
 		this.linkCredit = 0;
 
-		this.linkCreateLock = new Object();
 		this.linkClose = new CompletableFuture<Void>();
 		
 		this.sendWork = new BaseHandler()
@@ -365,11 +362,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	@Override
 	public void onOpenComplete(Exception completionException)
 	{
-		synchronized(this.linkCreateLock)
-		{
-			this.linkCreateScheduled = false;
-		}
-
 		if (completionException == null)
 		{
 			this.openLinkTracker = null;
@@ -569,35 +561,59 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 	}
 
-	private Sender createSendLink()
+	private void createSendLink()
 	{
-		Connection connection = this.underlyingFactory.getConnection();
+		this.underlyingFactory.getConnection().thenAccept(new Consumer<Connection>()
+		{
+			@Override
+			public void accept(Connection connection)
+			{
+				try {
+					underlyingFactory.scheduleOnReactorThread(new BaseHandler() {
+						@Override
+						public void onTimerTask(Event e)
+						{
+							Session session = connection.session();
+							session.setOutgoingWindow(Integer.MAX_VALUE);
+							session.open();
+							BaseHandler.setHandler(session, new SessionHandler(sendPath));
 
-		Session session = connection.session();
-		session.setOutgoingWindow(Integer.MAX_VALUE);
-		session.open();
-		BaseHandler.setHandler(session, new SessionHandler(this.sendPath));
+							final String sendLinkNamePrefix = StringUtil.getRandomString();
+							final String sendLinkName = sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer());
+							final Sender sender = session.sender(sendLinkName);
 
-		String sendLinkName = StringUtil.getRandomString();
-		sendLinkName = sendLinkName.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer());
-		Sender sender = session.sender(sendLinkName);
+							Target target = new Target();
+							target.setAddress(sendPath);
+							sender.setTarget(target);
 
-		Target target = new Target();
-		target.setAddress(this.sendPath);
-		sender.setTarget(target);
+							Source source = new Source();
+							sender.setSource(source);
 
-		Source source = new Source();
-		sender.setSource(source);
+							sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
-		sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
+							SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
+							BaseHandler.setHandler(sender, handler);
 
-		SendLinkHandler handler = new SendLinkHandler(this);
-		BaseHandler.setHandler(sender, handler);
+							underlyingFactory.registerForConnectionError(sender);
 
-		this.underlyingFactory.registerForConnectionError(sender);
-
-		sender.open();
-		return sender;
+							sender.open();
+							
+							if (MessageSender.this.sendLink != null)
+							{
+								final Sender oldSender = sendLink;
+								underlyingFactory.deregisterForConnectionError(oldSender);
+							}
+							
+							MessageSender.this.sendLink = sender;
+						}
+					});
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+			}
+		});
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
@@ -671,15 +687,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void recreateSendLink()
 	{
-		final Sender oldSender = this.sendLink;
-		final Sender sender = this.createSendLink();
-
-		if (sender != null)
-		{
-			this.underlyingFactory.deregisterForConnectionError(oldSender);
-			this.sendLink = sender;
-		}
-		
+		this.createSendLink();
 		this.retryPolicy.incrementRetryCount(MessageSender.this.getClientId());
 	}
 	
