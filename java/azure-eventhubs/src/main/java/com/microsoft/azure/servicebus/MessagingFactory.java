@@ -134,39 +134,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public CompletableFuture<Connection> getConnection()
+	public Connection getConnection()
 	{
-		if (this.connection.getLocalState() == EndpointState.CLOSED
-				|| (this.connectionCreateTracker != null && !this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
-		{
-			synchronized (this.connectionLock)
-			{
-				if ((this.connection.getLocalState() == EndpointState.CLOSED && !this.waitingConnectionOpen)
-						|| (this.connectionCreateTracker != null && !this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
-				{
-					try
-					{
-						this.startReactor(this.reactorHandler);
-					}
-					catch (IOException e)
-					{
-						MessagingFactory.this.onReactorError(new ServiceBusException(true, e));
-					}
-
-					if(this.openConnection != null && !this.openConnection.isDone())
-					{
-						this.openConnection.completeExceptionally(new TimeoutException(String.format(Locale.US, "Connection creation timedout, %s", ExceptionUtil.getTrackingIDAndTimeToLog())));
-					}
-
-					this.openConnection = new CompletableFuture<Connection>();
-
-					this.connectionCreateTracker = TimeoutTracker.create(this.operationTimeout);
-					this.waitingConnectionOpen = true;
-				}
-			}
-		}
-
-		return this.openConnection == null ? CompletableFuture.completedFuture(this.connection): this.openConnection;
+		return this.connection;
 	}
 
 	public Duration getOperationTimeout()
@@ -217,11 +187,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public void onConnectionError(ErrorCondition error)
 	{
-		if (this.reactorThread != null && !this.reactorThread.isInterrupted())
-		{
-			this.reactorThread.interrupt();
-		}
-
 		if (!this.open.isDone())
 		{
 			this.onOpenComplete(ExceptionUtil.toException(error));
@@ -244,6 +209,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			{
 				currentConnection.close();
 			}
+			
+			this.connection = this.getReactor().connection(this.connectionHandler);
 
 			literator = this.registeredLinks.iterator();
 			while (literator.hasNext())

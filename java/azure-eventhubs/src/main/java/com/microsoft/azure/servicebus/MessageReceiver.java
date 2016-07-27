@@ -417,32 +417,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 	private Receiver createReceiveLink()
 	{	
-		Connection connection = null;
-
-		try
-		{
-			connection = this.underlyingFactory.getConnection().get(this.operationTimeout.getSeconds(), TimeUnit.SECONDS);
-		}
-		catch (InterruptedException|ExecutionException exception)
-		{
-			Throwable throwable = exception.getCause();
-			if (throwable != null && throwable instanceof Exception)
-			{
-				this.onError((Exception) exception.getCause());
-			}
-
-			if (exception instanceof InterruptedException)
-			{
-				Thread.currentThread().interrupt();
-			}
-
-			return null;
-		}
-		catch (java.util.concurrent.TimeoutException exception)
-		{
-			this.onError(new TimeoutException("Connection creation timed out.", exception));
-			return null;
-		}
+		Connection connection= this.underlyingFactory.getConnection();
 
 		Source source = new Source();
 		source.setAddress(receivePath);
