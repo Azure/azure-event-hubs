@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
   * Contains starting offset and batch size for EventHubRDD
   */
 final class OffsetRange private(
-    var partitionId: String,
+    val partitionId: String,
     val startingOffset: Long,
     val batchSize: Long) extends Serializable {
   import OffsetRange.OffsetRangeTuple
@@ -34,8 +34,7 @@ final class OffsetRange private(
   override def toString: String =
     s"OffsetRange(partitionId: $partitionId, batchSize: $batchSize)"
 
-  def set(partId: String, startingOffset: Long, batchSize: Long): Unit = {
-    this.partitionId = partId
+  def set(startingOffset: Long, batchSize: Long): Unit = {
     fromOffset = startingOffset
     untilOffset = fromOffset + batchSize
   }
