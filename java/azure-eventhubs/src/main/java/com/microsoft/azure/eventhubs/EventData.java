@@ -260,7 +260,7 @@ public class EventData implements Serializable
 				return amqpMessage;
 	}
 
-	public static final class SystemProperties implements Serializable
+	public static class SystemProperties implements Serializable
 	{
 		private static final long serialVersionUID = -2827050124966993723L;
 		
