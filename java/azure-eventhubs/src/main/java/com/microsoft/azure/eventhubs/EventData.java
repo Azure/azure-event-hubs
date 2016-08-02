@@ -4,22 +4,31 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import java.nio.*;
-import java.time.*;
-import java.util.*;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.amqp.*;
-import org.apache.qpid.proton.amqp.messaging.*;
-import org.apache.qpid.proton.message.*;
-import com.microsoft.azure.servicebus.amqp.*;
+import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
+import org.apache.qpid.proton.amqp.messaging.Data;
+import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
+import org.apache.qpid.proton.message.Message;
+
+import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
 /**
  * The data structure encapsulating the Event being sent-to and received-from EventHubs.
  * Each EventHubs partition can be visualized as a Stream of {@link EventData}.
  */
-public class EventData
+public class EventData implements Serializable
 {
+	private static final long serialVersionUID = -5631628195600014255L;
+
 	private String partitionKey;
 	private String offset;
 	private long sequenceNumber;
@@ -251,8 +260,10 @@ public class EventData
 				return amqpMessage;
 	}
 
-	public static final class SystemProperties
+	public static final class SystemProperties implements Serializable
 	{
+		private static final long serialVersionUID = -2827050124966993723L;
+		
 		EventData event;
 
 		SystemProperties(EventData event)
