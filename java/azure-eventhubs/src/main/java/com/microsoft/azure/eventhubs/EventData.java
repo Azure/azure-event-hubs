@@ -264,31 +264,36 @@ public class EventData implements Serializable
 	{
 		private static final long serialVersionUID = -2827050124966993723L;
 		
-		EventData event;
-
-		SystemProperties(EventData event)
+		private final EventData eventData;
+		
+		protected SystemProperties()
 		{
-			this.event = event;
+			this.eventData = null;
+		}
+
+		private SystemProperties(final EventData eventData)
+		{
+			this.eventData = eventData;
 		}
 
 		public long getSequenceNumber()
 		{
-			return this.event.sequenceNumber;
+			return this.eventData.sequenceNumber;
 		}
-
+		
 		public Instant getEnqueuedTime()
 		{
-			return this.event.enqueuedTime;
+			return this.eventData.enqueuedTime;
 		}
 
 		public String getOffset()
 		{
-			return this.event.offset;
+			return this.eventData.offset;
 		}
 
 		public String getPartitionKey()
 		{
-			return this.event.partitionKey;
+			return this.eventData.partitionKey;
 		}
 	}
 }
