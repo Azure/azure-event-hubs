@@ -79,27 +79,6 @@ public final class ReceiveLinkHandler extends BaseLinkHandler
 	}
 
 	@Override
-	public void onLinkRemoteClose(Event event)
-	{
-		Link link = event.getLink();
-		if (link != null)
-		{
-			ErrorCondition condition = link.getRemoteCondition();
-			this.processOnClose(link, condition);	
-		}
-	}
-
-	@Override
-	public void onLinkRemoteDetach(Event event)
-	{
-		Link link = event.getLink();
-		if (link != null)
-		{
-			this.processOnClose(link, link.getRemoteCondition());
-		}
-	}
-
-	@Override
 	public void onDelivery(Event event)
 	{
 		synchronized (this.firstResponse)

@@ -37,6 +37,32 @@ public class BaseLinkHandler extends BaseHandler
 		}
 	}
 
+	@Override
+	public void onLinkRemoteClose(Event event)
+	{
+		Link link = event.getLink();
+		if (link != null)
+		{
+			ErrorCondition condition = link.getRemoteCondition();
+			this.processOnClose(link, condition);	
+		}
+	}
+
+	@Override
+	public void onLinkRemoteDetach(Event event)
+	{
+		Link link = event.getLink();
+		if (link != null)
+		{
+			this.processOnClose(link, link.getRemoteCondition());
+		}
+
+		if (link.getLocalState() != EndpointState.CLOSED)
+		{
+			link.close();
+		}
+	}
+
 	public void processOnClose(Link link, ErrorCondition condition)
 	{
 		if (condition != null)
@@ -48,21 +74,11 @@ public class BaseLinkHandler extends BaseHandler
 			}
 		}
 
-		if (link.getLocalState() != EndpointState.CLOSED)
-		{
-			link.close();
-		}
-
 		this.underlyingEntity.onClose(condition);
 	}
 
 	public void processOnClose(Link link, Exception exception)
 	{
-		if (link.getLocalState() != EndpointState.CLOSED)
-		{
-			link.close();
-		}
-
 		this.underlyingEntity.onError(exception);
 	}
 }

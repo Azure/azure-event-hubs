@@ -208,6 +208,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			onSendFuture.completeExceptionally(new ServiceBusException(false, ioException));
 		}
 
+		sendWaiterData.setWaitingForAck();
 		return onSendFuture;
 	}
 
@@ -388,7 +389,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 							while (reverseReader.hasNext())
 							{
 								String unacknowledgedSend = reverseReader.next();
-								if (!this.pendingSends.contains(unacknowledgedSend))
+								if (!this.pendingSendsData.get(unacknowledgedSend).isWaitingForAck())
 								{
 									this.pendingSends.offer(new WeightedDeliveryTag(unacknowledgedSend, 1));
 								}
@@ -446,11 +447,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		{
 			this.lastKnownLinkError = completionException;
 			this.lastKnownErrorReportedAt = Instant.now();
-
-			if (this.sendLink.getLocalState() != EndpointState.CLOSED)
-			{
-				this.sendLink.close();
-			}
 
 			this.onOpenComplete(completionException);
 
@@ -563,57 +559,40 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void createSendLink()
 	{
-		this.underlyingFactory.getConnection().thenAccept(new Consumer<Connection>()
+		final Connection connection = this.underlyingFactory.getConnection();
+
+		final Session session = connection.session();
+		session.setOutgoingWindow(Integer.MAX_VALUE);
+		session.open();
+		BaseHandler.setHandler(session, new SessionHandler(sendPath));
+
+		final String sendLinkNamePrefix = StringUtil.getRandomString();
+		final String sendLinkName = sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR)
+				.concat("ContainerID"); // TODO: connection.getRemoteContainer()
+		final Sender sender = session.sender(sendLinkName);
+
+		Target target = new Target();
+		target.setAddress(sendPath);
+		sender.setTarget(target);
+
+		Source source = new Source();
+		sender.setSource(source);
+
+		sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
+
+		SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
+		BaseHandler.setHandler(sender, handler);
+
+		underlyingFactory.registerForConnectionError(sender);
+		sender.open();
+		
+		if (this.sendLink != null)
 		{
-			@Override
-			public void accept(Connection connection)
-			{
-				try {
-					underlyingFactory.scheduleOnReactorThread(new BaseHandler() {
-						@Override
-						public void onTimerTask(Event e)
-						{
-							Session session = connection.session();
-							session.setOutgoingWindow(Integer.MAX_VALUE);
-							session.open();
-							BaseHandler.setHandler(session, new SessionHandler(sendPath));
-
-							final String sendLinkNamePrefix = StringUtil.getRandomString();
-							final String sendLinkName = sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer());
-							final Sender sender = session.sender(sendLinkName);
-
-							Target target = new Target();
-							target.setAddress(sendPath);
-							sender.setTarget(target);
-
-							Source source = new Source();
-							sender.setSource(source);
-
-							sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
-
-							SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
-							BaseHandler.setHandler(sender, handler);
-
-							underlyingFactory.registerForConnectionError(sender);
-
-							sender.open();
-							
-							if (MessageSender.this.sendLink != null)
-							{
-								final Sender oldSender = sendLink;
-								underlyingFactory.deregisterForConnectionError(oldSender);
-							}
-							
-							MessageSender.this.sendLink = sender;
-						}
-					});
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				
-			}
-		});
+			final Sender oldSender = this.sendLink;
+			this.underlyingFactory.deregisterForConnectionError(oldSender);
+		}
+		
+		MessageSender.this.sendLink = sender;	
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
@@ -665,23 +644,21 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	}
 
 	@Override
-	public void onFlow()
+	public void onFlow(final int creditIssued)
 	{
 		this.lastKnownLinkError = null;
 
-		int updatedCredit = this.sendLink.getRemoteCredit();
-		
-		if (updatedCredit <= 0)
+		if (creditIssued <= 0)
 			return;
 
 		if (TRACE_LOGGER.isLoggable(Level.FINE))
 		{
 			int numberOfSendsWaitingforCredit = this.pendingSends.size();
 			TRACE_LOGGER.log(Level.FINE, String.format(Locale.US, "path[%s], linkName[%s], remoteLinkCredit[%s], pendingSendsWaitingForCredit[%s], pendingSendsWaitingDelivery[%s]",
-					this.sendPath, this.sendLink.getName(), updatedCredit, numberOfSendsWaitingforCredit, this.pendingSendsData.size() - numberOfSendsWaitingforCredit));
+					this.sendPath, this.sendLink.getName(), creditIssued, numberOfSendsWaitingforCredit, this.pendingSendsData.size() - numberOfSendsWaitingforCredit));
 		}
 
-		this.linkCredit = this.linkCredit + updatedCredit;
+		this.linkCredit = this.linkCredit + creditIssued;
 		this.sendWork.onTimerTask(null);
 	}
 
@@ -699,6 +676,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		if (sendLinkCurrent.getLocalState() == EndpointState.CLOSED || sendLinkCurrent.getRemoteState() == EndpointState.CLOSED)
 		{
 			this.recreateSendLink();
+			return;
 		}
 		
 		while (sendLinkCurrent != null

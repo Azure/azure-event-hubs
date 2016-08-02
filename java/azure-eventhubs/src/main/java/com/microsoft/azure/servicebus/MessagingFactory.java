@@ -41,7 +41,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
 
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-	private final Object connectionLock = new Object();
 	private final String hostName;
 	private final CompletableFuture<Void> closeTask;
 	private final ConnectionHandler connectionHandler;
@@ -53,13 +52,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private ReactorDispatcher reactorScheduler;
 	private Thread reactorThread;
 	private Connection connection;
-	private boolean waitingConnectionOpen;
 
 	private Duration operationTimeout;
 	private RetryPolicy retryPolicy;
 	private CompletableFuture<MessagingFactory> open;
 	private CompletableFuture<Connection> openConnection;
-	private TimeoutTracker connectionCreateTracker;
 	
 	/**
 	 * @param reactor parameter reactor is purely for testing purposes and the SDK code should always set it to null
@@ -117,7 +114,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private void createConnection(ConnectionStringBuilder builder) throws IOException
 	{
 		this.open = new CompletableFuture<MessagingFactory>();
-		this.waitingConnectionOpen = true;
 		this.startReactor(this.reactorHandler);
 	}
 
@@ -135,9 +131,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public CompletableFuture<Connection> getConnection()
+	public Connection getConnection()
 	{
-		return this.openConnection;
+		return this.connection;
 	}
 
 	public Duration getOperationTimeout()
@@ -162,11 +158,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public void onOpenComplete(Exception exception)
 	{
-		synchronized (this.connectionLock)
-		{
-			this.waitingConnectionOpen = false;
-		}
-
 		if (exception == null)
 		{
 			this.open.complete(this);
@@ -264,13 +255,15 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 					linkHandler.processOnClose(link, cause);
 				}
 			}
+			
+			try
+			{
+				this.startReactor(this.reactorHandler);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-	}
-
-	void resetConnection()
-	{		
-		this.getReactor().free();
-		this.onReactorError(new ServiceBusException(true, String.format(Locale.US, "Client invoked connection reset, %s", ExceptionUtil.getTrackingIDAndTimeToLog())));
 	}
 
 	@Override

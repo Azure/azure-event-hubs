@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -395,11 +394,6 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		{
 			this.lastKnownLinkError = exception;
 
-			if (this.receiveLink.getLocalState() != EndpointState.CLOSED)
-			{
-				this.receiveLink.close();
-			}
-
 			this.onOpenComplete(exception);
 
 			if (!this.getIsClosingOrClosed())
@@ -417,16 +411,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 	private Receiver createReceiveLink()
 	{	
-		Connection connection = null;
-		try {
-			connection = this.underlyingFactory.getConnection().get();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		Connection connection = this.underlyingFactory.getConnection();
 
 		Source source = new Source();
 		source.setAddress(receivePath);
