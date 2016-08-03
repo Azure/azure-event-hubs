@@ -27,6 +27,7 @@ import org.apache.qpid.proton.reactor.Task;
 
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
+import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
@@ -396,12 +397,12 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.registeredLinks.remove(link);	
 	}
 	
-	public void scheduleOnReactorThread(final BaseHandler handler) throws IOException
+	public void scheduleOnReactorThread(final DispatchHandler handler) throws IOException
 	{
 		this.getReactorScheduler().invoke(handler);
 	}
 
-	public void scheduleOnReactorThread(final int delay, final BaseHandler handler) throws IOException
+	public void scheduleOnReactorThread(final int delay, final DispatchHandler handler) throws IOException
 	{
 		this.getReactorScheduler().invoke(delay, handler);
 	}	
