@@ -122,7 +122,6 @@ class EventHubReceiver(
             restart("Error handling message; restarting receiver", s)
           }
         case e: Throwable =>
-          println(e.printStackTrace)
           restart("Error handling message; restarting receiver", e)
       } finally {
         myOffsetStore.close()

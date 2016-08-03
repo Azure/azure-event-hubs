@@ -120,7 +120,7 @@ class MyMockedEventData (
   override def getBody = { body }
 
 
-  class MyMockedSystemProperties extends SystemProperties() {
+  class MyMockedSystemProperties extends SystemProperties {
     override def getSequenceNumber = { sequenceNumber }
     override def getOffset = { offSet }
   }
