@@ -572,7 +572,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		BaseHandler.setHandler(session, new SessionHandler(sendPath));
 
 		final String sendLinkNamePrefix = StringUtil.getRandomString();
-		final String sendLinkName = StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ?
+		final String sendLinkName = !StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ?
 				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
 				sendLinkNamePrefix;
 		
