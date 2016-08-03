@@ -209,35 +209,28 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		return this.linkOpen.getWork();
 	}
 
-	private void receiveCore()
+	private List<Message> receiveCore(final int messageCount)
 	{
-		final ReceiveWorkItem currentReceive = this.pendingReceives.poll();
-		if (currentReceive != null && !currentReceive.getWork().isDone())
+		List<Message> returnMessages = null;
+		Message currentMessage = this.pollPrefetchQueue();
+	
+		while (currentMessage != null) 
 		{
-			final int messageCount = currentReceive.maxMessageCount;
-
-			List<Message> returnMessages = null;
-			Message currentMessage = this.pollPrefetchQueue();
-	
-			while (currentMessage != null) 
+			if (returnMessages == null)
 			{
-				if (returnMessages == null)
-				{
-					returnMessages = new LinkedList<Message>();
-				}
-	
-				returnMessages.add(currentMessage);
-				if (returnMessages.size() >= messageCount)
-				{
-					break;
-				}
-	
-				currentMessage = this.pollPrefetchQueue();
-			}	
+				returnMessages = new LinkedList<Message>();
+			}
 
-			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
-			future.complete(returnMessages);
+			returnMessages.add(currentMessage);
+			if (returnMessages.size() >= messageCount)
+			{
+				break;
+			}
+
+			currentMessage = this.pollPrefetchQueue();
 		}
+		
+		return returnMessages;
 	}
 
 	public int getPrefetchCount()
@@ -307,8 +300,12 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 				@Override
 				public void onEvent()
 				{
-					pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
-					receiveCore();
+					final List<Message> messages = receiveCore(maxMessageCount);
+					if (messages != null)
+						onReceive.complete(messages);
+					else
+						pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
+					
 				}
 			});
 		}
@@ -375,7 +372,14 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		this.prefetchedMessages.add(message);
 		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
 		
-		this.receiveCore();			
+		final ReceiveWorkItem currentReceive = this.pendingReceives.poll();
+		if (currentReceive != null && !currentReceive.getWork().isDone())
+		{
+			List<Message> messages = this.receiveCore(currentReceive.maxMessageCount);
+
+			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
+			future.complete(messages);
+		}
 	}
 
 	public void onError(ErrorCondition error)
