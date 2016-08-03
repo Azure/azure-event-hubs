@@ -14,3 +14,11 @@ build/dev-setup.sh
 # Lint all JavaScript code and run unit + integration tests
 build/build.sh --min --integration-tests
 [ $? -eq 0 ] || exit $?
+
+# The 'npm link' commands in this script create symlinks to tracked repo
+# files from ignored locations (under ./node_modules). This means a call to
+# 'git clean -xdf' will delete tracked files from the repo's working
+# directory. To avoid any complications, we'll unlink everything before
+# exiting.
+build/dev-teardown.sh
+[ $? -eq 0 ] || exit $?

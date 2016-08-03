@@ -21,6 +21,10 @@ x64/
 [Oo]bj/
 !/build/release/
 target/
+/c/cmake
+
+# Jenkins build files
+/jenkins/jenkins-cli.jar
 
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
 !packages/*/build/

@@ -19,3 +19,11 @@ if errorlevel 1 goto :eof
 REM Lint all JavaScript code and run unit + integration tests
 call build\build.cmd --min --integration-tests
 if errorlevel 1 goto :eof
+
+REM The 'npm link' commands in this script create symlinks to tracked repo
+REM files from ignored locations (under ./node_modules). This means a call to
+REM 'git clean -xdf' will delete tracked files from the repo's working
+REM directory. To avoid any complications, we'll unlink everything before
+REM exiting.
+call build\dev-teardown.cmd
+if errorlevel 1 goto :eof
