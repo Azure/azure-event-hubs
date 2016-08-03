@@ -4,6 +4,7 @@
  */
 package com.microsoft.azure.servicebus;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -15,7 +16,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,6 +36,7 @@ import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpReceiver;
 import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
 import com.microsoft.azure.servicebus.amqp.SessionHandler;
@@ -56,9 +57,6 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private final Duration operationTimeout;
 	private final CompletableFuture<Void> linkClose;
 	private final Object prefetchCountSync;
-	private final Object flowSync;
-	private final Object linkCreateLock;
-
 	private int prefetchCount;
 
 	private ConcurrentLinkedQueue<Message> prefetchedMessages;
@@ -72,10 +70,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	private boolean offsetInclusive;
 
 	private String lastReceivedOffset;
-
-	private boolean linkCreateScheduled;
 	private Exception lastKnownLinkError;
-
 	private int nextCreditToFlow;
 
 	private MessageReceiver(final MessagingFactory factory,
@@ -97,10 +92,8 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
-		this.linkCreateLock = new Object();
 		this.linkClose = new CompletableFuture<Void>();
 		this.lastKnownLinkError = null;
-		this.flowSync = new Object();
 		this.receiveTimeout = factory.getOperationTimeout();
 		this.prefetchCountSync = new Object();
 
@@ -145,18 +138,27 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 				if (workItemTimedout)
 				{
-					synchronized (MessageReceiver.this.flowSync)
+					// workaround to push the sendflow-performative to reactor
+					// this sets the receiveLink endpoint to modified state
+					// (and increment the unsentCredits in proton by 0)
+					try
 					{
-						// workaround to push the sendflow-performative to reactor
-						// this sets the receiveLink endpoint to modified state
-						// (and increment the unsentCredits in proton by 0)
-						MessageReceiver.this.receiveLink.flow(0);
+						MessageReceiver.this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+						{
+							@Override
+							public void onEvent()
+							{
+								MessageReceiver.this.receiveLink.flow(0);
+							}
+						});
+					}
+					catch (IOException ignore)
+					{
 					}
 				}
 			}
 		};
 	}
-
 
 	// @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
 	// Connection has to be associated with Reactor before Creating a receiver on it.
@@ -188,40 +190,54 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	{
 		this.linkOpen = new WorkItem<MessageReceiver>(new CompletableFuture<MessageReceiver>(), this.operationTimeout);
 		this.scheduleLinkOpenTimeout(this.linkOpen.getTimeoutTracker());
-		this.linkCreateScheduled = true;
-
-		Timer.schedule(new Runnable() {
-			@Override
-			public void run()
+		try
+		{
+			this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
 			{
-				MessageReceiver.this.receiveLink = MessageReceiver.this.createReceiveLink();
-			}}, Duration.ofSeconds(0), TimerType.OneTimeRun);
+				@Override
+				public void onEvent()
+				{
+					MessageReceiver.this.createReceiveLink();
+				}
+			});
+		}
+		catch (IOException ioException)
+		{
+			this.linkOpen.getWork().completeExceptionally(new ServiceBusException(false, "Failed to create Receiver, see cause for more details.", ioException));
+		}
 
 		return this.linkOpen.getWork();
 	}
 
-	private List<Message> receiveCore(final int messageCount)
+	private void receiveCore()
 	{
-		List<Message> returnMessages = null;
-		Message currentMessage = this.pollPrefetchQueue();
-
-		while (currentMessage != null) 
+		final ReceiveWorkItem currentReceive = this.pendingReceives.poll();
+		if (currentReceive != null && !currentReceive.getWork().isDone())
 		{
-			if (returnMessages == null)
-			{
-				returnMessages = new LinkedList<Message>();
-			}
+			final int messageCount = currentReceive.maxMessageCount;
 
-			returnMessages.add(currentMessage);
-			if (returnMessages.size() >= messageCount)
+			List<Message> returnMessages = null;
+			Message currentMessage = this.pollPrefetchQueue();
+	
+			while (currentMessage != null) 
 			{
-				break;
-			}
+				if (returnMessages == null)
+				{
+					returnMessages = new LinkedList<Message>();
+				}
+	
+				returnMessages.add(currentMessage);
+				if (returnMessages.size() >= messageCount)
+				{
+					break;
+				}
+	
+				currentMessage = this.pollPrefetchQueue();
+			}	
 
-			currentMessage = this.pollPrefetchQueue();
+			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
+			future.complete(returnMessages);
 		}
-
-		return returnMessages;
 	}
 
 	public int getPrefetchCount()
@@ -232,20 +248,29 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		}
 	}
 
-	public void setPrefetchCount(final int value)
+	public void setPrefetchCount(final int value) throws ServiceBusException
 	{
+		final int deltaPrefetchCount;
 		synchronized (this.prefetchCountSync)
 		{
-			if (this.prefetchCount < value)
-			{
-				int deltaPrefetch = this.prefetchCount - value;
-				synchronized (this.flowSync)
-				{
-					this.sendFlow(deltaPrefetch);
-				}
-			}
-
+			deltaPrefetchCount = this.prefetchCount - value;
 			this.prefetchCount = value;
+		}
+		
+		try
+		{
+			this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+			{
+				@Override
+				public void onEvent()
+				{
+					sendFlow(deltaPrefetchCount);
+				}
+			});
+		}
+		catch (IOException ioException)
+		{
+			throw new ServiceBusException(false, "Setting prefetch count failed, see cause for more details", ioException);
 		}
 	}
 
@@ -268,31 +293,36 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			throw new IllegalArgumentException(String.format(Locale.US, "parameter 'maxMessageCount' should be a positive number and should be less than prefetchCount(%s)", this.prefetchCount));
 		}
 
-		List<Message> returnMessages = this.receiveCore(maxMessageCount);
-
-		if (returnMessages != null)
-		{
-			return CompletableFuture.completedFuture((Collection<Message>) returnMessages);				
-		}
-
 		if (this.pendingReceives.isEmpty())
 		{
 			this.scheduleOperationTimer(TimeoutTracker.create(this.receiveTimeout));
 		}
 
 		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<Collection<Message>>();
-		this.pendingReceives.offer(new ReceiveWorkItem(onReceive, this.receiveTimeout, maxMessageCount));
+		
+		try
+		{
+			this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+			{
+				@Override
+				public void onEvent()
+				{
+					pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
+					receiveCore();
+				}
+			});
+		}
+		catch (IOException ioException)
+		{
+			onReceive.completeExceptionally(
+					new ServiceBusException(false, "Receive failed while dispatching to Reactor, see cause for more details.", ioException));
+		}
 
 		return onReceive;
 	}
 
 	public void onOpenComplete(Exception exception)
 	{		
-		synchronized (this.linkCreateLock)
-		{
-			this.linkCreateScheduled = false;
-		}		
-
 		if (exception == null)
 		{
 			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
@@ -302,21 +332,17 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 
 			this.lastKnownLinkError = null;
 
-			// re-open link always starts from the last received offset
+			// re-open link always starts from the latest received offset
 			this.offsetInclusive = false;
 			this.underlyingFactory.getRetryPolicy().resetRetryCount(this.underlyingFactory.getClientId());
 
-			synchronized (this.flowSync)
-			{
-				this.prefetchedMessages.clear();
-				this.nextCreditToFlow = 0;
-				this.receiveLink.flow(this.prefetchCount);
+			this.nextCreditToFlow = 0;
+			this.sendFlow(this.prefetchCount - this.prefetchedMessages.size());
 
-				if(TRACE_LOGGER.isLoggable(Level.FINE))
-				{
-					TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s]",
-							this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), this.prefetchCount));
-				}
+			if(TRACE_LOGGER.isLoggable(Level.FINE))
+			{
+				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s]",
+						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), this.prefetchCount));
 			}
 		}
 		else
@@ -335,29 +361,21 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 	public void onReceiveComplete(Delivery delivery)
 	{
 		Message message = null;
-		synchronized (this.flowSync)
-		{
-			int msgSize = delivery.pending();
-			byte[] buffer = new byte[msgSize];
-			
-			int read = receiveLink.recv(buffer, 0, msgSize);
-			
-			message = Proton.message();
-			message.decode(buffer, 0, read);
-			
-			delivery.settle();
-		}
+		
+		int msgSize = delivery.pending();
+		byte[] buffer = new byte[msgSize];
+		
+		int read = receiveLink.recv(buffer, 0, msgSize);
+		
+		message = Proton.message();
+		message.decode(buffer, 0, read);
+		
+		delivery.settle();
 
 		this.prefetchedMessages.add(message);
 		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
-
-		ReceiveWorkItem currentReceive = this.pendingReceives.poll();
-		if (currentReceive != null && !currentReceive.getWork().isDone())
-		{
-			List<Message> returnMessages = this.receiveCore(currentReceive.maxMessageCount);
-			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
-			future.complete(returnMessages);
-		}
+		
+		this.receiveCore();			
 	}
 
 	public void onError(ErrorCondition error)
@@ -397,7 +415,10 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			this.onOpenComplete(exception);
 
 			if (!this.getIsClosingOrClosed())
-				this.scheduleRecreate(Duration.ofSeconds(0));
+			{
+				this.createReceiveLink();
+				this.underlyingFactory.getRetryPolicy().incrementRetryCount(MessageReceiver.this.getClientId());
+			}
 		}
 	}
 
@@ -409,7 +430,7 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		}
 	}
 
-	private Receiver createReceiveLink()
+	private void createReceiveLink()
 	{	
 		Connection connection = this.underlyingFactory.getConnection();
 
@@ -448,17 +469,19 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 					String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.OFFSET_ANNOTATION_NAME, this.offsetInclusive ? "=" : StringUtil.EMPTY, this.lastReceivedOffset));
 		}
 
-		Map<Symbol, UnknownDescribedType> filterMap = Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
+		final Map<Symbol, UnknownDescribedType> filterMap = Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
 		source.setFilter(filterMap);
 
-		Session session = connection.session();
+		final Session session = connection.session();
 		session.setIncomingCapacity(Integer.MAX_VALUE);
 		session.open();
 		BaseHandler.setHandler(session, new SessionHandler(this.receivePath));
 
-		String receiveLinkName = StringUtil.getRandomString();
-		receiveLinkName = receiveLinkName.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer());
-		Receiver receiver = session.receiver(receiveLinkName);
+		final String receiveLinkNamePrefix = StringUtil.getRandomString();
+		final String receiveLinkName = StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ? 
+				receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
+				receiveLinkNamePrefix;
+		final Receiver receiver = session.receiver(receiveLinkName);
 		receiver.setSource(source);
 		receiver.setTarget(new Target());
 
@@ -471,103 +494,50 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 			receiver.setProperties(Collections.singletonMap(AmqpConstants.EPOCH, (Object) this.epoch));
 		}
 
-		ReceiveLinkHandler handler = new ReceiveLinkHandler(this);
+		final ReceiveLinkHandler handler = new ReceiveLinkHandler(this);
 		BaseHandler.setHandler(receiver, handler);
 		this.underlyingFactory.registerForConnectionError(receiver);
 
 		receiver.open();
 
-		return receiver;
+		if (this.receiveLink != null)
+		{
+			final Receiver oldReceiver = this.receiveLink;
+			this.underlyingFactory.deregisterForConnectionError(oldReceiver);
+		}
+
+		this.receiveLink = receiver;
 	}
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue
 	private Message pollPrefetchQueue()
 	{
-		synchronized (this.flowSync)
+		final Message message = this.prefetchedMessages.poll();
+		if (message != null)
 		{
-			final Message message = this.prefetchedMessages.poll();
-			if (message != null)
-			{
-				// message lastReceivedOffset should be up-to-date upon each poll - as recreateLink will depend on this 
-				this.lastReceivedOffset = message.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
-				this.sendFlow(1);
-			}
-
-			return message;
+			// message lastReceivedOffset should be up-to-date upon each poll - as recreateLink will depend on this 
+			this.lastReceivedOffset = message.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+			this.sendFlow(1);
 		}
+
+		return message;
 	}
 
-
-	// set the link credit; not-thread-safe
 	private void sendFlow(final int credits)
 	{
-		int tempFlow = 0;
-
 		// slow down sending the flow - to make the protocol less-chat'y
 		this.nextCreditToFlow += credits;
-		if (this.nextCreditToFlow >= this.prefetchCount)
+		if (this.nextCreditToFlow >= this.prefetchCount || this.nextCreditToFlow >= 100)
 		{
-			tempFlow = this.nextCreditToFlow;
+			final int tempFlow = this.nextCreditToFlow;
 			this.receiveLink.flow(tempFlow);
 			this.nextCreditToFlow = 0;
-		}
-
-		if (tempFlow != 0)
-		{
+			
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 			{
 				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s]",
 						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), tempFlow));
 			}
-		}
-	}
-
-	/**
-	 *  Before invoking this - this.receiveLink is expected to be closed
-	 */
-	private void scheduleRecreate(Duration runAfter)
-	{
-		synchronized (this.linkCreateLock) 
-		{
-			if (this.linkCreateScheduled)
-			{
-				return;
-			}
-
-			this.linkCreateScheduled = true;
-
-			Timer.schedule(
-					new Runnable()
-					{
-						@Override
-						public void run()
-						{
-							if (MessageReceiver.this.receiveLink.getLocalState() != EndpointState.CLOSED)
-							{
-								return;
-							}
-
-							Receiver receiver = MessageReceiver.this.createReceiveLink();
-							if (receiver != null)
-							{
-								Receiver oldReceiver = MessageReceiver.this.receiveLink;
-								MessageReceiver.this.underlyingFactory.deregisterForConnectionError(oldReceiver);
-
-								MessageReceiver.this.receiveLink = receiver;
-							}
-							else
-							{
-								synchronized (MessageReceiver.this.linkCreateLock) 
-								{
-									MessageReceiver.this.linkCreateScheduled = false;
-								}
-							}
-
-							MessageReceiver.this.underlyingFactory.getRetryPolicy().incrementRetryCount(MessageReceiver.this.getClientId());
-						}
-					},
-					runAfter,
-					TimerType.OneTimeRun);
 		}
 	}
 

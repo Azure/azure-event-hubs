@@ -70,7 +70,13 @@ public final class ReactorDispatcher
 	
 	private void signalWorkQueue() throws IOException
 	{
-		this.ioSignal.sink().write(ByteBuffer.allocate(1));
+		try
+		{
+			this.ioSignal.sink().write(ByteBuffer.allocate(1));
+		}
+		catch(ClosedChannelException ignorePipeClosedDuringReactorShutdown)
+		{
+        }
 	}
 	
 	private final class DelayHandler extends BaseHandler
@@ -102,7 +108,7 @@ public final class ReactorDispatcher
 			{
 				ioSignal.source().read(ByteBuffer.allocate(1024));
 			}
-			catch(ClosedChannelException ignore)
+			catch(ClosedChannelException ignorePipeClosedDuringReactorShutdown)
 			{
 			}
 			catch(IOException ioException)

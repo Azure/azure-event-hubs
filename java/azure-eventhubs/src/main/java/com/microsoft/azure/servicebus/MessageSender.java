@@ -572,7 +572,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		BaseHandler.setHandler(session, new SessionHandler(sendPath));
 
 		final String sendLinkNamePrefix = StringUtil.getRandomString();
-		final String sendLinkName = connection.getRemoteContainer() != null ?
+		final String sendLinkName = StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ?
 				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
 				sendLinkNamePrefix;
 		
@@ -589,7 +589,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
 		BaseHandler.setHandler(sender, handler);
 
-		underlyingFactory.registerForConnectionError(sender);
+		this.underlyingFactory.registerForConnectionError(sender);
 		sender.open();
 		
 		if (this.sendLink != null)
@@ -665,7 +665,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 
 		this.linkCredit = this.linkCredit + creditIssued;
-		this.sendWork.onTimerTask(null);
+		this.sendWork.onEvent();
 	}
 
 	private void recreateSendLink()
