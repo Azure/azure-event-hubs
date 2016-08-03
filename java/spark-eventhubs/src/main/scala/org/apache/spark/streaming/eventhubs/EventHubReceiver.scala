@@ -96,9 +96,8 @@ class EventHubReceiver(
         logInfo(s"Retrieved offset $offset from offset store. NOTE: default value is -1 if no offset store is provided")
         client.createReceiver(eventHubParams, partitionId, offset)
 
-        //TODO need to change hardcoding
         while (!stopMessageHandler) {
-          val batch = client.receiver.receive(1).get
+          val batch = client.receive(1)
           if (batch != null)
             processReceivedMessage(batch.asScala)
 
@@ -114,14 +113,16 @@ class EventHubReceiver(
           }
         }
       } catch {
-        case c: ControlThrowable => throw c
+        case c: ControlThrowable =>
+          throw c
         case s: ServiceBusException =>
-          if (s.getIsTransient()) {
+          if (s.getIsTransient) {
             logInfo(s"ServiceBusException caught. Retrying receiver...")
           } else {
             restart("Error handling message; restarting receiver", s)
           }
         case e: Throwable =>
+          println(e.printStackTrace)
           restart("Error handling message; restarting receiver", e)
       } finally {
         myOffsetStore.close()
