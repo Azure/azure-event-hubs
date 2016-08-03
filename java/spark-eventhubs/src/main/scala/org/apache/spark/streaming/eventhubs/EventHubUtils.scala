@@ -31,6 +31,8 @@ object EventHubUtils {
       eventHubParams: Map[String, String],
       offsetRange: OffsetRange
   ): RDD[EventData] = sc.withScope {
+    sc.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    sc.conf.registerKryoClasses(Array(classOf[EventData]))
     val client = new EventHubInstance
     new EventHubRDD(sc, eventHubParams, None, Some(offsetRange), client)
   }
@@ -49,6 +51,8 @@ object EventHubUtils {
       offsetRange: OffsetRange
   ): JavaRDD[EventData] = jsc.sc.withScope {
     implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[String]]
+    jsc.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    jsc.conf.registerKryoClasses(Array(classOf[EventData]))
     val client = new EventHubInstance
     new EventHubRDD(jsc.sc, eventHubParams, None, Some(offsetRange), client)
   }
@@ -66,6 +70,8 @@ object EventHubUtils {
       eventHubParams: Map[String, String],
       offsetRanges: Array[OffsetRange]
   ): RDD[EventData] = sc.withScope {
+    sc.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    sc.conf.registerKryoClasses(Array(classOf[EventData]))
     val client = new EventHubInstance
     new EventHubRDD(sc, eventHubParams, Some(offsetRanges), None, client)
   }
@@ -84,6 +90,8 @@ object EventHubUtils {
       offsetRanges: Array[OffsetRange]
   ): JavaRDD[EventData] = jsc.sc.withScope {
     implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[String]]
+    jsc.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    jsc.conf.registerKryoClasses(Array(classOf[EventData]))
     val client = new EventHubInstance
     new EventHubRDD(jsc.sc, eventHubParams, Some(offsetRanges), None, client)
   }
@@ -394,6 +402,8 @@ object EventHubUtils {
       storageLevel: StorageLevel,
       offsetStore: OffsetStore,
       receiverClient: EventHubInstance): Receiver[EventData] = {
+    ssc.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    ssc.conf.registerKryoClasses(Array(classOf[EventData]))
     val enabled = ssc.conf.getBoolean("spark.streaming.receiver.writeAheadLog.enable", defaultValue = false)
     if (enabled) {
       new ReliableEventHubReceiver(eventHubParams, partitionId, storageLevel, offsetStore, receiverClient)
