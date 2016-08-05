@@ -23,7 +23,6 @@ import org.apache.qpid.proton.engine.Handler;
 import org.apache.qpid.proton.engine.HandlerException;
 import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.reactor.Reactor;
-import org.apache.qpid.proton.reactor.Task;
 
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
@@ -51,7 +50,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	
 	private Reactor reactor;
 	private ReactorDispatcher reactorScheduler;
-	private Thread reactorThread;
 	private Connection connection;
 
 	private Duration operationTimeout;
@@ -127,8 +125,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			this.reactorScheduler = new ReactorDispatcher(newReactor);
 		}
 		
-		this.reactorThread = new Thread(new RunReactor(newReactor));
-		this.reactorThread.start();
+		final Thread reactorThread = new Thread(new RunReactor(newReactor));
+		reactorThread.start();
 	}
 
 	@Override
@@ -233,6 +231,17 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		else
 		{
 			final Connection currentConnection = this.connection;
+			
+			try
+			{
+				this.startReactor(this.reactorHandler);
+			}
+			catch (IOException e)
+			{
+				TRACE_LOGGER.log(Level.SEVERE, ExceptionUtil.toStackTraceString(e, "Re-starting reactor failed with error"));
+				
+				this.onReactorError(cause);
+			}
 
 			Iterator<Link> literator = this.registeredLinks.iterator();
 			while (literator.hasNext())
@@ -259,14 +268,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 					BaseLinkHandler linkHandler = (BaseLinkHandler) handler;
 					linkHandler.processOnClose(link, cause);
 				}
-			}
-			
-			try
-			{
-				this.startReactor(this.reactorHandler);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 		}
 	}
@@ -337,30 +338,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 				if(TRACE_LOGGER.isLoggable(Level.WARNING))
 				{
-					StringBuilder builder = new StringBuilder();
-					builder.append("UnHandled exception while processing events in reactor:");
-					builder.append(System.lineSeparator());
-					builder.append(handlerException.getMessage());
-					if (handlerException.getStackTrace() != null)
-						for (StackTraceElement ste: handlerException.getStackTrace())
-						{
-							builder.append(System.lineSeparator());
-							builder.append(ste.toString());
-						}
-
-					Throwable innerException = handlerException.getCause();
-					if (innerException != null)
-					{
-						builder.append("Cause: " + innerException.getMessage());
-						if (innerException.getStackTrace() != null)
-							for (StackTraceElement ste: innerException.getStackTrace())
-							{
-								builder.append(System.lineSeparator());
-								builder.append(ste.toString());
-							}
-					}
-
-					TRACE_LOGGER.log(Level.WARNING, builder.toString());
+					TRACE_LOGGER.log(Level.WARNING,
+							ExceptionUtil.toStackTraceString(handlerException, "UnHandled exception while processing events in reactor:"));
 				}
 
 				String message = !StringUtil.isNullOrEmpty(cause.getMessage()) ? 
