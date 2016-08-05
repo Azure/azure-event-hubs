@@ -5,11 +5,11 @@
 package com.microsoft.azure.servicebus;
 
 import java.io.IOException;
+import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,160 +23,171 @@ import org.apache.qpid.proton.engine.Handler;
 import org.apache.qpid.proton.engine.HandlerException;
 import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.reactor.Reactor;
+import org.apache.qpid.proton.reactor.Task;
 
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
+import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
  * Manages connection life-cycle
  */
-public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory, ITimeoutErrorHandler
+public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory
 {
-	
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
-	
+
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
-	private static final int TIMEOUT_ERROR_THRESHOLD_IN_SECS = 180;
 	private final Object connectionLock = new Object();
 	private final String hostName;
+	private final CompletableFuture<Void> closeTask;
+	private final ConnectionHandler connectionHandler;
+	private final ReactorHandler reactorHandler;
+	private final LinkedList<Link> registeredLinks;
+	private final Object reactorLock;
 	
 	private Reactor reactor;
+	private ReactorDispatcher reactorScheduler;
 	private Thread reactorThread;
-	private ConnectionHandler connectionHandler;
 	private Connection connection;
 	private boolean waitingConnectionOpen;
-	
+
 	private Duration operationTimeout;
 	private RetryPolicy retryPolicy;
 	private CompletableFuture<MessagingFactory> open;
 	private CompletableFuture<Connection> openConnection;
-	private LinkedList<Link> registeredLinks;
 	private TimeoutTracker connectionCreateTracker;
-	private Instant timeoutErrorStart;
 	
 	/**
 	 * @param reactor parameter reactor is purely for testing purposes and the SDK code should always set it to null
 	 */
-	MessagingFactory(final ConnectionStringBuilder builder) throws IOException
+	MessagingFactory(final ConnectionStringBuilder builder)
 	{
-		super("MessagingFactory".concat(StringUtil.getRandomString()));
+		super("MessagingFactory".concat(StringUtil.getRandomString()), null);
+
+		Timer.register(this.getClientId());
 		this.hostName = builder.getEndpoint().getHost();
-		this.timeoutErrorStart = null;
-		
-		this.startReactor(new ReactorHandler()
-		{
-			@Override
-			public void onReactorFinal(Event e)
-		    {
-				super.onReactorFinal(e);
-				MessagingFactory.this.onReactorError(new ServiceBusException(true, "Reactor finalized."));
-		    }
-		});
 		
 		this.operationTimeout = builder.getOperationTimeout();
 		this.retryPolicy = builder.getRetryPolicy();
 		this.registeredLinks = new LinkedList<Link>();
+		this.closeTask = new CompletableFuture<Void>();
+		this.reactorLock = new Object();
+		this.connectionHandler = new ConnectionHandler(this, 
+				builder.getEndpoint().getHost(), builder.getSasKeyName(), builder.getSasKey());
+
+		this.reactorHandler = new ReactorHandler()
+		{
+			@Override
+			public void onReactorInit(Event e)
+			{
+				super.onReactorInit(e);
+
+				final Reactor reactor = e.getReactor();
+				MessagingFactory.this.connection = reactor.connection(MessagingFactory.this.connectionHandler);
+			}
+		};
 	}
-	
+
 	String getHostName()
 	{
 		return this.hostName;
 	}
 	
-	private void createConnection(ConnectionStringBuilder builder)
+	private Reactor getReactor()
 	{
-		assert this.reactor != null;
-		
-		this.connectionHandler = new ConnectionHandler(this, 
-				builder.getEndpoint().getHost(), builder.getSasKeyName(), builder.getSasKey());
-		this.waitingConnectionOpen = true;
-		this.connection = reactor.connection(this.connectionHandler);
+		synchronized (this.reactorLock)
+		{
+			return this.reactor;
+		}
+	}
+	
+	private ReactorDispatcher getReactorScheduler()
+	{
+		synchronized (this.reactorLock)
+		{
+			return this.reactorScheduler;
+		}
+	}
+
+	private void createConnection(ConnectionStringBuilder builder) throws IOException
+	{
 		this.open = new CompletableFuture<MessagingFactory>();
+		this.waitingConnectionOpen = true;
+		this.startReactor(this.reactorHandler);
 	}
 
 	private void startReactor(ReactorHandler reactorHandler) throws IOException
 	{
-		this.reactor = ProtonUtil.reactor(reactorHandler);
-		this.reactorThread = new Thread(new RunReactor(this.reactor));
+		final Reactor newReactor = ProtonUtil.reactor(reactorHandler);
+		synchronized (this.reactorLock)
+		{
+			this.reactor = newReactor;
+			this.reactorScheduler = new ReactorDispatcher(newReactor);
+		}
+		
+		this.reactorThread = new Thread(new RunReactor(newReactor));
 		this.reactorThread.start();
 	}
-	
+
 	@Override
 	public CompletableFuture<Connection> getConnection()
 	{
 		if (this.connection.getLocalState() == EndpointState.CLOSED
-				|| (this.connectionCreateTracker != null && this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
+				|| (this.connectionCreateTracker != null && !this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
 		{
 			synchronized (this.connectionLock)
 			{
 				if ((this.connection.getLocalState() == EndpointState.CLOSED && !this.waitingConnectionOpen)
-						|| (this.connectionCreateTracker != null && this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
+						|| (this.connectionCreateTracker != null && !this.connectionCreateTracker.remaining().minus(ClientConstants.TIMER_TOLERANCE).isNegative()))
 				{
 					try
 					{
-						this.startReactor(new ReactorHandler()
-						{
-							@Override
-							public void onReactorInit(Event e)
-							{
-								super.onReactorInit(e);
-								
-								Reactor reactor = e.getReactor();
-								MessagingFactory.this.connection = reactor.connection(MessagingFactory.this.connectionHandler);
-							}
-							
-							@Override
-							public void onReactorFinal(Event e)
-						    {
-								super.onReactorFinal(e);
-								MessagingFactory.this.onReactorError(new ServiceBusException(true, "Reactor finalized."));
-						    }
-						});
+						this.startReactor(this.reactorHandler);
 					}
 					catch (IOException e)
 					{
 						MessagingFactory.this.onReactorError(new ServiceBusException(true, e));
 					}
-					
+
 					if(this.openConnection != null && !this.openConnection.isDone())
 					{
-						this.openConnection.completeExceptionally(new ServiceBusException(false, "Connection creation timedout."));
+						this.openConnection.completeExceptionally(new TimeoutException(String.format(Locale.US, "Connection creation timedout, %s", ExceptionUtil.getTrackingIDAndTimeToLog())));
 					}
 
 					this.openConnection = new CompletableFuture<Connection>();
-					
+
 					this.connectionCreateTracker = TimeoutTracker.create(this.operationTimeout);
 					this.waitingConnectionOpen = true;
 				}
 			}
 		}
-		
+
 		return this.openConnection == null ? CompletableFuture.completedFuture(this.connection): this.openConnection;
 	}
-	
+
 	public Duration getOperationTimeout()
 	{
 		return this.operationTimeout;
 	}
-	
+
 	public RetryPolicy getRetryPolicy()
 	{
 		return this.retryPolicy;
 	}
-	
+
 	public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString) throws IOException
 	{
 		ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
 		MessagingFactory messagingFactory = new MessagingFactory(builder);
-		
+
 		messagingFactory.createConnection(builder);
 		return messagingFactory.open;
 	}
-	
+
 	@Override
 	public void onOpenComplete(Exception exception)
 	{
@@ -184,7 +195,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		{
 			this.waitingConnectionOpen = false;
 		}
-		
+
 		if (exception == null)
 		{
 			this.open.complete(this);
@@ -202,29 +213,38 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			}
 		}
 	}
-	
+
 	@Override
 	public void onConnectionError(ErrorCondition error)
 	{
-		Connection currentConnection = this.connection;
-		
-		Iterator<Link> literator = this.registeredLinks.iterator();
-		while (literator.hasNext())
+		if (this.reactorThread != null && !this.reactorThread.isInterrupted())
 		{
-			Link link = literator.next();
-			if (link.getLocalState() != EndpointState.CLOSED)
-			{
-				link.close();
-			}
+			this.reactorThread.interrupt();
 		}
-		
-		try
+
+		if (!this.open.isDone())
 		{
+			this.onOpenComplete(ExceptionUtil.toException(error));
+		}
+		else
+		{
+			final Connection currentConnection = this.connection;
+			Iterator<Link> literator = this.registeredLinks.iterator();
+
+			while (literator.hasNext())
+			{
+				Link link = literator.next();
+				if (link.getLocalState() != EndpointState.CLOSED)
+				{
+					link.close();
+				}
+			}
+
 			if (currentConnection.getLocalState() != EndpointState.CLOSED)
 			{
 				currentConnection.close();
 			}
-			
+
 			literator = this.registeredLinks.iterator();
 			while (literator.hasNext())
 			{
@@ -237,39 +257,39 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				}
 			}
 		}
-		finally
+
+		if (this.getIsClosingOrClosed() && !this.closeTask.isDone())
 		{
-			currentConnection.free();
+			this.closeTask.complete(null);
+			Timer.unregister(this.getClientId());
 		}
 	}
-	
+
 	private void onReactorError(Exception cause)
 	{
 		if (!this.open.isDone())
 		{
 			this.onOpenComplete(cause);
-			return;
 		}
+		else
+		{
+			final Connection currentConnection = this.connection;
 
-		Connection currentConnection = this.connection;
-		
-		Iterator<Link> literator = this.registeredLinks.iterator();
-		while (literator.hasNext())
-		{
-			Link link = literator.next();
-			if (link.getLocalState() != EndpointState.CLOSED)
+			Iterator<Link> literator = this.registeredLinks.iterator();
+			while (literator.hasNext())
 			{
-				link.close();
+				Link link = literator.next();
+				if (link.getLocalState() != EndpointState.CLOSED)
+				{
+					link.close();
+				}
 			}
-		}
-		
-		try
-		{
-			if (currentConnection != null && currentConnection.getLocalState() != EndpointState.CLOSED)
+
+			if (currentConnection.getLocalState() != EndpointState.CLOSED)
 			{
 				currentConnection.close();
 			}
-			
+
 			literator = this.registeredLinks.iterator();
 			while (literator.hasNext())
 			{
@@ -282,77 +302,128 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				}
 			}
 		}
-		finally
-		{
-			currentConnection.free();
-		}
 	}
-	
+
 	void resetConnection()
 	{		
-		this.reactor.free();
-		this.onReactorError(new ServiceBusException(true, "Client invoked connection reset."));
-	}
-	
-	@Override
-	public void closeSync()
-	{
-		if (this.connection != null)
-		{
-			if (this.connection.getLocalState() != EndpointState.CLOSED)
-			{
-				this.connection.close();
-			}
-			
-			this.connection.free();
-		}
+		this.getReactor().free();
+		this.onReactorError(new ServiceBusException(true, String.format(Locale.US, "Client invoked connection reset, %s", ExceptionUtil.getTrackingIDAndTimeToLog())));
 	}
 
 	@Override
-	public CompletableFuture<Void> close()
+	protected CompletableFuture<Void> onClose()
 	{
-		this.closeSync();
-		
-		// hook up onRemoteClose & timeout 
-		return CompletableFuture.completedFuture(null);
+		if (!this.getIsClosed())
+		{
+			if (this.connection != null && this.connection.getRemoteState() != EndpointState.CLOSED)
+			{
+				if (this.connection.getLocalState() != EndpointState.CLOSED)
+				{
+					this.connection.close();
+				}
+
+				Timer.schedule(new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						if (!MessagingFactory.this.closeTask.isDone())
+						{
+							MessagingFactory.this.closeTask.completeExceptionally(new TimeoutException("Closing MessagingFactory timed out."));
+						}
+					}
+				},
+				this.operationTimeout, TimerType.OneTimeRun);
+			} else if(this.connection == null || this.connection.getRemoteState() == EndpointState.CLOSED)
+			{
+				this.closeTask.complete(null);
+			}
+		}		
+
+		return this.closeTask;
 	}
 
 	private class RunReactor implements Runnable
 	{
-		private Reactor r;
-		
-		public RunReactor(Reactor r)
+		final private Reactor rctr;
+
+		public RunReactor(final Reactor reactor)
 		{
-			this.r = r;
+			this.rctr = reactor;
 		}
-		
+
 		public void run()
 		{
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
-		    {
+			{
 				TRACE_LOGGER.log(Level.FINE, "starting reactor instance.");
-		    }
-			
+			}
+
 			try
 			{
-				this.r.run();
+				this.rctr.setTimeout(3141);
+				this.rctr.start();
+				while(!Thread.interrupted() && this.rctr.process()) {}
+				this.rctr.stop();
 			}
 			catch (HandlerException handlerException)
 			{
-				Exception cause = handlerException;
-				
+				Throwable cause = handlerException.getCause();
+				if (cause == null)
+				{
+					cause = handlerException;
+				}
+
 				if(TRACE_LOGGER.isLoggable(Level.WARNING))
-			    {
-					TRACE_LOGGER.log(Level.WARNING, "UnHandled exception while processing events in reactor:");
-					TRACE_LOGGER.log(Level.WARNING, handlerException.getMessage());
+				{
+					StringBuilder builder = new StringBuilder();
+					builder.append("UnHandled exception while processing events in reactor:");
+					builder.append(System.lineSeparator());
+					builder.append(handlerException.getMessage());
 					if (handlerException.getStackTrace() != null)
 						for (StackTraceElement ste: handlerException.getStackTrace())
 						{
-							TRACE_LOGGER.log(Level.WARNING, ste.toString());
+							builder.append(System.lineSeparator());
+							builder.append(ste.toString());
 						}
-			    }
+
+					Throwable innerException = handlerException.getCause();
+					if (innerException != null)
+					{
+						builder.append("Cause: " + innerException.getMessage());
+						if (innerException.getStackTrace() != null)
+							for (StackTraceElement ste: innerException.getStackTrace())
+							{
+								builder.append(System.lineSeparator());
+								builder.append(ste.toString());
+							}
+					}
+
+					TRACE_LOGGER.log(Level.WARNING, builder.toString());
+				}
+
+				String message = !StringUtil.isNullOrEmpty(cause.getMessage()) ? 
+						cause.getMessage():
+						!StringUtil.isNullOrEmpty(handlerException.getMessage()) ? 
+							handlerException.getMessage() :
+							"Reactor encountered unrecoverable error";
+				ServiceBusException sbException = new ServiceBusException(
+						true,
+						String.format(Locale.US, "%s, %s", message, ExceptionUtil.getTrackingIDAndTimeToLog()),
+						cause);
 				
-				MessagingFactory.this.onReactorError(new ServiceBusException(true, cause));
+				if (cause instanceof UnresolvedAddressException)
+				{
+					sbException = new CommunicationException(
+							String.format(Locale.US, "%s. This is usually caused by incorrect hostname or network configuration. Please check to see if namespace information is correct. %s", message, ExceptionUtil.getTrackingIDAndTimeToLog()),
+							cause);
+				}
+				
+				MessagingFactory.this.onReactorError(sbException);
+			}
+			finally
+			{
+				this.rctr.free();
 			}
 		}
 	}
@@ -368,22 +439,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	{
 		this.registeredLinks.remove(link);	
 	}
-
-	@Override
-	public void reportTimeoutError()
+	
+	public void scheduleOnReactorThread(final BaseHandler handler) throws IOException
 	{
-		if (this.timeoutErrorStart == null)
-			this.timeoutErrorStart = Instant.now();
-		else if (this.timeoutErrorStart.isBefore(Instant.now().minus(TIMEOUT_ERROR_THRESHOLD_IN_SECS, ChronoUnit.SECONDS)))
-		{
-			this.resetConnection();
-			this.resetTimeoutErrorTracking();
-		}
+		this.getReactorScheduler().invoke(handler);
 	}
 
-	@Override
-	public void resetTimeoutErrorTracking()
+	public void scheduleOnReactorThread(final int delay, final BaseHandler handler) throws IOException
 	{
-		this.timeoutErrorStart = null;
+		this.getReactorScheduler().invoke(delay, handler);
 	}	
 }

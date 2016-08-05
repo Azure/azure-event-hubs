@@ -4,22 +4,31 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import java.nio.*;
-import java.time.*;
-import java.util.*;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.amqp.*;
-import org.apache.qpid.proton.amqp.messaging.*;
-import org.apache.qpid.proton.message.*;
-import com.microsoft.azure.servicebus.amqp.*;
+import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
+import org.apache.qpid.proton.amqp.messaging.Data;
+import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
+import org.apache.qpid.proton.message.Message;
+
+import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
 /**
  * The data structure encapsulating the Event being sent-to and received-from EventHubs.
  * Each EventHubs partition can be visualized as a Stream of {@link EventData}.
  */
-public class EventData
+public class EventData implements Serializable
 {
+	private static final long serialVersionUID = -5631628195600014255L;
+
 	private String partitionKey;
 	private String offset;
 	private long sequenceNumber;
@@ -27,13 +36,13 @@ public class EventData
 	private Binary bodyData;
 	private boolean isReceivedEvent;
 	private Map<String, String> properties;
-	
+
 	private SystemProperties systemProperties;
-	
+
 	private EventData()
 	{
 	}
-	
+
 	/**
 	 * Internal Constructor - intended to be used only by the {@link PartitionReceiver} to Create #EventData out of #Message
 	 */
@@ -44,34 +53,50 @@ public class EventData
 		{
 			throw new IllegalArgumentException("amqpMessage cannot be null");
 		}
-		
+
 		Map<Symbol, Object> messageAnnotations = amqpMessage.getMessageAnnotations().getValue();
-		
+
 		Object partitionKeyObj = messageAnnotations.get(AmqpConstants.PARTITION_KEY);
 		if (partitionKeyObj != null)
 		{
 			this.partitionKey = partitionKeyObj.toString();
+			messageAnnotations.remove(AmqpConstants.PARTITION_KEY);
 		}
-		
+
 		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SEQUENCE_NUMBER);
 		this.sequenceNumber = (Long) sequenceNumberObj;
-		
+		messageAnnotations.remove(AmqpConstants.SEQUENCE_NUMBER);
+
 		Object enqueuedTimeUtcObj = messageAnnotations.get(AmqpConstants.ENQUEUED_TIME_UTC);
 		this.enqueuedTime = ((Date) enqueuedTimeUtcObj).toInstant();
-		
+		messageAnnotations.remove(AmqpConstants.ENQUEUED_TIME_UTC);
+
 		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
-		
+		messageAnnotations.remove(AmqpConstants.OFFSET);
+
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, String>)(amqpMessage.getApplicationProperties().getValue()));
-		
-		
+
+		if (!messageAnnotations.isEmpty())
+		{
+			if (this.properties == null)
+			{
+				this.properties = new HashMap<String, String>();
+			}
+
+			for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
+			{
+				this.properties.put(annotation.getKey().toString(), annotation.getValue() != null ? annotation.getValue().toString() : null);
+			}
+		}
+
 		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue();
-		
+
 		this.isReceivedEvent = true;
 
 		amqpMessage.clear();
 	}
-	
+
 	/**
 	 * Construct EventData to Send to EventHubs.
 	 * Typical pattern to create a Sending EventData is:
@@ -93,15 +118,15 @@ public class EventData
 	public EventData(byte[] data)
 	{
 		this();
-		
+
 		if (data == null)
 		{
 			throw new IllegalArgumentException("data cannot be null");
 		}
-		
+
 		this.bodyData = new Binary(data);
 	}
-	
+
 	/**
 	 * Construct EventData to Send to EventHubs.
 	 * Typical pattern to create a Sending EventData is:
@@ -125,15 +150,15 @@ public class EventData
 	public EventData(byte[] data, final int offset, final int length)
 	{
 		this();
-		
+
 		if (data == null)
 		{
 			throw new IllegalArgumentException("data cannot be null");
 		}
-		
+
 		this.bodyData = new Binary(data, offset, length);
 	}
-	
+
 	/**
 	 * Construct EventData to Send to EventHubs.
 	 * Typical pattern to create a Sending EventData is:
@@ -155,15 +180,15 @@ public class EventData
 	public EventData(ByteBuffer buffer)
 	{
 		this();
-		
+
 		if (buffer == null)
 		{
 			throw new IllegalArgumentException("data cannot be null");
 		}
-		
+
 		this.bodyData = Binary.create(buffer);
 	}
-	
+
 	/**
 	 * Get Actual Payload/Data wrapped by EventData.
 	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
@@ -174,7 +199,7 @@ public class EventData
 		// TODO: enforce on-send constructor type 2
 		return this.bodyData == null ? null : this.bodyData.getArray();
 	}
-	
+
 	/**
 	 * Application property bag
 	 * @return returns Application properties
@@ -183,12 +208,12 @@ public class EventData
 	{
 		return this.properties;
 	}
-	
+
 	public void setProperties(Map<String, String> applicationProperties)
 	{
 		this.properties = applicationProperties;
 	}
-	
+
 	/**
 	 * SystemProperties that are populated by EventHubService.
 	 * <p>As these are populated by Service, they are only present on a Received EventData.
@@ -200,68 +225,75 @@ public class EventData
 		{
 			this.systemProperties = new SystemProperties(this);
 		}
-		
+
 		return this.systemProperties;
 	}
-	
+
 	Message toAmqpMessage()
 	{
 		Message amqpMessage = Proton.message();
-		
+
 		if (this.properties != null && !this.properties.isEmpty())
 		{
 			ApplicationProperties applicationProperties = new ApplicationProperties(this.properties);
 			amqpMessage.setApplicationProperties(applicationProperties);
 		}
-		
+
 		if (this.bodyData != null)
 		{
 			amqpMessage.setBody(new Data(this.bodyData));
 		}
-		
+
 		return amqpMessage;
 	}
-	
+
 	Message toAmqpMessage(String partitionKey)
 	{
 		Message amqpMessage = this.toAmqpMessage();
-		
+
 		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
 				? new MessageAnnotations(new HashMap<Symbol, Object>()) 
-				: amqpMessage.getMessageAnnotations();		
-		messageAnnotations.getValue().put(AmqpConstants.PARTITION_KEY, partitionKey);
-		amqpMessage.setMessageAnnotations(messageAnnotations);
-		
-		return amqpMessage;
+						: amqpMessage.getMessageAnnotations();		
+				messageAnnotations.getValue().put(AmqpConstants.PARTITION_KEY, partitionKey);
+				amqpMessage.setMessageAnnotations(messageAnnotations);
+
+				return amqpMessage;
 	}
-	
-	public static final class SystemProperties
+
+	public static class SystemProperties implements Serializable
 	{
-		EventData event;
+		private static final long serialVersionUID = -2827050124966993723L;
 		
-		SystemProperties(EventData event)
+		private final EventData eventData;
+		
+		protected SystemProperties()
 		{
-			this.event = event;
+			this.eventData = null;
 		}
-		
+
+		private SystemProperties(final EventData eventData)
+		{
+			this.eventData = eventData;
+		}
+
 		public long getSequenceNumber()
 		{
-			return this.event.sequenceNumber;
+			return this.eventData.sequenceNumber;
 		}
 		
 		public Instant getEnqueuedTime()
 		{
-			return this.event.enqueuedTime;
+			return this.eventData.enqueuedTime;
 		}
-		
+
 		public String getOffset()
 		{
-			return this.event.offset;
+			return this.eventData.offset;
 		}
-		
+
 		public String getPartitionKey()
 		{
-			return this.event.partitionKey;
+			return this.eventData.partitionKey;
 		}
 	}
 }

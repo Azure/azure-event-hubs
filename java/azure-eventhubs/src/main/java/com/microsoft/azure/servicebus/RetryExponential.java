@@ -4,10 +4,10 @@
  */
 package com.microsoft.azure.servicebus;
 
-import java.time.*;
+import java.time.Duration;
 
 /**
- *  RetryPolicy implementation where the delay between retries will grow in a staggered exponential manner.
+ *  RetryPolicy implementation where the delay between retries will grow in an exponential manner.
  *  RetryPolicy can be set on the client operations using {@link ConnectionStringBuilder}.
  *  RetryIntervals will be computed using a retryFactor which is a function of deltaBackOff (MaximumBackoff - MinimumBackoff) and MaximumRetryCount
  */
@@ -17,9 +17,11 @@ public final class RetryExponential extends RetryPolicy
 	private final Duration maximumBackoff;
 	private final int maximumRetryCount;
 	private final double retryFactor;
-	
-	public RetryExponential(Duration minimumBackoff, Duration maximumBackoff, int maximumRetryCount)
+
+	public RetryExponential(final Duration minimumBackoff, final Duration maximumBackoff, final int maximumRetryCount, final String name)
 	{
+		super(name);
+
 		this.minimumBackoff = minimumBackoff;
 		this.maximumBackoff = maximumBackoff;
 		this.maximumRetryCount = maximumRetryCount;
@@ -27,21 +29,20 @@ public final class RetryExponential extends RetryPolicy
 	}
 
 	@Override
-	public Duration getNextRetryInterval(String clientId, Exception lastException, Duration remainingTime)
+	protected Duration onGetNextRetryInterval(final String clientId, final Exception lastException, final Duration remainingTime, final int baseWaitTimeSecs)
 	{
 		int currentRetryCount = this.getRetryCount(clientId);
-	
+
 		if (currentRetryCount >= this.maximumRetryCount)
 		{
 			return null;
 		}
-		
-		// keep track of last error and add extra wait for ServerBusyException
+
 		if (!RetryPolicy.isRetryableException(lastException))
 		{
 			return null;
 		}
-	
+
 		double nextRetryInterval = Math.pow(this.retryFactor, (double)currentRetryCount);
 		long nextRetryIntervalSeconds = (long) nextRetryInterval ;
 		long nextRetryIntervalNano = (long)((nextRetryInterval - (double)nextRetryIntervalSeconds) * 1000000000);
@@ -49,18 +50,21 @@ public final class RetryExponential extends RetryPolicy
 		{
 			return null;
 		}
-		
+
 		Duration retryAfter = this.minimumBackoff.plus(Duration.ofSeconds(nextRetryIntervalSeconds, nextRetryIntervalNano));
+		retryAfter = retryAfter.plus(Duration.ofSeconds(baseWaitTimeSecs));
+
 		return retryAfter;
 	}
-	
+
 	private double computeRetryFactor()
 	{
 		long deltaBackoff = this.maximumBackoff.minus(this.minimumBackoff).getSeconds();
-		if (deltaBackoff <= 0 || this.maximumRetryCount <= 0) {
+		if (deltaBackoff <= 0 || this.maximumRetryCount <= 0)
+		{
 			return 0;
 		}
-		
+
 		return (Math.log(deltaBackoff) / Math.log(this.maximumRetryCount));
 	}
 }

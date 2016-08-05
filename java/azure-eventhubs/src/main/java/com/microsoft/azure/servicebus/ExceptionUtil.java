@@ -4,9 +4,17 @@
  */
 package com.microsoft.azure.servicebus;
 
-import java.util.concurrent.*;
-import org.apache.qpid.proton.amqp.transport.*;
-import com.microsoft.azure.servicebus.amqp.*;
+import java.time.ZonedDateTime;
+import java.util.Locale;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
+
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.transport.ErrorCondition;
+
+import com.microsoft.azure.servicebus.amqp.AmqpErrorCode;
+import com.microsoft.azure.servicebus.amqp.AmqpException;
 
 final class ExceptionUtil
 {
@@ -16,7 +24,7 @@ final class ExceptionUtil
 		{
 			throw new IllegalArgumentException("'null' errorCondition cannot be translated to ServiceBusException");
 		}
-		
+
 		if (errorCondition.getCondition() == ClientConstants.TIMEOUT_ERROR)
 		{
 			return new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT, new TimeoutException(errorCondition.getDescription()));
@@ -47,7 +55,7 @@ final class ExceptionUtil
 		}
 		else if (errorCondition.getCondition() == AmqpErrorCode.InternalError)
 		{
-			return new ServiceBusException(false, new AmqpException(errorCondition));
+			return new ServiceBusException(true, new AmqpException(errorCondition));
 		}
 		else if (errorCondition.getCondition() == ClientConstants.ARGUMENT_ERROR)
 		{
@@ -81,10 +89,10 @@ final class ExceptionUtil
 		{
 			return new ServiceBusException(false, new AmqpException(errorCondition));
 		}
-		
+
 		return new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT, errorCondition.getDescription());
 	}
-	
+
 	static <T> void completeExceptionally(CompletableFuture<T> future, Exception exception, IErrorContextProvider contextProvider)
 	{
 		if (exception != null && exception instanceof ServiceBusException)
@@ -92,7 +100,20 @@ final class ExceptionUtil
 			ErrorContext errorContext = contextProvider.getContext();
 			((ServiceBusException) exception).setContext(errorContext);
 		}
-		
+
 		future.completeExceptionally(exception);
+	}
+
+	// not a specific message related error
+	static boolean isGeneralSendError(Symbol amqpError)
+	{
+		return (amqpError == ClientConstants.SERVER_BUSY_ERROR 
+				|| amqpError == ClientConstants.TIMEOUT_ERROR 
+				|| amqpError == AmqpErrorCode.ResourceLimitExceeded);
+	}
+
+	static String getTrackingIDAndTimeToLog()
+	{
+		return String.format(Locale.US, "TrackingId: %s, at: %s", UUID.randomUUID().toString(), ZonedDateTime.now()); 
 	}
 }

@@ -12,9 +12,9 @@
 	<url>https://github.com/Azure/azure-event-hubs</url>
 	
 	<properties>
-		<proton-j-version>0.12.2</proton-j-version>
+		<proton-j-version>0.13.0</proton-j-version>
 	  	<junit-version>4.10</junit-version>
-		<client-current-version>0.6.9</client-current-version>
+		<client-current-version>0.7.6-SNAPSHOT</client-current-version>
 	</properties>
 	
 	<build>
@@ -24,8 +24,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.5</version>
 				<configuration>
-					<source>1.7</source>
-					<target>1.7</target>
+					<source>1.8</source>
+					<target>1.8</target>
 					<optimize>true</optimize>
 					<showDeprecation>true</showDeprecation>
 					<showWarnings>true</showWarnings>
@@ -55,7 +55,8 @@
 	
 	 <modules> 
 	    <module>azure-eventhubs</module>
-	    <module>azure-eventhubs-log4j-appender</module>
+	    <module>azure-eventhubs-eph</module>
+	    <module>azure-eventhubs-extensions</module>
 	    <module>azure-eventhubs-samples</module>
 	 </modules>
 
