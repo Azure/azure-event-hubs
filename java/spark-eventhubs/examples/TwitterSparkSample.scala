@@ -10,7 +10,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 /**
   * This code sample shows how to consume tweets from EventHubs and display the most used hashtags
   * within the last 5 minutes. Of course, this assumes you're EventHub is filled with tweets. Please
-  * see TwitterPrdocuerSample.scala for more info on how to do that.
+  * see TwitterProdcuerSample.java for more info on how to do that.
   */
 object TwitterSparkSample{
   def main(args : Array[String]): Unit = {
