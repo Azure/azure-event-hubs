@@ -447,15 +447,51 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 			this.onOpenComplete(completionException);
 
-			synchronized (this.pendingSendLock)
+			if (completionException != null &&
+					(!(completionException instanceof ServiceBusException) || !((ServiceBusException) completionException).getIsTransient()))
 			{
-				for (Map.Entry<String, ReplayableWorkItem<Void>> pendingSend: this.pendingSendsData.entrySet())
+				synchronized (this.pendingSendLock)
 				{
-					ExceptionUtil.completeExceptionally(pendingSend.getValue().getWork(), completionException, this);					
+					for (Map.Entry<String, ReplayableWorkItem<Void>> pendingSend: this.pendingSendsData.entrySet())
+					{
+						this.cleanupFailedSend(pendingSend.getValue(), completionException);					
+					}
+		
+					this.pendingSendsData.clear();
+					this.pendingSends.clear();
 				}
-	
-				this.pendingSendsData.clear();
-				this.pendingSends.clear();
+			}
+			else
+			{
+				final Map.Entry<String, ReplayableWorkItem<Void>> pendingSendEntry = IteratorUtil.getFirst(this.pendingSendsData.entrySet());
+				if (pendingSendEntry != null & pendingSendEntry.getValue() != null)
+				{
+					final TimeoutTracker tracker = pendingSendEntry.getValue().getTimeoutTracker();
+					if (tracker != null)
+					{
+						final Duration nextRetryInterval = this.retryPolicy.getNextRetryInterval(this.getClientId(), completionException, tracker.remaining());
+						if (nextRetryInterval != null)
+						{
+							try
+							{
+								this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler()
+								{
+									@Override
+									public void onEvent()
+									{
+										if (sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)
+										{
+											createSendLink();
+										}
+									}
+								});
+							}
+							catch (IOException ignore)
+							{
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -505,7 +541,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					pendingSendWorkItem.setLastKnownException(exception);
 					try
 					{
-						this.underlyingFactory.scheduleOnReactorThread((int)retryInterval.getSeconds(),
+						this.underlyingFactory.scheduleOnReactorThread((int) retryInterval.toMillis(),
 								new DispatchHandler()
 								{
 									@Override
@@ -558,7 +594,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	
 	private void cleanupFailedSend(final ReplayableWorkItem<Void> failedSend, final Exception exception)
 	{
-		failedSend.getTimeoutTask().cancel(false);
+		if (failedSend.getTimeoutTask() != null)
+			failedSend.getTimeoutTask().cancel(false);
+		
 		ExceptionUtil.completeExceptionally(failedSend.getWork(), exception, this);
 	}
 

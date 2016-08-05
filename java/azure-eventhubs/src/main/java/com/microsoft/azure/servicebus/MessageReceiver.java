@@ -300,12 +300,16 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 				@Override
 				public void onEvent()
 				{
+					if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
+					{
+						createReceiveLink();
+					}
+
 					final List<Message> messages = receiveCore(maxMessageCount);
 					if (messages != null)
 						onReceive.complete(messages);
 					else
 						pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
-					
 				}
 			});
 		}
@@ -396,13 +400,14 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		if (this.getIsClosingOrClosed())
 		{
 			this.linkClose.complete(null);
+			
 			WorkItem<Collection<Message>> workItem = null;
-
+			final boolean isTransientException = exception == null ||
+					(exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient());
 			while ((workItem = this.pendingReceives.poll()) != null)
 			{
 				CompletableFuture<Collection<Message>> future = workItem.getWork();
-				if (exception == null ||
-						(exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient()))
+				if (isTransientException)
 				{
 					future.complete(null);
 				}
@@ -415,13 +420,45 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		else
 		{
 			this.lastKnownLinkError = exception;
-
 			this.onOpenComplete(exception);
-
-			if (!this.getIsClosingOrClosed())
+			
+			if (exception != null &&
+					(!(exception instanceof ServiceBusException) || !((ServiceBusException) exception).getIsTransient()))
 			{
-				this.createReceiveLink();
-				this.underlyingFactory.getRetryPolicy().incrementRetryCount(MessageReceiver.this.getClientId());
+				WorkItem<Collection<Message>> workItem = null;
+				while ((workItem = this.pendingReceives.poll()) != null)
+				{
+					ExceptionUtil.completeExceptionally(workItem.getWork(), exception, this);
+				}
+			}
+			else
+			{
+				WorkItem<Collection<Message>> workItem = this.pendingReceives.peek();
+				if (workItem != null && workItem.getTimeoutTracker() != null)
+				{
+					Duration nextRetryInterval = this.underlyingFactory.getRetryPolicy()
+							.getNextRetryInterval(this.getClientId(), exception, workItem.getTimeoutTracker().remaining());
+					if (nextRetryInterval != null)
+					{
+						try
+						{
+							this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler()
+							{
+								@Override
+								public void onEvent()
+								{
+									if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
+									{
+										createReceiveLink();
+									}
+								}
+							});
+						}
+						catch (IOException ignore)
+						{
+						}
+					}
+				}
 			}
 		}
 	}
