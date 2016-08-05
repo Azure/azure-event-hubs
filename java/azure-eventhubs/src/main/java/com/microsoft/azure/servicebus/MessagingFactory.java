@@ -134,6 +134,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public Connection getConnection()
 	{
+		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
+		{
+			this.connection = this.getReactor().connection(this.connectionHandler);
+		}
+
 		return this.connection;
 	}
 
@@ -184,7 +189,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			Iterator<Link> literator = this.registeredLinks.iterator();
 
 			this.openConnection = new CompletableFuture<Connection>();
-			this.connection = this.getReactor().connection(this.connectionHandler);
 
 			while (literator.hasNext())
 			{

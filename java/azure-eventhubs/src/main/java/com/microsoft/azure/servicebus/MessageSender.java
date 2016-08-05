@@ -205,7 +205,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					new ServiceBusException(false, "Send failed while dispatching to Reactor, see cause for more details.", ioException));
 		}
 
-		sendWaiterData.setWaitingForAck();
 		return onSendFuture;
 	}
 
@@ -386,7 +385,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 							while (reverseReader.hasNext())
 							{
 								String unacknowledgedSend = reverseReader.next();
-								if (!this.pendingSendsData.get(unacknowledgedSend).isWaitingForAck())
+								if (this.pendingSendsData.get(unacknowledgedSend).isWaitingForAck())
 								{
 									this.pendingSends.offer(new WeightedDeliveryTag(unacknowledgedSend, 1));
 								}
@@ -420,6 +419,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	@Override
 	public void onError(Exception completionException)
 	{
+		this.linkCredit = 0;
 		if (this.getIsClosingOrClosed())
 		{
 			synchronized (this.pendingSendLock)
@@ -785,6 +785,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					}, this.operationTimeout, TimerType.OneTimeRun);
 					
 					sendData.setTimeoutTask(timeoutTask);
+					sendData.setWaitingForAck();
 				}
 				else
 				{
