@@ -9,10 +9,10 @@ import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import java.util.concurrent.BlockingQueue;
 
 /**
- * This code sample is apart of the TwitterProducerSample - if you have seen TwitterProducerSample.java, I would
- * start there.
+ * This code sample is apart of the TwitterProducerSample - if you haven't seen TwitterProducerSample.java, I would
+ * start there first. 
  *
- * In the threads created in the mentioned java file, we are simply take messages from our message queue and sending
+ * In each of the threads created in TwitterProducerSample.java file, we are simply taking messages from our message queue and sending
  * them to our EventHub continuously.
  */
 public class TweetHandler implements Runnable {
