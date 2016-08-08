@@ -4,15 +4,10 @@
  */
 package org.apache.spark.streaming.eventhubs
 
-import java.io.File
-
 import com.microsoft.azure.eventhubs.EventData
-import org.apache.spark.util.Utils
 
 import scala.concurrent.duration._
-import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSuite}
 import org.scalatest.mock.MockitoSugar
@@ -25,7 +20,6 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
   private var sc: SparkContext = _
   private var ehClientMock: EventHubInstance = _
   private var offsetStoreMock: OffsetStore = _
-  private var tempDirectory: File = null
   val ehParams = Map[String, String] (
     "namespaceName" -> "namespace",
     "eventHubName" -> "name",
@@ -47,7 +41,7 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
   before {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.registerKryoClasses(Array(classOf[EventData]))
-    sc = new SparkContext(sparkConf
+    sc = new SparkContext(sparkConf)
     offsetStoreMock = new MyMockedOffsetStore
   }
 
