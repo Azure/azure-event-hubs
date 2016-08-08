@@ -18,7 +18,7 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSuite}
 import org.scalatest.mock.MockitoSugar
 
 /**
-  * Test suite for ReliableEventHubReceiver
+  * Test suite for EventHubRDD
   */
 class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterAll
   with MockitoSugar with Eventually {
@@ -38,7 +38,6 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
   private val sparkConf = new SparkConf()
     .setMaster("local[2]") // At least 2, 1 for receiver and 1 for data transform
     .setAppName("EventHubRDD")
-    .set("spark.streaming.receiver.writeAheadLog.enable", "true")
     .set("spark.driver.allowMultipleContexts", "true")
 
   override def beforeAll() : Unit = {}
@@ -48,8 +47,7 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
   before {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.registerKryoClasses(Array(classOf[EventData]))
-    sc = new SparkContext(sparkConf)
-
+    sc = new SparkContext(sparkConf
     offsetStoreMock = new MyMockedOffsetStore
   }
 
