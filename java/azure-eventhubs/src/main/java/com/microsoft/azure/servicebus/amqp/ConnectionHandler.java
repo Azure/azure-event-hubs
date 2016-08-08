@@ -52,7 +52,7 @@ public final class ConnectionHandler extends BaseHandler
 		Transport transport = event.getTransport();
 
 		SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
-		Ssl ssl = transport.ssl(domain);
+		transport.ssl(domain);
 
 		Sasl sasl = transport.sasl();
 		sasl.plain(this.username, this.password);
