@@ -103,8 +103,8 @@ public final class ConnectionHandler extends BaseHandler
 	@Override
 	public void onConnectionRemoteClose(Event event)
 	{
-		Connection connection = event.getConnection();
-		ErrorCondition error = connection.getRemoteCondition();
+		final Connection connection = event.getConnection();
+		final ErrorCondition error = connection.getRemoteCondition();
 
 		if (TRACE_LOGGER.isLoggable(Level.FINE))
 		{
@@ -112,6 +112,11 @@ public final class ConnectionHandler extends BaseHandler
 					(error != null
 					? "], errorCondition[" + error.getCondition() + ", " + error.getDescription() + "]"
 							: "]"));
+		}
+		
+		if (connection.getRemoteState() != EndpointState.CLOSED)
+		{
+			connection.close();
 		}
 
 		this.messagingFactory.onConnectionError(error);
