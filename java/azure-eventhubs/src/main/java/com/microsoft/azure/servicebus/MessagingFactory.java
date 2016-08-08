@@ -191,13 +191,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			while (literator.hasNext())
 			{
 				Link link = literator.next();
-				if (link.getLocalState() != EndpointState.CLOSED)
+				if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED)
 				{
 					link.close();
 				}
 			}
 
-			if (currentConnection.getLocalState() != EndpointState.CLOSED)
+			if (currentConnection.getLocalState() != EndpointState.CLOSED && currentConnection.getRemoteState() != EndpointState.CLOSED)
 			{
 				currentConnection.close();
 			}
@@ -247,13 +247,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			while (literator.hasNext())
 			{
 				Link link = literator.next();
-				if (link.getLocalState() != EndpointState.CLOSED)
+				if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED)
 				{
 					link.close();
 				}
 			}
 
-			if (currentConnection.getLocalState() != EndpointState.CLOSED)
+			if (currentConnection.getLocalState() != EndpointState.CLOSED && currentConnection.getRemoteState() != EndpointState.CLOSED)
 			{
 				currentConnection.close();
 			}

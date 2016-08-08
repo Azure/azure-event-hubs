@@ -683,7 +683,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				this.underlyingFactory!=null ? this.underlyingFactory.getHostName() : null,
 						this.sendPath,
 						referenceId,
-						isLinkOpened ? this.sendLink.getCredit() : null);
+						isLinkOpened && this.sendLink != null ? this.sendLink.getCredit() : null);
 		return errorContext;
 	}
 

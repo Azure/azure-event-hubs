@@ -661,9 +661,9 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 		ReceiverContext errorContext = new ReceiverContext(this.underlyingFactory != null ? this.underlyingFactory.getHostName() : null,
 				this.receivePath,
 				referenceId,
-				isLinkOpened ? new Long(this.lastReceivedOffset) : null, 
+				(isLinkOpened && this.lastReceivedOffset != null) ? Long.parseLong(this.lastReceivedOffset) : null, 
 						isLinkOpened ? this.prefetchCount : null, 
-								isLinkOpened ? this.receiveLink.getCredit(): null, 
+								isLinkOpened && this.receiveLink != null ? this.receiveLink.getCredit(): null, 
 										isLinkOpened && this.prefetchedMessages != null ? this.prefetchedMessages.size(): null, 
 												this.isEpochReceiver);
 
