@@ -86,10 +86,28 @@ class EventHubReceiver(
     val checkpointInterval = eventHubParams.getOrElse("checkpointInterval", "10000").toInt
     var nextTime = System.currentTimeMillis() + checkpointInterval
 
+    def retry[T](n: Int)(fn: => T): Unit = {
+      try {
+        fn
+      } catch {
+        case c: ControlThrowable => throw c
+        case s: ServiceBusException =>
+          if (s.getIsTransient) {
+            if (n > 1) {
+              logInfo(s"ServiceBusException caught. Retrying receiver...")
+              retry(n - 1)(fn)
+            }
+          }
+          restart("Error handling message; restarting receiver", s)
+        case e: Throwable =>
+          restart("Error handling message; restarting receiver", e)
+      }
+    }
+
     def run(): Unit = {
       logInfo(s"Begin EventHubMessageHandler for partition $partitionId")
 
-      try {
+      retry(3) {
         // if offset isn't available in offset store, we use -1 as starting offset
         myOffsetStore.open()
         val offset = myOffsetStore.read()
@@ -112,22 +130,10 @@ class EventHubReceiver(
             logInfo(s"Offset wasn't stored because offset hasn't change since last checkpoint")
           }
         }
-      } catch {
-        case c: ControlThrowable =>
-          throw c
-        case s: ServiceBusException =>
-          if (s.getIsTransient) {
-            logInfo(s"ServiceBusException caught. Retrying receiver...")
-          } else {
-            restart("Error handling message; restarting receiver", s)
-          }
-        case e: Throwable =>
-          restart("Error handling message; restarting receiver", e)
-      } finally {
-        myOffsetStore.close()
-        client.close
-        logInfo(s"Closing EventHubMessageHandler for partitionId: $partitionId")
       }
+      myOffsetStore.close()
+      client.close
+      logInfo(s"Closing EventHubMessageHandler for partitionId: $partitionId")
     }
   }
 }
