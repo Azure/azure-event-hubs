@@ -22,16 +22,14 @@ public final class ConnectionHandler extends BaseHandler
 
 	private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 
-	private final String hostname;
 	private final String username;
 	private final String password;
 	private final IAmqpConnection messagingFactory;
 
-	public ConnectionHandler(final IAmqpConnection messagingFactory, final String hostname, final String username, final String password)
+	public ConnectionHandler(final IAmqpConnection messagingFactory, final String username, final String password)
 	{
 		add(new Handshaker());
 
-		this.hostname = hostname;
 		this.username = username;
 		this.password = password;
 		this.messagingFactory = messagingFactory;
@@ -41,7 +39,7 @@ public final class ConnectionHandler extends BaseHandler
 	public void onConnectionInit(Event event)
 	{
 		Connection connection = event.getConnection();
-		connection.setHostname(this.hostname + ":" + ClientConstants.AMQPS_PORT);
+		// connection.setHostname(this.hostname + ":" + ClientConstants.AMQPS_PORT);
 		connection.setContainer(UUID.randomUUID().toString());
 		connection.open();
 	}

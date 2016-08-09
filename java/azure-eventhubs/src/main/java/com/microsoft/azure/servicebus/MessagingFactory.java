@@ -72,8 +72,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.registeredLinks = new LinkedList<Link>();
 		this.closeTask = new CompletableFuture<Void>();
 		this.reactorLock = new Object();
-		this.connectionHandler = new ConnectionHandler(this, 
-				builder.getEndpoint().getHost(), builder.getSasKeyName(), builder.getSasKey());
+		this.connectionHandler = new ConnectionHandler(this, builder.getSasKeyName(), builder.getSasKey());
 		this.openConnection = new CompletableFuture<Connection>();
 		
 		this.reactorHandler = new ReactorHandler()
@@ -84,7 +83,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				super.onReactorInit(e);
 
 				final Reactor reactor = e.getReactor();
-				MessagingFactory.this.connection = reactor.connection(MessagingFactory.this.connectionHandler);
+				MessagingFactory.this.connection = reactor.connectionToHost(builder.getEndpoint().getHost(), ClientConstants.AMQPS_PORT, connectionHandler);
 			}
 		};
 	}
