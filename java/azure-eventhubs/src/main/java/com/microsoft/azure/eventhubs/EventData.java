@@ -4,6 +4,9 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.time.Instant;
@@ -29,13 +32,12 @@ public class EventData implements Serializable
 {
 	private static final long serialVersionUID = -5631628195600014255L;
 
+	transient private Binary bodyData;
+	
 	private String partitionKey;
 	private String offset;
 	private long sequenceNumber;
 	private Instant enqueuedTime;
-	private byte[] bodyData;
-	private int bodyOffset;
-	private int bodyLength;
 	private boolean isReceivedEvent;
 	private Map<String, String> properties;
 
@@ -76,7 +78,7 @@ public class EventData implements Serializable
 		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
 		messageAnnotations.remove(AmqpConstants.OFFSET);
 
-		this.properties = amqpMessage.getApplicationProperties() == null ? null
+		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, String>)(amqpMessage.getApplicationProperties().getValue()));
 
 		if (!messageAnnotations.isEmpty())
@@ -92,7 +94,7 @@ public class EventData implements Serializable
 			}
 		}
 
-		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue().getArray();
+		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue();
 
 		this.isReceivedEvent = true;
 
@@ -105,7 +107,7 @@ public class EventData implements Serializable
 	 * <pre>
 	 * i.	Serialize the sending ApplicationEvent to be sent to EventHubs into bytes.
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
-	 * </pre>
+	 * </pre> 
 	 * <p> Sample Code:
 	 * <pre>
 	 * EventData eventData = new EventData(telemetryEventBytes);
@@ -126,9 +128,7 @@ public class EventData implements Serializable
 			throw new IllegalArgumentException("data cannot be null");
 		}
 
-		this.bodyData = data;
-		this.bodyOffset = 0;
-		this.bodyLength = data.length;
+		this.bodyData = new Binary(data);
 	}
 
 	/**
@@ -137,7 +137,7 @@ public class EventData implements Serializable
 	 * <pre>
 	 * i.	Serialize the sending ApplicationEvent to be sent to EventHubs into bytes.
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
-	 *  </pre>
+	 *  </pre> 
 	 *  <p> Illustration:
 	 *  <pre> {@code
 	 *  EventData eventData = new EventData(telemetryEventBytes, offset, length);
@@ -160,9 +160,7 @@ public class EventData implements Serializable
 			throw new IllegalArgumentException("data cannot be null");
 		}
 
-		this.bodyData = data;
-		this.bodyOffset = offset;
-		this.bodyLength = length;
+		this.bodyData = new Binary(data, offset, length);
 	}
 
 	/**
@@ -171,7 +169,7 @@ public class EventData implements Serializable
 	 * <pre>
 	 * i.	Serialize the sending ApplicationEvent to be sent to EventHubs into bytes.
 	 * ii.	If complex serialization logic is involved (for example: multiple types of data) - add a Hint using the {@link #getProperties()} for the Consumer.
-	 *  </pre>
+	 *  </pre> 
 	 *  <p> Illustration:
 	 *  <code>
 	 *  	EventData eventData = new EventData(telemetryEventByteBuffer);
@@ -192,31 +190,18 @@ public class EventData implements Serializable
 			throw new IllegalArgumentException("data cannot be null");
 		}
 
-		if (buffer.isDirect() || buffer.isReadOnly())
-		{
-			this.bodyData = new byte[buffer.remaining()];
-			ByteBuffer dup = buffer.duplicate();
-			dup.get(this.bodyData);
-			this.bodyOffset = 0;
-			this.bodyLength = this.bodyData.length;
-		}
-		else
-		{
-			this.bodyData = buffer.array();
-			this.bodyOffset = buffer.arrayOffset()+buffer.position();
-			this.bodyLength = buffer.remaining();
-		}
+		this.bodyData = Binary.create(buffer);
 	}
 
 	/**
 	 * Get Actual Payload/Data wrapped by EventData.
 	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
-	 * @return returns the byte[] of the actual data
+	 * @return returns the byte[] of the actual data 
 	 */
 	public byte[] getBody()
 	{
 		// TODO: enforce on-send constructor type 2
-		return this.bodyData == null ? null : this.bodyData;
+		return this.bodyData == null ? null : this.bodyData.getArray();
 	}
 
 	/**
@@ -260,7 +245,7 @@ public class EventData implements Serializable
 
 		if (this.bodyData != null)
 		{
-			amqpMessage.setBody(new Data(new Binary(this.bodyData, this.bodyOffset, this.bodyLength)));
+			amqpMessage.setBody(new Data(this.bodyData));
 		}
 
 		return amqpMessage;
@@ -270,21 +255,39 @@ public class EventData implements Serializable
 	{
 		Message amqpMessage = this.toAmqpMessage();
 
-		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null)
-				? new MessageAnnotations(new HashMap<Symbol, Object>())
-				: amqpMessage.getMessageAnnotations();
+		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
+				? new MessageAnnotations(new HashMap<Symbol, Object>()) 
+						: amqpMessage.getMessageAnnotations();		
 		messageAnnotations.getValue().put(AmqpConstants.PARTITION_KEY, partitionKey);
 		amqpMessage.setMessageAnnotations(messageAnnotations);
 
 		return amqpMessage;
 	}
+	
+	private void writeObject(ObjectOutputStream out) throws IOException
+	{
+		out.defaultWriteObject();
+		
+		out.writeInt(this.bodyData.getLength());
+		out.write(this.bodyData.getArray(), this.bodyData.getArrayOffset(), this.bodyData.getLength());
+	}
+	
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
+	{
+		in.defaultReadObject();
+		
+		final int length = in.readInt();
+		final byte[] data = new byte[length];
+		in.read(data, 0, length);
+		this.bodyData = new Binary(data, 0, length);
+	}
 
 	public static class SystemProperties implements Serializable
 	{
 		private static final long serialVersionUID = -2827050124966993723L;
-
+		
 		private final EventData eventData;
-
+		
 		protected SystemProperties()
 		{
 			this.eventData = null;
@@ -299,7 +302,7 @@ public class EventData implements Serializable
 		{
 			return this.eventData.sequenceNumber;
 		}
-
+		
 		public Instant getEnqueuedTime()
 		{
 			return this.eventData.enqueuedTime;
