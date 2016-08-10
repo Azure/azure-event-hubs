@@ -41,7 +41,7 @@ object TwitterSparkSample{
     // We're using Azure Blob Storage for checkpointing here.
     val config: Configuration = ssc.sparkContext.hadoopConfiguration
     config.set("fs.azure", "org.apache.hadoop.fs.azure.NativeAzureFileSystem")
-    config.set("fs.azure.account.key.sgrewasparkcheckpoint.blob.core.windows.net", accountKey)
+    config.set("fs.azure.account.key.yourStorageAccountName.blob.core.windows.net", accountKey)
 
     // NOTE: For this example, the checkpointDirectory must correspond to your Blob Storage using the "wasb" scheme
     // Example: "wasb://container@accountName.blob.core.windows.net/"
