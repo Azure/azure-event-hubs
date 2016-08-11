@@ -40,8 +40,8 @@ object RDDSample {
     // A starting offset of -1 starts consuming from the beginning of the EventHub Instance
     // Unless explicitly done so (see lines 42,43), the same number of events will be consumed from the
     // same starting point for each partition.
-    val offsetRanges1 = OffsetRange.createArray(numPartitions.toInt, startingOffset = -1, batchSize = 50)
-    val offsetRanges2 = OffsetRange.createArray(numPartitions.toInt, startingOffset = -1, batchSize = 50)
+    val offsetRanges1 = OffsetRange.createArray(numPartitions.toInt, startingOffset = "-1", batchSize = 50)
+    val offsetRanges2 = OffsetRange.createArray(numPartitions.toInt, startingOffset = "-1", batchSize = 50)
 
     // For partition 0, starting at a different offset and consume a different number of events
     offsetRanges1(0).set(startingOffset = 50, batchSize = 100)

@@ -4,6 +4,8 @@
  */
 package org.apache.spark.streaming.eventhubs
 
+import java.time.Instant
+
 import com.microsoft.azure.eventhubs.{EventHubClient, PartitionReceiver}
 import com.microsoft.azure.servicebus.ConnectionStringBuilder
 import org.apache.spark.SparkException
@@ -38,19 +40,30 @@ class EventHubInstance extends Serializable {
     createClient(eventHubParams)
     if (ehClient == null)
       throw new SparkException("Error making EventHubs client")
+
     val consumerGroup: String = eventHubParams.getOrElse("consumerGroupName",
       EventHubClient.DEFAULT_CONSUMER_GROUP_NAME)
-    receiver = ehClient.createReceiver(
-      consumerGroup,
-      partitionId,
-      startingOffset,
-      false).get
+
+    receiver = if(startingOffset == "latest") {
+      ehClient.createReceiver(
+        consumerGroup,
+        partitionId,
+        Instant.now()
+      ).get
+    } else {
+      ehClient.createReceiver(
+        consumerGroup,
+        partitionId,
+        startingOffset,
+        false).get
+    }
+
     receiver.setReceiveTimeout(java.time.Duration.ofSeconds(5))
   }
 
   def receive(batchSize: Int) = { receiver.receive(batchSize).get }
 
-  def close: Unit = {
+  def close(): Unit = {
     receiver.close()
     ehClient.close()
   }
