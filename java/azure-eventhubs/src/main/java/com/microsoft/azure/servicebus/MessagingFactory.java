@@ -82,8 +82,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			{
 				super.onReactorInit(e);
 
-				final Reactor reactor = e.getReactor();
-				MessagingFactory.this.connection = reactor.connectionToHost(builder.getEndpoint().getHost(), ClientConstants.AMQPS_PORT, connectionHandler);
+				final Reactor r = e.getReactor();
+				connection = r.connectionToHost(hostName, ClientConstants.AMQPS_PORT, connectionHandler);
 			}
 		};
 	}
@@ -133,7 +133,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	{
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
 		{
-			this.connection = this.getReactor().connection(this.connectionHandler);
+			this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
 		}
 
 		return this.connection;
