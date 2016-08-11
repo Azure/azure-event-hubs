@@ -11,11 +11,11 @@ import scala.collection.mutable.ArrayBuffer
   */
 final class OffsetRange private(
     val partitionId: String,
-    val startingOffset: Long,
+    val startingOffset: String,
     val batchSize: Long) extends Serializable {
   import OffsetRange.OffsetRangeTuple
 
-  var fromOffset: Long = startingOffset
+  var fromOffset: Long = startingOffset.toLong
   var untilOffset: Long = fromOffset + batchSize
 
   def count = batchSize
@@ -44,21 +44,21 @@ final class OffsetRange private(
 }
 
 object OffsetRange {
-  def createArray(numPartitions: Int, startingOffset: Long, batchSize: Long): Array[OffsetRange] = {
+  def createArray(numPartitions: Int, startingOffset: String, batchSize: Long): Array[OffsetRange] = {
     val res = ArrayBuffer[OffsetRange]()
     for (i <- 0 until numPartitions)
       res += OffsetRange(i.toString, startingOffset, batchSize)
     res.toArray
   }
 
-  def create(partitionId: String, startingOffset: Long, batchSize: Long): OffsetRange =
+  def create(partitionId: String, startingOffset: String, batchSize: Long): OffsetRange =
     new OffsetRange(partitionId, startingOffset, batchSize)
 
-  def apply(partitionId: String, startingOffset: Long, batchSize: Long): OffsetRange =
+  def apply(partitionId: String, startingOffset: String, batchSize: Long): OffsetRange =
     new OffsetRange(partitionId, startingOffset, batchSize)
 
   private[eventhubs]
-  type OffsetRangeTuple = (String, Long, Long)
+  type OffsetRangeTuple = (String, String, Long)
 
   private[eventhubs]
   def apply(t: OffsetRangeTuple) =

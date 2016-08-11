@@ -132,7 +132,7 @@ class EventHubReceiver(
         }
       }
       myOffsetStore.close()
-      client.close
+      client.close()
       logInfo(s"Closing EventHubMessageHandler for partitionId: $partitionId")
     }
   }

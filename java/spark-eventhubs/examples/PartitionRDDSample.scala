@@ -37,8 +37,8 @@ object PartitionRDDSample {
       "sasKey" -> sasKey)
 
     // A starting offset of -1 starts consuming from the beginning of the EventHub Instance
-    val offsetRange1 = OffsetRange(partitionId = "1", startingOffset = -1, batchSize = 50)
-    val offsetRange2 = OffsetRange(partitionId = "3", startingOffset = -1, batchSize = 50)
+    val offsetRange1 = OffsetRange(partitionId = "1", startingOffset = "-1", batchSize = 50)
+    val offsetRange2 = OffsetRange(partitionId = "3", startingOffset = "-1", batchSize = 50)
 
     println("creating RDDs....")
     val ehRDD1: RDD[EventData] = EventHubUtils.createPartitionRDD(sc, eventHubParams, offsetRange1)

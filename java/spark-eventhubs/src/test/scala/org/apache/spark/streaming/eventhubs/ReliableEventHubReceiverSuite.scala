@@ -154,7 +154,7 @@ class MyMockedEventHubInstance(
     }
   }
 
-  override def close: Unit = {}
+  override def close(): Unit = {}
 }
 
 /**

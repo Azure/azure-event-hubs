@@ -141,6 +141,7 @@ class EventHubRDD private[spark] (
       client.close
     }
 
+    // TODO This will spin until the requested batch size is reached.
     private def fetchBatch: Iterator[EventData] = {
       val batchSize = part.count.toInt
       var batch: Iterable[EventData] = client.receive(batchSize).asScala
