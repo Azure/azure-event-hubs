@@ -53,8 +53,8 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
   }
 
   test("EventHubsUtils API works") {
-    val offsetRange = OffsetRange("0", -1, 100)
-    val offsetRanges = OffsetRange.createArray(4, -1, 100)
+    val offsetRange = OffsetRange("0", "-1", 100)
+    val offsetRanges = OffsetRange.createArray(4, "-1", 100)
     EventHubUtils.createRDD(sc, ehParams, offsetRanges)
     EventHubUtils.createPartitionRDD(sc, ehParams, offsetRange)
     sc.stop()
@@ -64,7 +64,7 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
     // after 100 messages ehClientMock will return null objects
     ehClientMock = new MyMockedEventHubInstance(100, -1)
 
-    val offsetRange = OffsetRange("0", -1, 100)
+    val offsetRange = OffsetRange("0", "-1", 100)
     val ehRDD = new EventHubRDD(sc, ehParams, None, Some(offsetRange), ehClientMock)
 
     val count = ehRDD.count
@@ -80,7 +80,7 @@ class EventHubRDDSuite extends FunSuite with BeforeAndAfter with BeforeAndAfterA
     // after 100 messages ehClientMock will return null objects
     ehClientMock = new MyMockedEventHubInstance(400, -1)
 
-    val offsetRanges = OffsetRange.createArray(4, -1, 100)
+    val offsetRanges = OffsetRange.createArray(4, "-1", 100)
     val ehRDD = new EventHubRDD(sc, ehParams, Some(offsetRanges), None, ehClientMock)
 
     val count = ehRDD.count

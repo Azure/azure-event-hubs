@@ -76,7 +76,7 @@ class EventHubReceiverSuite extends TestSuiteBase with Matchers with MockitoSuga
 
     verify(ehClientMock, times(1)).createReceiver(ehParams, "0", "-1")
     verify(ehClientMock, atLeastOnce).receive(1)
-    verify(ehClientMock, times(1)).close
+    verify(ehClientMock, times(1)).close()
   }
 
   test("EventHubsReceiver can restart when exception is thrown") {
@@ -108,7 +108,7 @@ class EventHubReceiverSuite extends TestSuiteBase with Matchers with MockitoSuga
 
     verify(ehClientMock, times(1)).createReceiver(ehParams, "0", "-1")
     verify(ehClientMock, times(2)).receive(1)
-    verify(ehClientMock, times(1)).close
+    verify(ehClientMock, times(1)).close()
   }
 }
 
