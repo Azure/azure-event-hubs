@@ -49,23 +49,13 @@
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- <dependency>
+        <!--
+        <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>azure-eventhubs</artifactId>
-            <version>0.7.5</version>
-        </dependency> -->
-        <!-- ************************ -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk15on</artifactId>
-            <version>1.47</version>
+            <version>0.7.8</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.qpid</groupId>
-            <artifactId>proton-j</artifactId>
-            <version>0.13.0</version>
-        </dependency>
-        <!-- ************************ -->
+        -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
