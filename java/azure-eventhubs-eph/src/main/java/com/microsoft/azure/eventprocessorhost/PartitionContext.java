@@ -74,7 +74,7 @@ public class PartitionContext
      */
     public void setOffsetAndSequenceNumber(EventData event) throws IllegalArgumentException
     {
-    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
+    	setOffsetAndSequenceNumber(event.getOffset(), event.getSequenceNumber());
     }
     
     /**
@@ -183,8 +183,8 @@ public class PartitionContext
      */
     public void checkpoint(EventData event) throws IllegalArgumentException, InterruptedException, ExecutionException
     {
-    	setOffsetAndSequenceNumber(event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber());
-    	persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	setOffsetAndSequenceNumber(event.getOffset(), event.getSequenceNumber());
+    	persistCheckpoint(new Checkpoint(this.partitionId, event.getOffset(), event.getSequenceNumber()));
     }
     
     private void persistCheckpoint(Checkpoint persistThis) throws IllegalArgumentException, InterruptedException, ExecutionException

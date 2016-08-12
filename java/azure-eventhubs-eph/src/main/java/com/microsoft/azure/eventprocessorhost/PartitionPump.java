@@ -147,7 +147,7 @@ abstract class PartitionPump
 	        		if (last != null)
 	        		{
 	        			this.host.logWithHostAndPartition(Level.FINE, this.partitionContext, "Updating offset in partition context with end of batch " +
-	        					last.getSystemProperties().getOffset() + "//" + last.getSystemProperties().getSequenceNumber());
+	        					last.getOffset() + "//" + last.getSequenceNumber());
 	        			this.partitionContext.setOffsetAndSequenceNumber(last);
 	        		}
         		}

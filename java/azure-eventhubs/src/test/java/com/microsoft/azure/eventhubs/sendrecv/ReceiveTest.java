@@ -53,10 +53,10 @@ public class ReceiveTest extends TestBase
 			for(EventData eventDataUsingOffset: startingEventsUsingOffsetReceiver)
 			{
 				EventData eventDataUsingDateTime = dateTimeIterator.next();
-				TEST_LOGGER.log(Level.FINE, String.format("recv by offset: %s.", eventDataUsingOffset.getSystemProperties().getOffset()));
-				TEST_LOGGER.log(Level.FINE, String.format("recv by dateTime: %s.", eventDataUsingDateTime.getSystemProperties().getOffset()));
+				TEST_LOGGER.log(Level.FINE, String.format("recv by offset: %s.", eventDataUsingOffset.getDeprecatedSystemProperties().getOffset()));
+				TEST_LOGGER.log(Level.FINE, String.format("recv by dateTime: %s.", eventDataUsingDateTime.getDeprecatedSystemProperties().getOffset()));
 				
-				Assert.assertTrue(eventDataUsingOffset.getSystemProperties().getOffset().equalsIgnoreCase(eventDataUsingDateTime.getSystemProperties().getOffset()));
+				Assert.assertTrue(eventDataUsingOffset.getDeprecatedSystemProperties().getOffset().equalsIgnoreCase(eventDataUsingDateTime.getDeprecatedSystemProperties().getOffset()));
 				
 				counter++;
 				if (!dateTimeIterator.hasNext())
@@ -75,15 +75,15 @@ public class ReceiveTest extends TestBase
 			Assert.assertTrue(startingEventsUsingOffsetReceiver.iterator().hasNext());
 			EventData nextEvent = startingEventsUsingOffsetReceiver.iterator().next();
 			datetimeReceiver = ehClient.createReceiver(cgName, partitionId, 
-				nextEvent.getSystemProperties().getEnqueuedTime().minusMillis(1)).get();
+				nextEvent.getDeprecatedSystemProperties().getEnqueuedTime().minusMillis(1)).get();
 			
 			Iterable<EventData> dateTimeEventsFromCustomOffset = datetimeReceiver.receive(100).get();
 			Assert.assertTrue(dateTimeEventsFromCustomOffset.iterator().hasNext());
 			EventData firstEventAfterGivenTime = dateTimeEventsFromCustomOffset.iterator().next();
-			TEST_LOGGER.log(Level.FINE, firstEventAfterGivenTime.getSystemProperties().getEnqueuedTime().toString());
+			TEST_LOGGER.log(Level.FINE, firstEventAfterGivenTime.getDeprecatedSystemProperties().getEnqueuedTime().toString());
 			
-			Assert.assertTrue(firstEventAfterGivenTime.getSystemProperties().getOffset().
-					equals(nextEvent.getSystemProperties().getOffset()));
+			Assert.assertTrue(firstEventAfterGivenTime.getDeprecatedSystemProperties().getOffset().
+					equals(nextEvent.getDeprecatedSystemProperties().getOffset()));
 		}
 		finally
 		{

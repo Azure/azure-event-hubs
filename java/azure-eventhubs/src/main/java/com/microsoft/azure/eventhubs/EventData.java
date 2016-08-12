@@ -40,8 +40,9 @@ public class EventData implements Serializable
 	private Instant enqueuedTime;
 	private boolean isReceivedEvent;
 	private Map<String, String> properties;
+	private Map<String, Object> systemProperties;
 
-	private SystemProperties systemProperties;
+	private SystemProperties deprecatedSystemProperties;
 
 	private EventData()
 	{
@@ -67,32 +68,22 @@ public class EventData implements Serializable
 			messageAnnotations.remove(AmqpConstants.PARTITION_KEY);
 		}
 
+		// specific get's will be removed in 0.9 & were already replaced by generic get's 
 		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SEQUENCE_NUMBER);
 		this.sequenceNumber = (Long) sequenceNumberObj;
-		messageAnnotations.remove(AmqpConstants.SEQUENCE_NUMBER);
-
+		
 		Object enqueuedTimeUtcObj = messageAnnotations.get(AmqpConstants.ENQUEUED_TIME_UTC);
 		this.enqueuedTime = ((Date) enqueuedTimeUtcObj).toInstant();
-		messageAnnotations.remove(AmqpConstants.ENQUEUED_TIME_UTC);
-
+		
 		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
-		messageAnnotations.remove(AmqpConstants.OFFSET);
-
+		
+		for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
+		{
+			this.systemProperties.put(annotation.getKey().toString(), annotation.getValue() != null ? annotation.getValue() : null);
+		}
+	
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, String>)(amqpMessage.getApplicationProperties().getValue()));
-
-		if (!messageAnnotations.isEmpty())
-		{
-			if (this.properties == null)
-			{
-				this.properties = new HashMap<String, String>();
-			}
-
-			for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
-			{
-				this.properties.put(annotation.getKey().toString(), annotation.getValue() != null ? annotation.getValue().toString() : null);
-			}
-		}
 
 		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue();
 
@@ -196,12 +187,48 @@ public class EventData implements Serializable
 	/**
 	 * Get Actual Payload/Data wrapped by EventData.
 	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
-	 * @return returns the byte[] of the actual data 
+	 * @return returns the byte[] of the actual data
+	 * @deprecated As of version 0.8.0. Use {@link #getPayloadArray()} {@link #getPayloadArrayOffset()} {@link #getPayloadArrayLength()}
 	 */
-	public byte[] getBody()
+	@Deprecated public byte[] getBody()
 	{
-		// TODO: enforce on-send constructor type 2
 		return this.bodyData == null ? null : this.bodyData.getArray();
+	}
+	
+	/**
+	 * Get Actual Payload/Data wrapped by EventData.
+	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
+	 * @return returns the byte[] of the actual data
+	 * @see #getPayloadArrayLength()
+	 * @see #getPayloadArrayOffset()
+	 */
+	public byte[] getPayloadArray()
+	{
+		return this.bodyData == null ? null : this.bodyData.getArray();
+	}
+	
+	/**
+	 * Get Actual Payload/Data wrapped by EventData.
+	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
+	 * @return returns the byte[] of the actual data
+	 * @see #getPayloadArrayLength()
+	 * @see #getPayloadArray()
+	 */
+	public int getPayloadArrayOffset()
+	{
+		return this.bodyData == null ? 0 : this.bodyData.getArrayOffset();
+	}
+	
+	/**
+	 * Get Actual Payload/Data wrapped by EventData.
+	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
+	 * @return returns the byte[] of the actual data
+	 * @see #getPayloadArray()
+	 * @see #getPayloadArrayOffset()
+	 */
+	public int getPayloadArrayLength()
+	{
+		return this.bodyData == null ? 0 : this.bodyData.getLength();
 	}
 
 	/**
@@ -210,29 +237,78 @@ public class EventData implements Serializable
 	 */
 	public Map<String, String> getProperties()
 	{
-		return this.properties;
-	}
+		if (this.properties == null)
+		{
+			this.properties = new HashMap<String, String>();
+		}
 
-	public void setProperties(Map<String, String> applicationProperties)
-	{
-		this.properties = applicationProperties;
+		return this.properties;
 	}
 
 	/**
 	 * SystemProperties that are populated by EventHubService.
 	 * <p>As these are populated by Service, they are only present on a Received EventData.
 	 * @return an encapsulation of all SystemProperties appended by EventHubs service into EventData
+	 * @deprecated As of release 0.8.0. Use {@link #getSystemProperties()}
 	 */
-	public SystemProperties getSystemProperties()
+	@Deprecated public SystemProperties getDeprecatedSystemProperties()
 	{
-		if (this.isReceivedEvent && this.systemProperties == null)
+		if (this.isReceivedEvent && this.deprecatedSystemProperties == null)
 		{
-			this.systemProperties = new SystemProperties(this);
+			this.deprecatedSystemProperties = new SystemProperties(this);
 		}
 
+		return this.deprecatedSystemProperties;
+	}
+	
+	/**
+	 * {@link #getSystemProperties()} from version 0.7.9 was deprecated and renamed to {@link #getDeprecatedSystemProperties()} starting 0.8.0.
+	 * {@link #getOffset()}, {@link #getSequenceNumber()}, {@link #getPartitionKey()}, {@link #getEnqueuedTime()} are now available directly on {@link EventData} class.
+	 * <p>SystemProperties that are populated by EventHubService.
+	 * <p>As these are populated by Service, they are only present on a Received EventData.
+	 * <p>Usage:<p>
+	 * <code>
+	 * final String offset = eventData.getSystemProperties().get(AmqpConstants.OFFSET_ANNOTATION_NAME);
+	 * </code>
+	 * @return an encapsulation of all SystemProperties appended by EventHubs service into EventData.
+	 * <code>null</code> if the {@link #EventData()} is not received and is created by the public constructors. 
+	 */
+	public Map<String, Object> getSystemProperties()
+	{
 		return this.systemProperties;
 	}
-
+	
+	public String getOffset()
+	{
+		return this.getSystemProperty(AmqpConstants.OFFSET_ANNOTATION_NAME);
+	}
+	
+	public String getPartitionKey()
+	{
+		return this.getSystemProperty(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME);
+	}
+	
+	public Instant getEnqueuedTime()
+	{
+		return this.getSystemProperty(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
+	}
+	
+	public long getSequenceNumber()
+	{
+		return this.getSystemProperty(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private <T> T getSystemProperty(final String key)
+	{
+		if (this.systemProperties != null && this.systemProperties.containsKey(key))
+		{
+			return (T) (this.systemProperties.get(key));
+		}
+		
+		return null;
+	}
+	
 	Message toAmqpMessage()
 	{
 		Message amqpMessage = Proton.message();
@@ -282,6 +358,7 @@ public class EventData implements Serializable
 		this.bodyData = new Binary(data, 0, length);
 	}
 
+	@Deprecated
 	public static class SystemProperties implements Serializable
 	{
 		private static final long serialVersionUID = -2827050124966993723L;

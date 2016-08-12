@@ -54,9 +54,9 @@ public class ReceiveByDateTime
 							for(EventData receivedEvent: receivedEvents)
 							{
 								System.out.print(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
-										receivedEvent.getSystemProperties().getOffset(), 
-										receivedEvent.getSystemProperties().getSequenceNumber(), 
-										receivedEvent.getSystemProperties().getEnqueuedTime()));
+										receivedEvent.getOffset(), 
+										receivedEvent.getSequenceNumber(), 
+										receivedEvent.getEnqueuedTime()));
 								System.out.println(String.format("| Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
 								batchSize++;
 							}
