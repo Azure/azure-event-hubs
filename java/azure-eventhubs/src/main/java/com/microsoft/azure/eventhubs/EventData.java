@@ -68,7 +68,7 @@ public class EventData implements Serializable
 			messageAnnotations.remove(AmqpConstants.PARTITION_KEY);
 		}
 
-		// specific get's will be removed in 0.9 & were already replaced by generic get's 
+		// specific getMsgAnnotation's will be removed in 0.9 & were already replaced by generic get's in 0.8.0 
 		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SEQUENCE_NUMBER);
 		this.sequenceNumber = (Long) sequenceNumberObj;
 		
