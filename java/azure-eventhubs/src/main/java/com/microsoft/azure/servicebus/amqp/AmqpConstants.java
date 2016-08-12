@@ -4,12 +4,34 @@
  */
 package com.microsoft.azure.servicebus.amqp;
 
-import org.apache.qpid.proton.amqp.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.qpid.proton.amqp.Symbol;
 
 public final class AmqpConstants
 {
 	private AmqpConstants() { }
 
+	@SuppressWarnings("serial")
+	public static final Set<String> RESERVED_PROPERTY_NAMES = Collections.unmodifiableSet(new HashSet<String>()
+	{{
+		add(AMQP_PROPERTY_MESSAGE_ID);
+		add(AMQP_PROPERTY_USER_ID);
+		add(AMQP_PROPERTY_TO);
+		add(AMQP_PROPERTY_SUBJECT);
+		add(AMQP_PROPERTY_REPLY_TO);
+		add(AMQP_PROPERTY_CORRELATION_ID);
+		add(AMQP_PROPERTY_CONTENT_TYPE);
+		add(AMQP_PROPERTY_CONTENT_ENCODING);
+		add(AMQP_PROPERTY_ABSOLUTE_EXPRITY_time);
+		add(AMQP_PROPERTY_CREATION_TIME);
+		add(AMQP_PROPERTY_GROUP_ID);
+		add(AMQP_PROPERTY_GROUP_SEQUENCE);
+		add(AMQP_PROPERTY_REPLY_TO_GROUP_ID);
+	}});
+	
 	public static final String APACHE = "apache.org";
 	public static final String VENDOR = "com.microsoft";
 
