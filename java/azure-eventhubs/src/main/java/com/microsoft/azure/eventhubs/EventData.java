@@ -20,6 +20,7 @@ import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
+import org.apache.qpid.proton.amqp.messaging.Properties;
 import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
@@ -59,7 +60,7 @@ public class EventData implements Serializable
 			throw new IllegalArgumentException("amqpMessage cannot be null");
 		}
 
-		Map<Symbol, Object> messageAnnotations = amqpMessage.getMessageAnnotations().getValue();
+		final Map<Symbol, Object> messageAnnotations = amqpMessage.getMessageAnnotations().getValue();
 
 		Object partitionKeyObj = messageAnnotations.get(AmqpConstants.PARTITION_KEY);
 		if (partitionKeyObj != null)
@@ -80,6 +81,24 @@ public class EventData implements Serializable
 		for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
 		{
 			this.systemProperties.put(annotation.getKey().toString(), annotation.getValue() != null ? annotation.getValue() : null);
+		}
+		
+		final Properties amqpProperties = amqpMessage.getProperties();
+		if (amqpProperties != null)
+		{
+			if (amqpProperties.getMessageId() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_MESSAGE_ID, amqpProperties.getMessageId());
+			if (amqpProperties.getUserId() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_USER_ID, amqpProperties.getUserId());
+			if (amqpProperties.getTo() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_TO, amqpProperties.getTo());
+			if (amqpProperties.getSubject() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_SUBJECT, amqpProperties.getSubject());
+			if (amqpProperties.getReplyTo() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_REPLY_TO, amqpProperties.getReplyTo());
+			if (amqpProperties.getCorrelationId() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_CORRELATION_ID, amqpProperties.getCorrelationId());
+			if (amqpProperties.getContentType() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_CONTENT_TYPE, amqpProperties.getContentType());
+			if (amqpProperties.getContentEncoding() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_CONTENT_ENCODING, amqpProperties.getContentEncoding());
+			if (amqpProperties.getAbsoluteExpiryTime() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_time, amqpProperties.getAbsoluteExpiryTime());
+			if (amqpProperties.getCreationTime() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_CREATION_TIME, amqpProperties.getCreationTime());
+			if (amqpProperties.getGroupId() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_GROUP_ID, amqpProperties.getGroupId());
+			if (amqpProperties.getGroupSequence() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE, amqpProperties.getGroupSequence());
+			if (amqpProperties.getReplyToGroupId() != null) this.systemProperties.put(AmqpConstants.AMQP_PROPERTY_REPLY_TO_GROUP_ID, amqpProperties.getReplyToGroupId());
 		}
 	
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
