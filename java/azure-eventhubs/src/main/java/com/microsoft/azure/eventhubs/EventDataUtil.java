@@ -4,9 +4,14 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import java.util.*;
-import java.util.function.*;
-import org.apache.qpid.proton.message.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.function.Consumer;
+
+import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
@@ -16,7 +21,7 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 final class EventDataUtil
 {
 	@SuppressWarnings("serial")
-	static final HashSet<String> RESERVED_SYSTEM_PROPERTIES = (HashSet<String>) Collections.unmodifiableSet(new HashSet<String>()
+	static final Set<String> RESERVED_SYSTEM_PROPERTIES = Collections.unmodifiableSet(new HashSet<String>()
 			{{
 				add(AmqpConstants.OFFSET_ANNOTATION_NAME);
 				add(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME);

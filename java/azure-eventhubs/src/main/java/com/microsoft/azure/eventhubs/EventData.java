@@ -77,6 +77,9 @@ public class EventData implements Serializable
 		
 		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
 		
+		if (this.systemProperties == null)
+			this.systemProperties = new HashMap<String, Object>();
+		
 		for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
 		{
 			this.systemProperties.put(annotation.getKey().toString(), annotation.getValue() != null ? annotation.getValue() : null);
@@ -307,7 +310,8 @@ public class EventData implements Serializable
 	
 	public Instant getEnqueuedTime()
 	{
-		return this.getSystemProperty(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
+		final Date enqueuedTimeValue = this.getSystemProperty(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
+		return enqueuedTimeValue != null ? enqueuedTimeValue.toInstant() : null;
 	}
 	
 	public long getSequenceNumber()
