@@ -181,7 +181,7 @@ public class EventData implements Serializable
 
 	/**
 	 * Get Actual Payload/Data wrapped by EventData.
-	 * This is the underlying array and should be used in conjunction with {@link #getBodyOffset()} & {@link #getBodyLength()}.
+	 * This is the underlying array and should be used in conjunction with {@link #getBodyOffset()} and {@link #getBodyLength()}.
  	 * @return returns the byte[] of the actual data
 	 */
 	public byte[] getBody()
@@ -190,7 +190,7 @@ public class EventData implements Serializable
 	}
 	
 	/**
-	 * Get the offset of the current Payload/Data in the byte array returned by {@link #getPayloadArray()}.
+	 * Get the offset of the current Payload/Data in the byte array returned by {@link #getBody()}.
 	 * @return returns the byte[] of the actual data
 	 * @see #getBodyLength()
 	 * @see #getBody()
@@ -201,7 +201,7 @@ public class EventData implements Serializable
 	}
 	
 	/**
-	 * Get the length of the Actual Payload/Data in the byte array returned by {@link #getPayloadArray()}.
+	 * Get the length of the Actual Payload/Data in the byte array returned by {@link #getBody()}.
 	 * @return returns the byte[] of the actual data
 	 * @see #getBody()
 	 * @see #getBodyOffset()
@@ -359,7 +359,12 @@ public class EventData implements Serializable
 		public long getSequenceNumber()
 		{
 			return this.getSystemProperty(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME);
-		}		
+		}
+		
+		public String getPublisher()
+		{
+			return this.getSystemProperty(AmqpConstants.PUBLISHER_ANNOTATION_NAME);
+		}
 		
 		@SuppressWarnings("unchecked")
 		private <T> T getSystemProperty(final String key)

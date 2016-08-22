@@ -40,6 +40,7 @@ public final class AmqpConstants
 	public static final String ENQUEUED_TIME_UTC_ANNOTATION_NAME = "x-opt-enqueued-time";
 	public static final String PARTITION_KEY_ANNOTATION_NAME = "x-opt-partition-key";
 	public static final String SEQUENCE_NUMBER_ANNOTATION_NAME = "x-opt-sequence-number";
+	public static final String PUBLISHER_ANNOTATION_NAME = "x-opt-publisher";
 
 	public static final Symbol PARTITION_KEY = Symbol.getSymbol(PARTITION_KEY_ANNOTATION_NAME);
 	public static final Symbol OFFSET = Symbol.getSymbol(OFFSET_ANNOTATION_NAME);

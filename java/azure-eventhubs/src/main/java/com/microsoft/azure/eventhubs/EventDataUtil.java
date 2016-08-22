@@ -27,6 +27,7 @@ final class EventDataUtil
 				add(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME);
 				add(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME);
 				add(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
+				add(AmqpConstants.PUBLISHER_ANNOTATION_NAME);
 			}});
 	
 	private EventDataUtil(){}
