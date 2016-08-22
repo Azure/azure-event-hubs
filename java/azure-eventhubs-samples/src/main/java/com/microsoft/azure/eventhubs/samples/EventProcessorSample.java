@@ -159,8 +159,8 @@ public class EventProcessorSample
             int messageCount = 0;
             for (EventData data : messages)
             {
-                System.out.println("SAMPLE (" + context.getPartitionId() + "," + data.getOffset() + "," +
-                		data.getSequenceNumber() + "): " + new String(data.getBody(), "UTF8"));
+                System.out.println("SAMPLE (" + context.getPartitionId() + "," + data.getSystemProperties().getOffset() + "," +
+                		data.getSystemProperties().getSequenceNumber() + "): " + new String(data.getBody(), "UTF8"));
                 messageCount++;
                 
                 // Checkpointing persists the current position in the event stream for this partition and means that the next
@@ -173,7 +173,7 @@ public class EventProcessorSample
                 if ((checkpointBatchingCount % 5) == 0)
                 {
                 	System.out.println("SAMPLE: Partition " + context.getPartitionId() + " checkpointing at " +
-               			data.getOffset() + "," + data.getSequenceNumber());
+               			data.getSystemProperties().getOffset() + "," + data.getSystemProperties().getSequenceNumber());
                 	context.checkpoint(data);
                 }
             }
