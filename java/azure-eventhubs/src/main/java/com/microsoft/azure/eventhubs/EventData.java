@@ -34,15 +34,8 @@ public class EventData implements Serializable
 
 	transient private Binary bodyData;
 	
-	private String partitionKey;
-	private String offset;
-	private long sequenceNumber;
-	private Instant enqueuedTime;
-	private boolean isReceivedEvent;
 	private Map<String, String> properties;
-	private Map<String, Object> systemProperties;
-
-	private SystemProperties deprecatedSystemProperties;
+	private SystemProperties systemProperties;
 
 	private EventData()
 	{
@@ -60,25 +53,7 @@ public class EventData implements Serializable
 		}
 
 		final Map<Symbol, Object> messageAnnotations = amqpMessage.getMessageAnnotations().getValue();
-
-		Object partitionKeyObj = messageAnnotations.get(AmqpConstants.PARTITION_KEY);
-		if (partitionKeyObj != null)
-		{
-			this.partitionKey = partitionKeyObj.toString();
-			messageAnnotations.remove(AmqpConstants.PARTITION_KEY);
-		}
-
-		// specific getMsgAnnotation's will be removed in 0.9 & were already replaced by generic get's in 0.8.0 
-		Object sequenceNumberObj = messageAnnotations.get(AmqpConstants.SEQUENCE_NUMBER);
-		this.sequenceNumber = (Long) sequenceNumberObj;
-		
-		Object enqueuedTimeUtcObj = messageAnnotations.get(AmqpConstants.ENQUEUED_TIME_UTC);
-		this.enqueuedTime = ((Date) enqueuedTimeUtcObj).toInstant();
-		
-		this.offset = messageAnnotations.get(AmqpConstants.OFFSET).toString();
-		
-		if (this.systemProperties == null)
-			this.systemProperties = new HashMap<String, Object>();
+		this.systemProperties = new SystemProperties();
 		
 		for(Map.Entry<Symbol, Object> annotation: messageAnnotations.entrySet())
 		{
@@ -106,8 +81,6 @@ public class EventData implements Serializable
 				: ((Map<String, String>)(amqpMessage.getApplicationProperties().getValue()));
 
 		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue();
-
-		this.isReceivedEvent = true;
 
 		amqpMessage.clear();
 	}
@@ -206,47 +179,32 @@ public class EventData implements Serializable
 
 	/**
 	 * Get Actual Payload/Data wrapped by EventData.
-	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
-	 * @return returns the byte[] of the actual data
-	 * @deprecated As of version 0.8.0. Use {@link #getPayloadArray()} {@link #getPayloadArrayOffset()} {@link #getPayloadArrayLength()}
+	 * This is the underlying array and should be used in conjunction with {@link #getBodyOffset()} & {@link #getBodyLength()}.
+ 	 * @return returns the byte[] of the actual data
 	 */
-	@Deprecated public byte[] getBody()
+	public byte[] getBody()
 	{
 		return this.bodyData == null ? null : this.bodyData.getArray();
 	}
 	
 	/**
-	 * Get Actual Payload/Data wrapped by EventData.
-	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
+	 * Get the offset of the current Payload/Data in the byte array returned by {@link #getPayloadArray()}.
 	 * @return returns the byte[] of the actual data
-	 * @see #getPayloadArrayLength()
-	 * @see #getPayloadArrayOffset()
+	 * @see #getBodyLength()
+	 * @see #getBody()
 	 */
-	public byte[] getPayloadArray()
-	{
-		return this.bodyData == null ? null : this.bodyData.getArray();
-	}
-	
-	/**
-	 * Get Actual Payload/Data wrapped by EventData.
-	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
-	 * @return returns the byte[] of the actual data
-	 * @see #getPayloadArrayLength()
-	 * @see #getPayloadArray()
-	 */
-	public int getPayloadArrayOffset()
+	public int getBodyOffset()
 	{
 		return this.bodyData == null ? 0 : this.bodyData.getArrayOffset();
 	}
 	
 	/**
-	 * Get Actual Payload/Data wrapped by EventData.
-	 * This is intended to be used after receiving EventData using @@PartitionReceiver.
+	 * Get the length of the Actual Payload/Data in the byte array returned by {@link #getPayloadArray()}.
 	 * @return returns the byte[] of the actual data
-	 * @see #getPayloadArray()
-	 * @see #getPayloadArrayOffset()
+	 * @see #getBody()
+	 * @see #getBodyOffset()
 	 */
-	public int getPayloadArrayLength()
+	public int getBodyLength()
 	{
 		return this.bodyData == null ? 0 : this.bodyData.getLength();
 	}
@@ -264,106 +222,69 @@ public class EventData implements Serializable
 
 		return this.properties;
 	}
-
+	
 	/**
 	 * SystemProperties that are populated by EventHubService.
 	 * <p>As these are populated by Service, they are only present on a Received EventData.
-	 * @return an encapsulation of all SystemProperties appended by EventHubs service into EventData
-	 * @deprecated As of release 0.8.0. Use {@link #getSystemProperties()}
-	 */
-	@Deprecated public SystemProperties getDeprecatedSystemProperties()
-	{
-		if (this.isReceivedEvent && this.deprecatedSystemProperties == null)
-		{
-			this.deprecatedSystemProperties = new SystemProperties(this);
-		}
-
-		return this.deprecatedSystemProperties;
-	}
-	
-	/**
-	 * {@link #getSystemProperties()} from version 0.7.9 was deprecated and renamed to {@link #getDeprecatedSystemProperties()} starting 0.8.0.
-	 * {@link #getOffset()}, {@link #getSequenceNumber()}, {@link #getPartitionKey()}, {@link #getEnqueuedTime()} are now available directly on {@link EventData} class.
-	 * <p>SystemProperties that are populated by EventHubService.
-	 * <p>As these are populated by Service, they are only present on a Received EventData.
 	 * <p>Usage:<p>
 	 * <code>
-	 * final String offset = eventData.getSystemProperties().get(AmqpConstants.OFFSET_ANNOTATION_NAME);
+	 * final String offset = eventData.getSystemProperties().getOffset();
 	 * </code>
 	 * @return an encapsulation of all SystemProperties appended by EventHubs service into EventData.
-	 * <code>null</code> if the {@link #EventData()} is not received and is created by the public constructors. 
+	 * <code>null</code> if the {@link #EventData()} is not received and is created by the public constructors.
+	 * @see SystemProperties#getOffset
+	 * @see SystemProperties#getSequenceNumber
+	 * @see SystemProperties#getPartitionKey
+	 * @see SystemProperties#getEnqueuedTime
 	 */
-	public Map<String, Object> getSystemProperties()
+	public SystemProperties getSystemProperties()
 	{
 		return this.systemProperties;
-	}
-	
-	public String getOffset()
-	{
-		return this.getSystemProperty(AmqpConstants.OFFSET_ANNOTATION_NAME);
-	}
-	
-	public String getPartitionKey()
-	{
-		return this.getSystemProperty(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME);
-	}
-	
-	public Instant getEnqueuedTime()
-	{
-		final Date enqueuedTimeValue = this.getSystemProperty(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
-		return enqueuedTimeValue != null ? enqueuedTimeValue.toInstant() : null;
-	}
-	
-	public long getSequenceNumber()
-	{
-		return this.getSystemProperty(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME);
-	}
-	
-	@SuppressWarnings("unchecked")
-	private <T> T getSystemProperty(final String key)
-	{
-		if (this.systemProperties != null && this.systemProperties.containsKey(key))
-		{
-			return (T) (this.systemProperties.get(key));
-		}
-		
-		return null;
 	}
 	
 	// This is intended to be used while sending EventData - so EventData.SystemProperties will not be copied over to the AmqpMessage
 	Message toAmqpMessage()
 	{
-		Message amqpMessage = Proton.message();
+		final Message amqpMessage = Proton.message();
 
 		if (this.properties != null && !this.properties.isEmpty())
 		{
-			ApplicationProperties applicationProperties = new ApplicationProperties(this.properties);
+			final ApplicationProperties applicationProperties = new ApplicationProperties(this.properties);
 			amqpMessage.setApplicationProperties(applicationProperties);
 		}
 		
 		if (this.systemProperties != null && !this.systemProperties.isEmpty())
 		{
-			for (Map.Entry<String, Object> systemProperty: this.systemProperties.entrySet())
+			for(Map.Entry<String, Object> systemProperty: this.systemProperties.entrySet())
 			{
 				final String propertyName = systemProperty.getKey();
-				if (!EventDataUtil.RESERVED_SYSTEM_PROPERTIES.contains(propertyName) && AmqpConstants.RESERVED_PROPERTY_NAMES.contains(propertyName))
+				if (!EventDataUtil.RESERVED_SYSTEM_PROPERTIES.contains(propertyName))
 				{
-					switch (propertyName)
+					if (AmqpConstants.RESERVED_PROPERTY_NAMES.contains(propertyName))
+						switch (propertyName)
+						{
+							case AmqpConstants.AMQP_PROPERTY_MESSAGE_ID: amqpMessage.setMessageId(systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_USER_ID: amqpMessage.setUserId((byte[]) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_TO: amqpMessage.setAddress((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_SUBJECT: amqpMessage.setSubject((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_REPLY_TO: amqpMessage.setReplyTo((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_CORRELATION_ID: amqpMessage.setCorrelationId(systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_CONTENT_TYPE: amqpMessage.setContentType((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_CONTENT_ENCODING: amqpMessage.setContentEncoding((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_time: amqpMessage.setExpiryTime((long) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_CREATION_TIME: amqpMessage.setCreationTime((long) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_GROUP_ID: amqpMessage.setGroupId((String) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE: amqpMessage.setGroupSequence((long) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_REPLY_TO_GROUP_ID: amqpMessage.setReplyToGroupId((String) systemProperty.getValue()); break;
+							default: throw new RuntimeException("unreachable");
+						}
+					else
 					{
-						case AmqpConstants.AMQP_PROPERTY_MESSAGE_ID: amqpMessage.setMessageId(systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_USER_ID: amqpMessage.setUserId((byte[]) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_TO: amqpMessage.setAddress((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_SUBJECT: amqpMessage.setSubject((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_REPLY_TO: amqpMessage.setReplyTo((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_CORRELATION_ID: amqpMessage.setCorrelationId(systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_CONTENT_TYPE: amqpMessage.setContentType((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_CONTENT_ENCODING: amqpMessage.setContentEncoding((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_time: amqpMessage.setExpiryTime((long) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_CREATION_TIME: amqpMessage.setCreationTime((long) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_GROUP_ID: amqpMessage.setGroupId((String) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE: amqpMessage.setGroupSequence((long) systemProperty.getValue()); break;
-						case AmqpConstants.AMQP_PROPERTY_REPLY_TO_GROUP_ID: amqpMessage.setReplyToGroupId((String) systemProperty.getValue()); break;
-						default: throw new RuntimeException("unreachable");
+						final MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
+																		? new MessageAnnotations(new HashMap<Symbol, Object>()) 
+																				: amqpMessage.getMessageAnnotations();		
+						messageAnnotations.getValue().put(Symbol.getSymbol(systemProperty.getKey()), systemProperty.getValue());
+						amqpMessage.setMessageAnnotations(messageAnnotations);
 					}
 				}
 			}
@@ -377,11 +298,11 @@ public class EventData implements Serializable
 		return amqpMessage;
 	}
 
-	Message toAmqpMessage(String partitionKey)
+	Message toAmqpMessage(final String partitionKey)
 	{
-		Message amqpMessage = this.toAmqpMessage();
+		final Message amqpMessage = this.toAmqpMessage();
 
-		MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
+		final MessageAnnotations messageAnnotations = (amqpMessage.getMessageAnnotations() == null) 
 				? new MessageAnnotations(new HashMap<Symbol, Object>()) 
 						: amqpMessage.getMessageAnnotations();		
 		messageAnnotations.getValue().put(AmqpConstants.PARTITION_KEY, partitionKey);
@@ -408,41 +329,40 @@ public class EventData implements Serializable
 		this.bodyData = new Binary(data, 0, length);
 	}
 
-	@Deprecated
-	public static class SystemProperties implements Serializable
+	public static class SystemProperties extends HashMap<String, Object>
 	{
 		private static final long serialVersionUID = -2827050124966993723L;
 		
-		private final EventData eventData;
+		public String getOffset()
+		{
+			return this.getSystemProperty(AmqpConstants.OFFSET_ANNOTATION_NAME);
+		}
 		
-		protected SystemProperties()
+		public String getPartitionKey()
 		{
-			this.eventData = null;
-		}
-
-		private SystemProperties(final EventData eventData)
-		{
-			this.eventData = eventData;
-		}
-
-		public long getSequenceNumber()
-		{
-			return this.eventData.sequenceNumber;
+			return this.getSystemProperty(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME);
 		}
 		
 		public Instant getEnqueuedTime()
 		{
-			return this.eventData.enqueuedTime;
+			final Date enqueuedTimeValue = this.getSystemProperty(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME);
+			return enqueuedTimeValue != null ? enqueuedTimeValue.toInstant() : null;
+		}
+		
+		public long getSequenceNumber()
+		{
+			return this.getSystemProperty(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME);
 		}
 
-		public String getOffset()
+		@SuppressWarnings("unchecked")
+		private <T> T getSystemProperty(final String key)
 		{
-			return this.eventData.offset;
-		}
-
-		public String getPartitionKey()
-		{
-			return this.eventData.partitionKey;
+			if (this.containsKey(key))
+			{
+				return (T) (this.get(key));
+			}
+			
+			return null;
 		}
 	}
 }

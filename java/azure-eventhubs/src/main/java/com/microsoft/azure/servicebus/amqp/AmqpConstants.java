@@ -44,7 +44,7 @@ public final class AmqpConstants
 	public static final Symbol PARTITION_KEY = Symbol.getSymbol(PARTITION_KEY_ANNOTATION_NAME);
 	public static final Symbol OFFSET = Symbol.getSymbol(OFFSET_ANNOTATION_NAME);
 	public static final Symbol SEQUENCE_NUMBER = Symbol.getSymbol(SEQUENCE_NUMBER_ANNOTATION_NAME);
-	public static final Symbol ENQUEUED_TIME_UTC = Symbol.getSymbol("x-opt-enqueued-time");
+	public static final Symbol ENQUEUED_TIME_UTC = Symbol.getSymbol(ENQUEUED_TIME_UTC_ANNOTATION_NAME);
 
 	public static final Symbol STRING_FILTER = Symbol.valueOf(APACHE + ":selector-filter:string");
 	public static final Symbol EPOCH = Symbol.valueOf(VENDOR + ":epoch");
