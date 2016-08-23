@@ -5,9 +5,11 @@
 https://github.com/Azure/azure-event-hubs/milestone/5?closed=1
 
 ### API Changes
+
 #### New API
 1. EventData.getBodyOffset() & EventData.getBodyLength()
 2. EventData.getSystemProperties().getPublisher()
+
 #### Deprecated API
 1. EventData.setProperties()
 
