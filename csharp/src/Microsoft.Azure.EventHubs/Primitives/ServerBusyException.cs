@@ -10,7 +10,7 @@ namespace Microsoft.Azure.EventHubs
     /// </summary>
     public sealed class ServerBusyException : ServiceBusException
     {
-        internal ServerBusyException(string message)
+        public ServerBusyException(string message)
             : this(message, null)
         {
         }

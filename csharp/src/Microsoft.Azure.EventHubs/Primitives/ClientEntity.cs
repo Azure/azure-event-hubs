@@ -14,6 +14,8 @@ namespace Microsoft.Azure.EventHubs
     {
         static int nextId;
 
+        protected RetryPolicy retryPolicy;
+
         protected ClientEntity(string clientId)
         {
             this.ClientId = clientId;

@@ -40,28 +40,55 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task OnSendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
+            bool shouldRetry = false;
+
             var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
+
             using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
             {
-                var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
-                if (amqpLink.Settings.MaxMessageSize.HasValue)
+                do
                 {
-                    ulong size = (ulong)amqpMessage.SerializedMessageSize;
-                    if (size > amqpLink.Settings.MaxMessageSize.Value)
-                    {
-                        // TODO: Add MessageSizeExceededException
-                        throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
-                        //throw Fx.Exception.AsError(new MessageSizeExceededException(
-                        //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));
-                    }
-                }
+                    shouldRetry = false;
 
-                Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
-                if (outcome.DescriptorCode != Accepted.Code)
-                {
-                    Rejected rejected = (Rejected)outcome;
-                    throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
-                }
+                    try
+                    {
+                        var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
+                        if (amqpLink.Settings.MaxMessageSize.HasValue)
+                        {
+                            ulong size = (ulong)amqpMessage.SerializedMessageSize;
+                            if (size > amqpLink.Settings.MaxMessageSize.Value)
+                            {
+                                // TODO: Add MessageSizeExceededException
+                                throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
+                                //throw Fx.Exception.AsError(new MessageSizeExceededException(
+                                //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));
+                            }
+                        }
+
+                        Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
+                        if (outcome.DescriptorCode != Accepted.Code)
+                        {
+                            Rejected rejected = (Rejected)outcome;
+                            throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
+                        }
+
+                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Evaluate retry condition?
+                        this.retryPolicy.IncrementRetryCount(this.ClientId);
+                        TimeSpan? retryInterval = this.retryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
+                        if (retryInterval != null)
+                        {
+                            await Task.Delay((TimeSpan)retryInterval);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                } while (shouldRetry);
             }
         }
 

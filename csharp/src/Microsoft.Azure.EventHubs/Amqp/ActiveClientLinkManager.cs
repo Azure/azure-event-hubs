@@ -74,7 +74,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                     thisPtr.ScheduleValidityTimer();
                 }
             }
-            catch (Exception exception)
+            catch
             {
                 //DNX_TODO: 
                 //if (Fx.IsFatal(exception))

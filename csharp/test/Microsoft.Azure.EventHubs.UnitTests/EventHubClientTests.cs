@@ -327,6 +327,74 @@
             }
         }
 
+        [Fact]
+        void ValidateRetryPolicy()
+        {
+            String clientId = "someClientEntity";
+            RetryPolicy retry = RetryPolicy.Default;
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? firstRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("firstRetryInterval: " + firstRetryInterval);
+            Assert.True(firstRetryInterval != null);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? secondRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("secondRetryInterval: " + secondRetryInterval);
+
+            Assert.True(secondRetryInterval != null);
+            Assert.True(secondRetryInterval?.TotalMilliseconds > firstRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? thirdRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("thirdRetryInterval: " + thirdRetryInterval);
+
+            Assert.True(thirdRetryInterval != null);
+            Assert.True(thirdRetryInterval?.TotalMilliseconds > secondRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? fourthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("fourthRetryInterval: " + fourthRetryInterval);
+
+            Assert.True(fourthRetryInterval != null);
+            Assert.True(fourthRetryInterval?.TotalMilliseconds > thirdRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? fifthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("fifthRetryInterval: " + fifthRetryInterval);
+
+            Assert.True(fifthRetryInterval != null);
+            Assert.True(fifthRetryInterval?.TotalMilliseconds > fourthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? sixthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("sixthRetryInterval: " + sixthRetryInterval);
+
+            Assert.True(sixthRetryInterval != null);
+            Assert.True(sixthRetryInterval?.TotalMilliseconds > fifthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? seventhRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("seventhRetryInterval: " + seventhRetryInterval);
+
+            Assert.True(seventhRetryInterval != null);
+            Assert.True(seventhRetryInterval?.TotalMilliseconds > sixthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new ServiceBusException(false), TimeSpan.FromSeconds(60));
+            Assert.True(nextRetryInterval == null);
+
+            retry.ResetRetryCount(clientId);
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? firstRetryIntervalAfterReset = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            Assert.True(firstRetryInterval.Equals(firstRetryIntervalAfterReset));
+
+            retry = RetryPolicy.NoRetry;
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            Assert.True(noRetryInterval == null);
+        }
+
         static void WriteLine(string message)
         {
             // Currently xunit2 for .net core doesn't seem to have any output mechanism.  If we find one, replace these here:
