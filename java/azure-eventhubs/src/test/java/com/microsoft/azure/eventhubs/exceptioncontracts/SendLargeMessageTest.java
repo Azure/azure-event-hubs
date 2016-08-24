@@ -4,9 +4,12 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.*;
 
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
@@ -17,8 +20,6 @@ import com.microsoft.azure.eventhubs.lib.TestEventHubInfo;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.PayloadSizeExceededException;
 import com.microsoft.azure.servicebus.ServiceBusException;
-
-import junit.framework.Assert;
 
 public class SendLargeMessageTest
 {
@@ -35,7 +36,7 @@ public class SendLargeMessageTest
 	@BeforeClass
 	public static void initializeEventHub()  throws Exception
 	{
-		Assume.assumeTrue(TestBase.isServiceRun());
+		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 		
 		eventHubInfo = TestBase.checkoutTestEventHub();
 		connStr = new ConnectionStringBuilder(
@@ -65,7 +66,7 @@ public class SendLargeMessageTest
 		}
 		
 		EventData largeMsg = new EventData(body);
-		sender.send(largeMsg).get();
+		sender.sendSync(largeMsg);
 	}
 	
 	@Test()

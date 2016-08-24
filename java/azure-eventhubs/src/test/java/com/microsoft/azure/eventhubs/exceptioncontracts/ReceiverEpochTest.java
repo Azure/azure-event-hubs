@@ -6,9 +6,14 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import com.microsoft.azure.eventhubs.*;
-import com.microsoft.azure.eventhubs.lib.*;
-import com.microsoft.azure.servicebus.*;
+import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.lib.TestBase;
+import com.microsoft.azure.eventhubs.lib.TestEventHubInfo;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
 
 public class ReceiverEpochTest extends TestBase
 {
@@ -16,7 +21,7 @@ public class ReceiverEpochTest extends TestBase
 	@Test (expected = ReceiverDisconnectedException.class)
 	public void testEpochReceiver() throws Throwable
 	{
-		Assume.assumeTrue(TestBase.isServiceRun());
+		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 
 		TestEventHubInfo eventHubInfo = TestBase.checkoutTestEventHub();
 		try 
@@ -66,14 +71,14 @@ public class ReceiverEpochTest extends TestBase
 		}
 
 		@Override
-		public void onReceive(Iterable<EventData> events)
-		{
-			count++;			
+		public void onError(Throwable error)
+		{			
 		}
 
 		@Override
-		public void onError(Throwable error)
-		{			
+		public void onReceive(Iterable<EventData> events)
+		{
+			count++;
 		}
 
 	}

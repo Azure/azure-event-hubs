@@ -15,7 +15,7 @@ public class EventHubClientTest extends TestBase
 	@Test()
 	public void testParallelEventHubClients() throws ServiceBusException, InterruptedException, ExecutionException, IOException
 	{
-		Assume.assumeTrue(TestBase.isServiceRun());
+		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 		
 		TestEventHubInfo eventHubInfo = TestBase.checkoutTestEventHub();
 		String consumerGroupName = eventHubInfo.getRandomConsumerGroup();

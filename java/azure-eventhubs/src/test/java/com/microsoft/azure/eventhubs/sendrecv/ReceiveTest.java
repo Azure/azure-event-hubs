@@ -20,7 +20,7 @@ public class ReceiveTest extends TestBase
 	@Test()
 	public void testReceiverFilters() throws ServiceBusException, InterruptedException, ExecutionException, IOException
 	{
-		Assume.assumeTrue(TestBase.isServiceRun());
+		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 		
 		TestEventHubInfo eventHubInfo = TestBase.checkoutTestEventHub();
 		EventHubClient ehClient = null;

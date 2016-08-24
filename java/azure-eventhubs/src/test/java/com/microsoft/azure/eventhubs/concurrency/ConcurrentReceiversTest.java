@@ -27,7 +27,7 @@ public class ConcurrentReceiversTest
 	@Before
 	public void initializeEventHub()  throws Exception
 	{
-		Assume.assumeTrue(TestBase.isServiceRun());
+		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 
 		eventHubInfo = TestBase.checkoutTestEventHub();
 		connStr = new ConnectionStringBuilder(
