@@ -14,13 +14,14 @@ import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionSender;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestEventHubInfo;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.PayloadSizeExceededException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 
-public class SendLargeMessageTest extends TestBase
+public class SendLargeMessageTest extends ApiTestBase
 {
 	static TestEventHubInfo eventHubInfo;
 	static ConnectionStringBuilder connStr;

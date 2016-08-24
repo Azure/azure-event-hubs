@@ -1,22 +1,20 @@
 package com.microsoft.azure.eventhubs.exceptioncontracts;
 
-import org.junit.Assume;
 import org.junit.Test;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestEventHubInfo;
 import com.microsoft.azure.servicebus.AuthorizationFailedException;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
-public class SecurityExceptionsTest extends TestBase
+public class SecurityExceptionsTest extends ApiTestBase
 {
 	@Test (expected = AuthorizationFailedException.class)
 	public void testEventHubClientUnAuthorizedAccess() throws Throwable
 	{
-		Assume.assumeTrue(TestBase.isTestConfigurationSet());
-		
 		TestEventHubInfo eventHubInfo = TestBase.checkoutTestEventHub();
 		try
 		{
