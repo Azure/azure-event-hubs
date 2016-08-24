@@ -1,9 +1,9 @@
 package com.microsoft.azure.eventhubs.exceptioncontracts;
 
-import java.util.concurrent.ExecutionException;
 import org.junit.Assume;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestEventHubInfo;
@@ -18,18 +18,18 @@ public class SecurityExceptionsTest extends TestBase
 		Assume.assumeTrue(TestBase.isTestConfigurationSet());
 		
 		TestEventHubInfo eventHubInfo = TestBase.checkoutTestEventHub();
-		try {
-			ConnectionStringBuilder connectionString = new ConnectionStringBuilder(eventHubInfo.getNamespaceName(), eventHubInfo.getName(), "random", "wrongvalue");
-			
-			try
-			{
-				EventHubClient.createFromConnectionString(connectionString.toString()).get();		
-			}
-			catch(ExecutionException exp) {
-				throw exp.getCause();
-			}
+		try
+		{
+			ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
+					eventHubInfo.getNamespaceName(),
+					eventHubInfo.getName(),
+					"---------------wrongkey------------",
+					"--------------wrongvalue-----------");
+			EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString());
+			ehClient.sendSync(new EventData("Test Message".getBytes()));
 		}
-		finally {
+		finally
+		{
 			TestBase.checkinTestEventHub(eventHubInfo.getName());
 		}
 	}

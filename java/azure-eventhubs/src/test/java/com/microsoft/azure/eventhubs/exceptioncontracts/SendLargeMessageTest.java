@@ -2,7 +2,6 @@ package com.microsoft.azure.eventhubs.exceptioncontracts;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.AfterClass;
@@ -21,7 +20,7 @@ import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.PayloadSizeExceededException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 
-public class SendLargeMessageTest
+public class SendLargeMessageTest extends TestBase
 {
 	static TestEventHubInfo eventHubInfo;
 	static ConnectionStringBuilder connStr;
@@ -84,21 +83,16 @@ public class SendLargeMessageTest
 		}
 		
 		EventData largeMsg = new EventData(body);
-		for (int i = 0; i< 5; i++)
-		{
-			sender.send(largeMsg).get();
-		}
+		sender.sendSync(largeMsg);
 		
-		Iterable<EventData> messages = receiver.receive(100).get();
+		Iterable<EventData> messages = receiver.receiveSync(100);
 		Assert.assertTrue(messages != null && messages.iterator().hasNext());
-		Iterator<EventData> miterator = messages.iterator();
-		EventData recdMessage = null;
-		while(miterator.hasNext())
-		{
-			recdMessage = miterator.next();
-		}		
+
+		EventData recdMessage = messages.iterator().next();
 		
-		Assert.assertTrue(recdMessage.getBody().length == msgSize);
+		Assert.assertTrue(
+				String.format("sent msg size: %s, recvd msg size: %s", msgSize, recdMessage.getBodyLength()),
+				recdMessage.getBodyLength() == msgSize);
 	}
 	
 	@AfterClass()
