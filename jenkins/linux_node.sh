@@ -14,3 +14,4 @@ build/dev-setup.sh
 # Lint all JavaScript code and run unit + integration tests
 build/build.sh --min --integration-tests
 [ $? -eq 0 ] || exit $?
+

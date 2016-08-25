@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 'use strict';
-var Promise = require('bluebird');
 var EventHubClient = require('azure-event-hubs').Client;
+var Promise = require('bluebird');
 
 // The Event Hubs SDK can also be used with an Azure IoT Hub connection string.
 // In that case, the eventHubPath variable is not used and can be left undefined.
@@ -33,13 +33,15 @@ var receiveAfterTime = Date.now() - 5000;
 client.open()
       .then(client.getPartitionIds.bind(client))
       .then(function (partitionIds) {
-        return partitionIds.map(function (partitionId) {
+        return Promise.map(partitionIds, function (partitionId) {
           return client.createReceiver('$Default', partitionId, { 'startAfterTime' : receiveAfterTime}).then(function(receiver) {
             receiver.on('errorReceived', printError);
             receiver.on('message', printEvent);
           });
         });
       })
-      .then(client.createSender.bind(client))
+      .then(function() {
+        return client.createSender();
+      })
       .then(sendEvent('foo'))
       .catch(printError);
