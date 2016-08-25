@@ -24,7 +24,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 {
 	TestEventHubInfo eventHubInfo;
 	ConnectionStringBuilder connStr;
-	int partitionCount = 4;
+	int partitionCount = TestBase.PARTITION_COUNT;
 	int eventSentPerPartition = 10;
 	EventHubClient sender;
 	Instant sendStartTime;
