@@ -34,7 +34,7 @@ public class ReceiveTest extends ApiTestBase
 	{
 		final ConnectionStringBuilder connectionString = TestBase.getConnectionString(eventHubInfo);
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString());
-		TestBase.pushEventsToPartition(ehClient, partitionId, 10).get();
+		TestBase.pushEventsToPartition(ehClient, partitionId, 25).get();
 	}
 	
 	@Test()
@@ -63,17 +63,50 @@ public class ReceiveTest extends ApiTestBase
 		}
 	}
 	
+	@Test()
+	public void testReceiverOffsetInclusiveFilter() throws ServiceBusException
+	{
+		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, Instant.EPOCH);
+		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
+		
+		Assert.assertTrue(events != null && events.iterator().hasNext());
+		EventData event = events.iterator().next();
+		
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, event.getSystemProperties().getOffset(), true);
+		EventData eventReturnedByOffsetReceiver = offsetReceiver.receiveSync(10).iterator().next();
+		
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getOffset().equals(event.getSystemProperties().getOffset()));
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getSequenceNumber() == event.getSystemProperties().getSequenceNumber());
+	}
+	
+	@Test()
+	public void testReceiverOffsetNonInclusiveFilter() throws ServiceBusException
+	{
+		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, Instant.EPOCH);
+		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
+		
+		Assert.assertTrue(events != null && events.iterator().hasNext());
+		
+		EventData event = events.iterator().next();
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, event.getSystemProperties().getOffset(), false);
+		EventData eventReturnedByOffsetReceiver= offsetReceiver.receiveSync(10).iterator().next();
+		
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getSequenceNumber() == event.getSystemProperties().getSequenceNumber() + 1);
+	}
+	
 	@After
 	public void testCleanup() throws ServiceBusException
 	{
 		if (offsetReceiver != null)
 		{
 			offsetReceiver.closeSync();
+			offsetReceiver = null;
 		}
 		
 		if (datetimeReceiver != null)
 		{
 			datetimeReceiver.closeSync();
+			datetimeReceiver = null;
 		}
 	}
 	
