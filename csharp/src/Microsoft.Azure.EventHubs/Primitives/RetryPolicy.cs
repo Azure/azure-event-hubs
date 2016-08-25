@@ -14,12 +14,10 @@ namespace Microsoft.Azure.EventHubs
         static readonly TimeSpan DefaultRetryMaxBackoff = TimeSpan.FromSeconds(30);
 
         ConcurrentDictionary<String, int> retryCounts;
-        string name;
         object serverBusySync;
 
-        protected RetryPolicy(string name)
+        protected RetryPolicy()
         {
-            this.name = name;
             this.retryCounts = new ConcurrentDictionary<string, int>();
             this.serverBusySync = new Object();
         }
@@ -34,11 +32,7 @@ namespace Microsoft.Azure.EventHubs
         public void ResetRetryCount(string clientId)
         {
             int currentRetryCount;
-            this.retryCounts.TryGetValue(clientId, out currentRetryCount);
-            if (currentRetryCount != 0)
-            {
-                this.retryCounts[clientId] = 0;
-            }
+            this.retryCounts.TryRemove(clientId, out currentRetryCount);
         }
 
         public static bool IsRetryableException(Exception exception)
@@ -60,7 +54,7 @@ namespace Microsoft.Azure.EventHubs
         {
             get
             {
-                return new RetryExponential(DefaultRetryMinBackoff, DefaultRetryMaxBackoff, DefaultRetryMaxCount, ClientConstants.DefaultRetry);
+                return new RetryExponential(DefaultRetryMinBackoff, DefaultRetryMaxBackoff, DefaultRetryMaxCount);
             }
         }
 
@@ -68,7 +62,7 @@ namespace Microsoft.Azure.EventHubs
         {
             get
             {
-                return new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0, ClientConstants.NoRetry);
+                return new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0);
             }
         }
 

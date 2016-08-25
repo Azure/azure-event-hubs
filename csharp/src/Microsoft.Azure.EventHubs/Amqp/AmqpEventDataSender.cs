@@ -44,9 +44,9 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
             var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
 
-            using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
+            do
             {
-                do
+                using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
                 {
                     shouldRetry = false;
 
@@ -81,15 +81,16 @@ namespace Microsoft.Azure.EventHubs.Amqp
                         TimeSpan? retryInterval = this.retryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
                         if (retryInterval != null)
                         {
-                            await Task.Delay((TimeSpan)retryInterval);
+                            await Task.Delay(retryInterval.Value);
+                            shouldRetry = true;
                         }
                         else
                         {
                             throw;
                         }
                     }
-                } while (shouldRetry);
-            }
+                }
+            } while (shouldRetry);
         }
 
         ArraySegment<byte> GetNextDeliveryTag()

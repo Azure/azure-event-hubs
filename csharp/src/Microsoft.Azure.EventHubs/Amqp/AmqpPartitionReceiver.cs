@@ -50,46 +50,73 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task<IList<EventData>> OnReceiveAsync(int maxMessageCount)
         {
-            try
+            bool shouldRetry = false;
+
+            var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
+
+            do
             {
-                var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
-                ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
-                IEnumerable<AmqpMessage> amqpMessages = null;
-                bool hasMessages = await Task.Factory.FromAsync(
-                    (c, s) => receiveLink.BeginReceiveMessages(maxMessageCount, timeoutHelper.RemainingTime(), c, s),
-                    (a) => receiveLink.EndReceiveMessages(a, out amqpMessages),
-                    this);
+                shouldRetry = false;
 
-                if (receiveLink.TerminalException != null)
+                try
                 {
-                    throw receiveLink.TerminalException;
-                }
-
-                if (hasMessages && amqpMessages != null)
-                {
-                    IList<EventData> eventDatas = null;
-                    foreach (var amqpMessage in amqpMessages)
+                    try
                     {
-                        if (eventDatas == null)
+                        ReceivingAmqpLink receiveLink = await this.ReceiveLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
+                        IEnumerable<AmqpMessage> amqpMessages = null;
+                        bool hasMessages = await Task.Factory.FromAsync(
+                            (c, s) => receiveLink.BeginReceiveMessages(maxMessageCount, timeoutHelper.RemainingTime(), c, s),
+                            (a) => receiveLink.EndReceiveMessages(a, out amqpMessages),
+                            this);
+
+                        if (receiveLink.TerminalException != null)
                         {
-                            eventDatas = new List<EventData>();
+                            throw receiveLink.TerminalException;
                         }
 
-                        receiveLink.DisposeDelivery(amqpMessage, true, AmqpConstants.AcceptedOutcome);
-                        eventDatas.Add(AmqpMessageConverter.AmqpMessageToEventData(amqpMessage));
-                    }
+                        this.retryPolicy.ResetRetryCount(this.ClientId);
 
-                    return eventDatas;
+                        if (hasMessages && amqpMessages != null)
+                        {
+                            IList<EventData> eventDatas = null;
+                            foreach (var amqpMessage in amqpMessages)
+                            {
+                                if (eventDatas == null)
+                                {
+                                    eventDatas = new List<EventData>();
+                                }
+
+                                receiveLink.DisposeDelivery(amqpMessage, true, AmqpConstants.AcceptedOutcome);
+                                eventDatas.Add(AmqpMessageConverter.AmqpMessageToEventData(amqpMessage));
+                            }
+
+                            return eventDatas;
+                        }
+                    }
+                    catch (AmqpException amqpException)
+                    {
+                        throw AmqpExceptionHelper.ToMessagingContract(amqpException.Error);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    return null;
+                    // Evaluate retry condition?
+                    this.retryPolicy.IncrementRetryCount(this.ClientId);
+                    TimeSpan? retryInterval = this.retryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
+                    if (retryInterval != null)
+                    {
+                        await Task.Delay(retryInterval.Value);
+                        shouldRetry = true;
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
-            }
-            catch (AmqpException amqpException)
-            {
-                throw AmqpExceptionHelper.ToMessagingContract(amqpException.Error);
-            }
+            } while (shouldRetry);
+
+            // No messages to deliver.
+            return null;
         }
 
         protected override void OnSetReceiveHandler(IPartitionReceiveHandler newReceiveHandler)

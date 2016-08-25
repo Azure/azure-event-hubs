@@ -7,7 +7,5 @@ namespace Microsoft.Azure.EventHubs
     {
         public const int TimerToleranceInSeconds = 1;
         public const int ServerBusyBaseSleepTimeInSecs = 4;
-        public const string NoRetry = "NoRetry";
-        public const string DefaultRetry = "Default";
     }
 }

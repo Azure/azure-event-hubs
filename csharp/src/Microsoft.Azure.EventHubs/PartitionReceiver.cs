@@ -56,6 +56,9 @@ namespace Microsoft.Azure.EventHubs
             this.StartTime = startTime;
             this.PrefetchCount = DefaultPrefetchCount;
             this.Epoch = epoch;
+            this.retryPolicy = eventHubClient.ConnectionSettings.RetryPolicy;
+            this.retryPolicy.ResetRetryCount(this.ClientId);
+
             EventHubsEventSource.Log.ClientCreated(this.ClientId, this.FormatTraceDetails());
         }
 

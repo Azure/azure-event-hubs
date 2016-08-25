@@ -20,8 +20,7 @@ namespace Microsoft.Azure.EventHubs
         readonly int maximumRetryCount;
         readonly double retryFactor;
 
-        public RetryExponential(TimeSpan minimumBackoff, TimeSpan maximumBackoff, int maximumRetryCount, string name)
-            : base(name)
+        public RetryExponential(TimeSpan minimumBackoff, TimeSpan maximumBackoff, int maximumRetryCount)
         {
             TimeoutHelper.ThrowIfNegativeArgument(minimumBackoff, nameof(minimumBackoff));
             TimeoutHelper.ThrowIfNegativeArgument(maximumBackoff, nameof(maximumBackoff));
