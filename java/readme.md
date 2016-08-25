@@ -156,6 +156,7 @@ the required version of Apache Qpid Proton-J, and the crytography library BCPKIX
 6. Set these Environment variables to be able to run unit tests:
   * EVENT_HUB_CONNECTION_STRING
   * PARTITION_COUNT
+  * EPHTESTSTORAGE
 
 ##How to provide feedback
 
