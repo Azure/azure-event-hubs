@@ -465,7 +465,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 								{
 									if (sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)
 									{
-										createSendLink();
+										recreateSendLink();
 									}
 								}
 							});
@@ -705,7 +705,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private void recreateSendLink()
 	{
 		this.createSendLink();
-		this.retryPolicy.incrementRetryCount(MessageSender.this.getClientId());
+		this.retryPolicy.incrementRetryCount(this.getClientId());
 	}
 	
 	// actual send on the SenderLink should happen only in this method & should run on Reactor Thread
