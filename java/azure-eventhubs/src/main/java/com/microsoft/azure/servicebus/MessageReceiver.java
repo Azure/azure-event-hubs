@@ -306,6 +306,8 @@ public class MessageReceiver extends ClientEntity implements IAmqpReceiver, IErr
 					else
 						pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
 
+					// calls to reactor should precede enqueue of the workItem into PendingReceives.
+					// This will allow error handling to enact on the enqueued workItem.
 					if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
 					{
 						createReceiveLink();
