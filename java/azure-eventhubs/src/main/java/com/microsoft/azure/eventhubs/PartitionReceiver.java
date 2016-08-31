@@ -310,13 +310,13 @@ public final class PartitionReceiver extends ClientEntity
 	 * {@link PartitionReceiveHandler} is a handler that allows user to specify a callback
 	 * for event processing and error handling in a receive pump model. 
 	 * @param receiveHandler An implementation of {@link PartitionReceiveHandler}
-	 * @param invokeWithZeroEvents flag to indicate whether the {@link PartitionReceiveHandler#onReceive(Iterable)} should be invoked when the receive call times out
+	 * @param invokeWhenNoEvents flag to indicate whether the {@link PartitionReceiveHandler#onReceive(Iterable)} should be invoked when the receive call times out
 	 */
-	public void setReceiveHandler(final PartitionReceiveHandler receiveHandler, final boolean invokeWithZeroEvents)
+	public void setReceiveHandler(final PartitionReceiveHandler receiveHandler, final boolean invokeWhenNoEvents)
 	{
 		synchronized (this.receiveHandlerSync)
 		{
-			this.invokeHandlerOnTimeout = invokeWithZeroEvents;
+			this.invokeHandlerOnTimeout = invokeWhenNoEvents;
 			
 			if (receiveHandler == null)
 			{
