@@ -19,6 +19,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
         IPartitionReceiveHandler receiveHandler;
         CancellationTokenSource receivePumpCancellationSource;
         Task receivePumpTask;
+        readonly ActiveClientLinkManager clientLinkManager;
 
         public AmqpPartitionReceiver(
             AmqpEventHubClient eventHubClient,
@@ -34,6 +35,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             this.Path = $"{entityPath}/ConsumerGroups/{consumerGroupName}/Partitions/{partitionId}";
             this.ReceiveLinkManager = new FaultTolerantAmqpObject<ReceivingAmqpLink>(this.CreateLinkAsync, this.CloseSession);
             this.receivePumpLock = new object();
+            this.clientLinkManager = new ActiveClientLinkManager((AmqpEventHubClient)this.EventHubClient);
         }
 
         string Path { get; }
@@ -170,7 +172,6 @@ namespace Microsoft.Azure.EventHubs.Amqp
             var expiresAt = await cbsLink.SendTokenAsync(cbsTokenProvider, address, audience, resource, new[] { ClaimConstants.Listen }, timeoutHelper.RemainingTime());
 
             AmqpSession session = null;
-            bool succeeded = false;
             try
             {
                 // Create our Session
@@ -209,16 +210,23 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 link.AttachTo(session);
 
                 await link.OpenAsync(timeoutHelper.RemainingTime());
-                succeeded = true;
+                var activeClientLink = new ActiveClientLink(
+                    link,
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // audience
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    new string[] { ClaimConstants.Listen },
+                    true,
+                    expiresAt);
+
+                this.clientLinkManager.SetActiveLink(activeClientLink);
+
                 return link;
             }
-            finally
+            catch
             {
-                if (!succeeded)
-                {
-                    // Cleanup any session (and thus link) in case of exception.
-                    session?.Abort();
-                }
+                // Cleanup any session (and thus link) in case of exception.
+                session?.Abort();
+                throw;
             }
         }
 

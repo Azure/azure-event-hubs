@@ -81,7 +81,7 @@
         {
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "1";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -138,7 +138,7 @@
             const int MaxBatchSize = 5;
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync(BatchSize)");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "0";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -240,7 +240,7 @@
         {
             WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             string partitionId = "1";
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
@@ -393,6 +393,40 @@
             retry.IncrementRetryCount(clientId);
             TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(noRetryInterval == null);
+        }
+
+        [Fact]
+        async Task ReceiveTimeout()
+        {
+            var testValues = new[] { 10, 30, 120 };
+
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+
+            try
+            {
+                foreach (var receiveTimeoutInSeconds in testValues)
+                {
+                    WriteLine($"Testing with {receiveTimeoutInSeconds} seconds.");
+
+                    this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(receiveTimeoutInSeconds);
+
+                    // Start receiving from a future time so that Receive call won't be able to fetch any events.
+                    var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow.AddMinutes(1));
+
+                    var startTime = DateTime.Now;
+                    await receiver.ReceiveAsync(1);
+
+                    // Receive call should have waited more than receive timeout.
+                    Assert.True(DateTime.Now > startTime.AddSeconds(receiveTimeoutInSeconds));
+
+                    // Timeout should not be late more than 5 seconds. This buffer 
+                    Assert.True(DateTime.Now < startTime.AddSeconds(receiveTimeoutInSeconds + 5));
+                }
+            }
+            finally
+            {
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+            }
         }
 
         static void WriteLine(string message)

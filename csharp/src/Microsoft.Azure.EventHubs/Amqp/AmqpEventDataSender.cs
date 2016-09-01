@@ -13,6 +13,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
     class AmqpEventDataSender : EventDataSender
     {
         int deliveryCount;
+        readonly ActiveClientLinkManager clientLinkManager;
 
         internal AmqpEventDataSender(AmqpEventHubClient eventHubClient, string partitionId)
             : base(eventHubClient, partitionId)
@@ -27,6 +28,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             }
 
             this.SendLinkManager = new FaultTolerantAmqpObject<SendingAmqpLink>(this.CreateLinkAsync, this.CloseSession);
+            this.clientLinkManager = new ActiveClientLinkManager((AmqpEventHubClient)this.EventHubClient);
         }
 
         string Path { get; }
@@ -138,9 +140,20 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 link.AttachTo(session);
 
                 await link.OpenAsync(timeoutHelper.RemainingTime());
+
+                var activeClientLink = new ActiveClientLink(
+                    link,
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // audience
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    new string[] { ClaimConstants.Send },
+                    true,
+                    expiresAt);
+
+                this.clientLinkManager.SetActiveLink(activeClientLink);
+
                 return link;
             }
-            catch (Exception)
+            catch
             {
                 // Cleanup any session (and thus link) in case of exception.
                 session?.Abort();
