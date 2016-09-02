@@ -302,7 +302,6 @@
             }
         }
 
-
         static void WriteLine(string message)
         {
             // Currently xunit2 for .net core doesn't seem to have any output mechanism.  If we find one, replace these here:

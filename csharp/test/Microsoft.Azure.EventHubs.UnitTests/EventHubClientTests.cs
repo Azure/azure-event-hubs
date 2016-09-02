@@ -81,7 +81,7 @@
         {
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(5);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "1";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -138,7 +138,7 @@
             const int MaxBatchSize = 5;
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync(BatchSize)");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "0";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -240,7 +240,7 @@
         {
             WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(3);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             string partitionId = "1";
             PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
@@ -324,6 +324,108 @@
             foreach (string partitionId in eventHubRuntimeInformation.PartitionIds)
             {
                 WriteLine(partitionId);
+            }
+        }
+
+        [Fact]
+        void ValidateRetryPolicy()
+        {
+            String clientId = "someClientEntity";
+            RetryPolicy retry = RetryPolicy.Default;
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? firstRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("firstRetryInterval: " + firstRetryInterval);
+            Assert.True(firstRetryInterval != null);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? secondRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("secondRetryInterval: " + secondRetryInterval);
+
+            Assert.True(secondRetryInterval != null);
+            Assert.True(secondRetryInterval?.TotalMilliseconds > firstRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? thirdRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("thirdRetryInterval: " + thirdRetryInterval);
+
+            Assert.True(thirdRetryInterval != null);
+            Assert.True(thirdRetryInterval?.TotalMilliseconds > secondRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? fourthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("fourthRetryInterval: " + fourthRetryInterval);
+
+            Assert.True(fourthRetryInterval != null);
+            Assert.True(fourthRetryInterval?.TotalMilliseconds > thirdRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? fifthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("fifthRetryInterval: " + fifthRetryInterval);
+
+            Assert.True(fifthRetryInterval != null);
+            Assert.True(fifthRetryInterval?.TotalMilliseconds > fourthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? sixthRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("sixthRetryInterval: " + sixthRetryInterval);
+
+            Assert.True(sixthRetryInterval != null);
+            Assert.True(sixthRetryInterval?.TotalMilliseconds > fifthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? seventhRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("seventhRetryInterval: " + seventhRetryInterval);
+
+            Assert.True(seventhRetryInterval != null);
+            Assert.True(seventhRetryInterval?.TotalMilliseconds > sixthRetryInterval?.TotalMilliseconds);
+
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new ServiceBusException(false), TimeSpan.FromSeconds(60));
+            Assert.True(nextRetryInterval == null);
+
+            retry.ResetRetryCount(clientId);
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? firstRetryIntervalAfterReset = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            Assert.True(firstRetryInterval.Equals(firstRetryIntervalAfterReset));
+
+            retry = RetryPolicy.NoRetry;
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            Assert.True(noRetryInterval == null);
+        }
+
+        [Fact]
+        async Task ReceiveTimeout()
+        {
+            var testValues = new[] { 10, 30, 120 };
+
+            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+
+            try
+            {
+                foreach (var receiveTimeoutInSeconds in testValues)
+                {
+                    WriteLine($"Testing with {receiveTimeoutInSeconds} seconds.");
+
+                    this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(receiveTimeoutInSeconds);
+
+                    // Start receiving from a future time so that Receive call won't be able to fetch any events.
+                    var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow.AddMinutes(1));
+
+                    var startTime = DateTime.Now;
+                    await receiver.ReceiveAsync(1);
+
+                    // Receive call should have waited more than receive timeout.
+                    Assert.True(DateTime.Now > startTime.AddSeconds(receiveTimeoutInSeconds));
+
+                    // Timeout should not be late more than 5 seconds. This buffer 
+                    Assert.True(DateTime.Now < startTime.AddSeconds(receiveTimeoutInSeconds + 5));
+                }
+            }
+            finally
+            {
+                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
             }
         }
 

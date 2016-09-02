@@ -13,6 +13,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
     class AmqpEventDataSender : EventDataSender
     {
         int deliveryCount;
+        readonly ActiveClientLinkManager clientLinkManager;
 
         internal AmqpEventDataSender(AmqpEventHubClient eventHubClient, string partitionId)
             : base(eventHubClient, partitionId)
@@ -27,6 +28,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             }
 
             this.SendLinkManager = new FaultTolerantAmqpObject<SendingAmqpLink>(this.CreateLinkAsync, this.CloseSession);
+            this.clientLinkManager = new ActiveClientLinkManager((AmqpEventHubClient)this.EventHubClient);
         }
 
         string Path { get; }
@@ -40,29 +42,57 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         protected override async Task OnSendAsync(IEnumerable<EventData> eventDatas, string partitionKey)
         {
+            bool shouldRetry = false;
+
             var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
-            using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
+
+            do
             {
-                var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
-                if (amqpLink.Settings.MaxMessageSize.HasValue)
+                using (AmqpMessage amqpMessage = AmqpMessageConverter.EventDatasToAmqpMessage(eventDatas, partitionKey, true))
                 {
-                    ulong size = (ulong)amqpMessage.SerializedMessageSize;
-                    if (size > amqpLink.Settings.MaxMessageSize.Value)
+                    shouldRetry = false;
+
+                    try
                     {
-                        // TODO: Add MessageSizeExceededException
-                        throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
-                        //throw Fx.Exception.AsError(new MessageSizeExceededException(
-                        //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));
+                        var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
+                        if (amqpLink.Settings.MaxMessageSize.HasValue)
+                        {
+                            ulong size = (ulong)amqpMessage.SerializedMessageSize;
+                            if (size > amqpLink.Settings.MaxMessageSize.Value)
+                            {
+                                // TODO: Add MessageSizeExceededException
+                                throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
+                                //throw Fx.Exception.AsError(new MessageSizeExceededException(
+                                //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));
+                            }
+                        }
+
+                        Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
+                        if (outcome.DescriptorCode != Accepted.Code)
+                        {
+                            Rejected rejected = (Rejected)outcome;
+                            throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
+                        }
+
+                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Evaluate retry condition?
+                        this.retryPolicy.IncrementRetryCount(this.ClientId);
+                        TimeSpan? retryInterval = this.retryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
+                        if (retryInterval != null)
+                        {
+                            await Task.Delay(retryInterval.Value);
+                            shouldRetry = true;
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
                 }
-
-                Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
-                if (outcome.DescriptorCode != Accepted.Code)
-                {
-                    Rejected rejected = (Rejected)outcome;
-                    throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
-                }
-            }
+            } while (shouldRetry);
         }
 
         ArraySegment<byte> GetNextDeliveryTag()
@@ -110,9 +140,20 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 link.AttachTo(session);
 
                 await link.OpenAsync(timeoutHelper.RemainingTime());
+
+                var activeClientLink = new ActiveClientLink(
+                    link,
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // audience
+                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    new string[] { ClaimConstants.Send },
+                    true,
+                    expiresAt);
+
+                this.clientLinkManager.SetActiveLink(activeClientLink);
+
                 return link;
             }
-            catch (Exception)
+            catch
             {
                 // Cleanup any session (and thus link) in case of exception.
                 session?.Abort();

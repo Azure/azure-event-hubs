@@ -74,7 +74,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                     thisPtr.ScheduleValidityTimer();
                 }
             }
-            catch (Exception exception)
+            catch
             {
                 //DNX_TODO: 
                 //if (Fx.IsFatal(exception))
@@ -100,7 +100,6 @@ namespace Microsoft.Azure.EventHubs.Amqp
             interval += TokenRefreshBuffer;   // Avoid getting a token that expires right away
             interval = interval < AmqpClientConstants.ClientMinimumTokenRefreshInterval ? AmqpClientConstants.ClientMinimumTokenRefreshInterval : interval;
 
-            Fx.Assert(interval >= TimeSpan.Zero, "interval can't be negative");
             this.validityTimer.Change(interval, Timeout.InfiniteTimeSpan);
 
             //DNX_TODO: MessagingClientEtwProvider.Provider.EventWriteAmqpManageLink("SetTimer", this.activeClientLink.LinkObject, interval.ToString("c", CultureInfo.InvariantCulture));
