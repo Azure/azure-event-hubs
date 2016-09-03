@@ -131,11 +131,20 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
         public async Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount)
         {
+            return await this.ReceiveAsync(maxMessageCount, this.EventHubClient.ConnectionSettings.OperationTimeout);
+        }
+
+        /// <summary>
+        /// Receive a batch of <see cref="EventData"/>'s from an EventHub partition by allowing wait time on each individual call.
+        /// </summary>
+        /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
+        public async Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount, TimeSpan waitTime)
+        {
             EventHubsEventSource.Log.EventReceiveStart(this.ClientId);
             int count = 0;
             try
             {
-                IList<EventData> events = await this.OnReceiveAsync(maxMessageCount);
+                IList<EventData> events = await this.OnReceiveAsync(maxMessageCount, waitTime);
                 count = events != null ? events.Count : 0;
                 EventData lastEvent = events?[count - 1];
                 if (lastEvent != null)
@@ -178,7 +187,7 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
-        protected abstract Task<IList<EventData>> OnReceiveAsync(int maxMessageCount);
+        protected abstract Task<IList<EventData>> OnReceiveAsync(int maxMessageCount, TimeSpan waitTime);
 
         protected abstract void OnSetReceiveHandler(IPartitionReceiveHandler receiveHandler);
 

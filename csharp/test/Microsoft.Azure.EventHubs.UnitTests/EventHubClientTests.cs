@@ -408,18 +408,17 @@
                 {
                     WriteLine($"Testing with {receiveTimeoutInSeconds} seconds.");
 
-                    this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(receiveTimeoutInSeconds);
-
                     // Start receiving from a future time so that Receive call won't be able to fetch any events.
                     var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow.AddMinutes(1));
 
                     var startTime = DateTime.Now;
-                    await receiver.ReceiveAsync(1);
+                    await receiver.ReceiveAsync(1, TimeSpan.FromSeconds(receiveTimeoutInSeconds));
 
                     // Receive call should have waited more than receive timeout.
                     Assert.True(DateTime.Now > startTime.AddSeconds(receiveTimeoutInSeconds));
 
-                    // Timeout should not be late more than 5 seconds. This buffer 
+                    // Timeout should not be late more than 5 seconds.
+                    // This is just a logical buffer for timeout behavior validation.
                     Assert.True(DateTime.Now < startTime.AddSeconds(receiveTimeoutInSeconds + 5));
                 }
             }
