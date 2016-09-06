@@ -16,7 +16,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     {
         EventProcessorHost host;
         readonly string storageConnectionString;
-        string storageContainerName = null;
+        string leaseContainerName = null;
 
         CloudBlobClient storageClient;
         CloudBlobContainer eventHubContainer;
@@ -27,7 +27,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         static readonly TimeSpan leaseRenewInterval = TimeSpan.FromSeconds(10);
         readonly BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
 
-        internal AzureStorageCheckpointLeaseManager(string storageConnectionString)
+        internal AzureStorageCheckpointLeaseManager(string storageConnectionString, string leaseContainerName)
         {
             if (string.IsNullOrEmpty(storageConnectionString))
             {
@@ -35,17 +35,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             }
 
             this.storageConnectionString = storageConnectionString;
-        }
-
-        internal AzureStorageCheckpointLeaseManager(string storageConnectionString, string storageContainerName)
-        {
-            if (string.IsNullOrEmpty(storageConnectionString))
-            {
-                throw new ArgumentNullException(nameof(storageConnectionString));
-            }
-
-            this.storageConnectionString = storageConnectionString;
-            this.storageContainerName = storageContainerName;
+            this.leaseContainerName = leaseContainerName;
         }
 
         // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
@@ -54,17 +44,12 @@ namespace Microsoft.Azure.EventHubs.Processor
         internal void Initialize(EventProcessorHost host) // throws InvalidKeyException, URISyntaxException, StorageException
         {
             this.host = host;
-            if (this.storageContainerName == null)
-            {
-                this.storageContainerName = this.host.EventHubPath;
-            }
-        
             this.storageClient = CloudStorageAccount.Parse(this.storageConnectionString).CreateCloudBlobClient();
             BlobRequestOptions options = new BlobRequestOptions();
             options.MaximumExecutionTime = AzureStorageCheckpointLeaseManager.storageMaximumExecutionTime;
             this.storageClient.DefaultRequestOptions = options;
         
-            this.eventHubContainer = this.storageClient.GetContainerReference(this.storageContainerName);
+            this.eventHubContainer = this.storageClient.GetContainerReference(this.leaseContainerName);
         
             this.consumerGroupDirectory = this.eventHubContainer.GetDirectoryReference(this.host.ConsumerGroupName);
         
@@ -240,7 +225,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 ProcessorEventSource.Log.AzureStorageManagerInfo(
                     this.host.Id,
                     partitionId,
-                    "CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName);
+                    "CreateLeaseIfNotExist - leaseContainerName: " + this.leaseContainerName + " consumerGroupName: " + this.host.ConsumerGroupName);
                 await leaseBlob.UploadTextAsync(jsonLease, null, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
             }
     	    catch (StorageException se)
@@ -262,7 +247,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     ProcessorEventSource.Log.AzureStorageManagerError(
                         this.host.Id,
                         partitionId,
-                        "CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.ConsumerGroupName,
+                        "CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.leaseContainerName + " consumerGroupName: " + this.host.ConsumerGroupName,
                         se.ToString());
     			    throw;
                 }

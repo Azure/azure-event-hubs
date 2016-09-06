@@ -28,6 +28,14 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public string PartitionId { get; }
 
+        public string Owner
+        {
+            get
+            {
+                return this.Lease.Owner;
+            }
+        }
+
         // Unlike other properties which are immutable after creation, the lease is updated dynamically and needs a setter.
         internal Lease Lease { get; set; }
 
@@ -151,8 +159,9 @@ namespace Microsoft.Azure.EventHubs.Processor
                 }
                 else
                 {
-                    string msg = $"Ignoring out of date checkpoint {checkpoint.Offset}/{checkpoint.SequenceNumber}" +
-                            $" because store is at {inStoreCheckpoint.Offset}/{inStoreCheckpoint.SequenceNumber}";
+                    string msg = $"Ignoring out of date checkpoint with offset {checkpoint.Offset}/sequence number {checkpoint.SequenceNumber}" +
+                            $" because current persisted checkpoint has higher offset {inStoreCheckpoint.Offset}/sequence number {inStoreCheckpoint.SequenceNumber}";
+
                     ProcessorEventSource.Log.PartitionPumpError(this.host.Id, checkpoint.PartitionId, msg);
                     throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
                 }

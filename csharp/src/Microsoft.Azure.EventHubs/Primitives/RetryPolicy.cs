@@ -47,6 +47,13 @@ namespace Microsoft.Azure.EventHubs
                 return ((ServiceBusException)exception).IsTransient;
             }
 
+            // Take TimeoutException as transient. 
+            // If the remaining time for the operation is too small then the client won't retry anyways.
+            if (exception is TimeoutException)
+            {
+                return true;
+            }
+
             return false;
         }
 

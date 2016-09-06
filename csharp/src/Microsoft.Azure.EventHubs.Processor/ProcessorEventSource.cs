@@ -24,12 +24,12 @@ namespace Microsoft.Azure.EventHubs
         //
         // 1-50 reserved for EventProcessorHost traces
         //
-        [Event(1, Level = EventLevel.Informational, Message = "{0}: created. Namespace: {1}, EventHub: {2}.")]
-        public void EventProcessorHostCreated(string hostId, string namespaceName, string path)
+        [Event(1, Level = EventLevel.Informational, Message = "{0}: created. EventHub: {1}.")]
+        public void EventProcessorHostCreated(string hostId, string path)
         {
             if (IsEnabled())
             {
-                WriteEvent(1, hostId, namespaceName, path);
+                WriteEvent(1, hostId, path);
             }
         }
 

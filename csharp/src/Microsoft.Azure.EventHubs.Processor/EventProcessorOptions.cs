@@ -77,9 +77,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// </summary>
         public bool InvokeProcessorAfterReceiveTimeout { get; set; }
 
-        internal void NotifyOfException(string hostname, Exception exception, string action)
+        internal void NotifyOfException(string hostname, string partitionId, Exception exception, string action)
         {
-            this.exceptionHandler?.Invoke(new ExceptionReceivedEventArgs(hostname, exception, action));
+            this.exceptionHandler?.Invoke(new ExceptionReceivedEventArgs(hostname, partitionId, exception, action));
         }
     }
 }

@@ -8,9 +8,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
     public sealed class EventProcessorHost
     {
-        readonly string namespaceName;
-        readonly string sharedAccessKeyName;
-        readonly string sharedAccessKey;
+        readonly string eventHubConnectionString;
         readonly bool initializeLeaseManager;
 
         /// <summary>
@@ -25,141 +23,83 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// Azure Storage account specified by the storageConnectionString parameter is used by the built-in
         /// managers to record leases and checkpoints.
         /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
-        /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
-        /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
         /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
+        /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
         /// <param name="storageConnectionString">Connection string to Azure Storage account used for leases and checkpointing.</param>
+        /// <param name="leaseContainerName">Azure Storage container name for use by built-in lease and checkpoint manager.</param>
         public EventProcessorHost(
-            string namespaceName,
             string eventHubPath,
-            string sharedAccessKeyName,
-            string sharedAccessKey,
             string consumerGroupName,
-            string storageConnectionString)
-            : this(namespaceName,
-                eventHubPath,
-                sharedAccessKeyName,
-                sharedAccessKey,
-                consumerGroupName,
-                new AzureStorageCheckpointLeaseManager(storageConnectionString))
-        {
-            this.initializeLeaseManager = true;
-        }
-
-        /// <summary>
-        /// Create a new host to process events from an Event Hub.
-        /// 
-        /// <para>This overload of the constructor uses the default, built-in lease and checkpoint managers, but
-        /// uses a non-default storage container name. The first parameters are the same as the other overloads.</para>
-        /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
-        /// <param name="eventHubPath">The path of the Event Hub.</param>
-        /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
-        /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
-        /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
-        /// <param name="storageConnectionString">Connection string to Azure Storage account used for leases and checkpointing.</param>
-        /// <param name="storageContainerName">Azure Storage container name in which all leases and checkpointing will occur.</param>
-        public EventProcessorHost(
-            string namespaceName,
-            string eventHubPath,
-            string sharedAccessKeyName,
-            string sharedAccessKey,
-            string consumerGroupName,
+            string eventHubConnectionString,
             string storageConnectionString,
-            string storageContainerName)
-            : this(namespaceName,
-                eventHubPath, 
-                sharedAccessKeyName,
-                sharedAccessKey,
+            string leaseContainerName)
+            : this(EventProcessorHost.CreateHostName(null),
+                eventHubPath,
                 consumerGroupName,
-                new AzureStorageCheckpointLeaseManager(storageConnectionString, storageContainerName))
+                eventHubConnectionString,
+                storageConnectionString,
+                leaseContainerName)
+        {
+        }
+
+        /// <summary>
+        /// Create a new host to process events from an Event Hub.
+        /// 
+        /// <para>This overload of the constructor uses the default, built-in lease and checkpoint managers.</para>
+        /// </summary>
+        /// <param name="hostName">A name for this event processor host. See method notes.</param>
+        /// <param name="eventHubPath">The path of the Event Hub.</param>
+        /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
+        /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
+        /// <param name="storageConnectionString">Connection string to Azure Storage account used for leases and checkpointing.</param>
+        /// <param name="leaseContainerName">Azure Storage container name for use by built-in lease and checkpoint manager.</param>
+        public EventProcessorHost(
+            string hostName,
+            string eventHubPath,
+            string consumerGroupName,
+            string eventHubConnectionString,
+            string storageConnectionString,
+            string leaseContainerName)
+            : this(hostName,
+                eventHubPath, 
+                consumerGroupName,
+                eventHubConnectionString,
+                new AzureStorageCheckpointLeaseManager(storageConnectionString, leaseContainerName))
         {
             this.initializeLeaseManager = true;
         }
-    
-        // Because Java won't let you do ANYTHING before calling another constructor. In particular, you can't
-        // new up an object and pass it as two parameters of the other constructor.
-        EventProcessorHost(
-            string namespaceName,
-            string eventHubPath,
-            string sharedAccessKeyName,
-            string sharedAccessKey,
-            string consumerGroupName,
-            AzureStorageCheckpointLeaseManager combinedManager)
-            : this(namespaceName, eventHubPath, sharedAccessKeyName, sharedAccessKey, consumerGroupName, combinedManager, combinedManager)
-        {
-        }
 
         /// <summary>
         /// Create a new host to process events from an Event Hub.
         /// 
-        /// <para>This overload of the constructor allows the caller to provide their own lease and checkpoint
-        /// managers. The first parameters are the same as other overloads.</para>
-        /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
-        /// <param name="eventHubPath">The path of the Event Hub.</param>
-        /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
-        /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
-        /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
-        /// <param name="checkpointManager">Object implementing ICheckpointManager which handles partition checkpointing.</param>
-        /// <param name="leaseManager">Object implementing ILeaseManager which handles leases for partitions.</param>
-        public EventProcessorHost(
-            string namespaceName,
-            string eventHubPath,
-            string sharedAccessKeyName,
-            string sharedAccessKey,
-            string consumerGroupName,
-            ICheckpointManager checkpointManager,
-            ILeaseManager leaseManager)
-            : this(
-                "netcorehost-" + Guid.NewGuid(),
-                namespaceName,
-                eventHubPath,
-                sharedAccessKeyName,
-                sharedAccessKey,
-                consumerGroupName,
-                checkpointManager,
-                leaseManager)
-        {
-        }
-
-        /// <summary>
-        /// Create a new host to process events from an Event Hub.
-        /// 
-        /// <para>This overload of the constructor allows maximum flexibility. In addition to all the parameters from
-        /// other overloads, this one allows the caller to specify the name of the processor host. The other overloads
-        /// automatically generate a unique processor host name. Unless there is a need to include some other
-        /// information, such as machine name, in the processor host name, it is best to stick to those.</para>
+        /// <para>This overload of the constructor allows maximum flexibility.
+        /// This one allows the caller to specify the name of the processor host as well.
+        /// The overload also allows the caller to provide their own lease and checkpoint managers to replace the built-in
+        /// ones based on Azure Storage.</para>
         /// </summary>
         /// <param name="hostName">Name of the processor host. MUST BE UNIQUE. Strongly recommend including a Guid to ensure uniqueness.</param>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
-        /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
-        /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
         /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
+        /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
         /// <param name="checkpointManager">Object implementing ICheckpointManager which handles partition checkpointing.</param>
         /// <param name="leaseManager">Object implementing ILeaseManager which handles leases for partitions.</param>
         public EventProcessorHost(
              string hostName,
-             string namespaceName,
              string eventHubPath,
-             string sharedAccessKeyName,
-             string sharedAccessKey,
              string consumerGroupName,
+             string eventHubConnectionString,
              ICheckpointManager checkpointManager,
              ILeaseManager leaseManager)
         {
-            if (string.IsNullOrEmpty(hostName) || string.IsNullOrEmpty(namespaceName) || string.IsNullOrEmpty(eventHubPath))
+            if (string.IsNullOrEmpty(hostName) || string.IsNullOrEmpty(eventHubPath))
             {
                 throw new ArgumentNullException(
-                    string.IsNullOrEmpty(hostName) ? nameof(hostName) : string.IsNullOrEmpty(namespaceName) ? nameof(namespaceName) : nameof(eventHubPath));
+                    string.IsNullOrEmpty(hostName) ? nameof(hostName) : nameof(eventHubPath));
             }
-            else if (string.IsNullOrEmpty(sharedAccessKeyName) || string.IsNullOrEmpty(sharedAccessKey) || string.IsNullOrEmpty(consumerGroupName))
+            else if (string.IsNullOrEmpty(consumerGroupName))
             {
-                throw new ArgumentNullException(
-                    string.IsNullOrEmpty(sharedAccessKeyName) ? nameof(sharedAccessKeyName) : string.IsNullOrEmpty(sharedAccessKey) ? nameof(sharedAccessKey) : nameof(consumerGroupName));
+                throw new ArgumentNullException(nameof(consumerGroupName));
             }
             else if (checkpointManager == null || leaseManager == null)
             {
@@ -167,22 +107,32 @@ namespace Microsoft.Azure.EventHubs.Processor
             }
 
             this.HostName = hostName;
-            this.namespaceName = namespaceName;
             this.EventHubPath = eventHubPath;
-            this.sharedAccessKeyName = sharedAccessKeyName;
-            this.sharedAccessKey = sharedAccessKey;
             this.ConsumerGroupName = consumerGroupName;
+            this.eventHubConnectionString = eventHubConnectionString;
             this.CheckpointManager = checkpointManager;
             this.LeaseManager = leaseManager;
             this.Id = $"EventProcessorHost({hostName.Substring(0, Math.Min(hostName.Length, 20))}...)";
             this.PartitionManager = new PartitionManager(this);
-            ProcessorEventSource.Log.EventProcessorHostCreated(this.Id, namespaceName, eventHubPath);
+            ProcessorEventSource.Log.EventProcessorHostCreated(this.Id, eventHubPath);
         }
 
+        // Using this intermediate constructor to create single combined manager to be used as 
+        // both lease manager and checkpoint manager.
+        EventProcessorHost(
+                string hostName,
+                string eventHubPath,
+                string consumerGroupName,
+                string eventHubConnectionString,
+                AzureStorageCheckpointLeaseManager combinedManager)
+            : this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager)
+        {
+        }
+        
         /// <summary>
-        /// Returns processor host name.
-        /// If the processor host name was automatically generated, this is the only way to get it.
-        /// </summary>
+                 /// Returns processor host name.
+                 /// If the processor host name was automatically generated, this is the only way to get it.
+                 /// </summary>
         public string HostName { get; }
 
         /// <summary>
@@ -266,12 +216,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                this.ConnectionSettings = new ServiceBusConnectionSettings(
-                    this.namespaceName,
-                    this.EventHubPath,
-                    this.sharedAccessKeyName,
-                    this.sharedAccessKey
-                    /*, RetryPolicy.Default*/);
+                this.ConnectionSettings = new ServiceBusConnectionSettings(this.eventHubConnectionString);
                 this.ConnectionSettings.OperationTimeout = processorOptions.ReceiveTimeout;
 
                 if (this.initializeLeaseManager)
@@ -315,6 +260,26 @@ namespace Microsoft.Azure.EventHubs.Processor
             {
                 ProcessorEventSource.Log.EventProcessorHostCloseStop(this.Id);
             }
+        }
+
+        /// <summary>
+        /// Convenience method for generating unique host names, safe to pass to the EventProcessorHost constructors
+        /// that take a hostName argument.
+        ///  
+        /// If a prefix is supplied, the constructed name begins with that string. If the prefix argument is null or
+        /// an empty string, the constructed name begins with "javahost". Then a dash '-' and a unique ID are appended to
+        /// create a unique name.
+        /// </summary>
+        /// <param name="prefix">String to use as the beginning of the name. If null or empty, a default is used.</param>
+        /// <returns>A unique host name to pass to EventProcessorHost constructors.</returns>
+        static string CreateHostName(string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+            {
+                prefix = "host";
+            }
+
+            return prefix + "-" + Guid.NewGuid().ToString();
         }
     }
 }
