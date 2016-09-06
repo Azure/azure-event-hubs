@@ -16,10 +16,10 @@ namespace Microsoft.Azure.EventHubs.Amqp
     class AmqpPartitionReceiver : PartitionReceiver
     {
         readonly object receivePumpLock;
+        readonly ActiveClientLinkManager clientLinkManager;
         IPartitionReceiveHandler receiveHandler;
         CancellationTokenSource receivePumpCancellationSource;
         Task receivePumpTask;
-        readonly ActiveClientLinkManager clientLinkManager;
 
         public AmqpPartitionReceiver(
             AmqpEventHubClient eventHubClient,
@@ -50,11 +50,11 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 this.ReceiveLinkManager.CloseAsync());
         }
 
-        protected override async Task<IList<EventData>> OnReceiveAsync(int maxMessageCount)
+        protected override async Task<IList<EventData>> OnReceiveAsync(int maxMessageCount, TimeSpan waitTime)
         {
             bool shouldRetry = false;
 
-            var timeoutHelper = new TimeoutHelper(this.EventHubClient.ConnectionSettings.OperationTimeout, true);
+            var timeoutHelper = new TimeoutHelper(waitTime, true);
 
             do
             {
