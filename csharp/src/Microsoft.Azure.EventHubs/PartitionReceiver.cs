@@ -129,9 +129,9 @@ namespace Microsoft.Azure.EventHubs
         /// </code>
         /// </example>
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
-        public async Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount)
+        public Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount)
         {
-            return await this.ReceiveAsync(maxMessageCount, this.EventHubClient.ConnectionSettings.OperationTimeout);
+            return this.ReceiveAsync(maxMessageCount, this.EventHubClient.ConnectionSettings.OperationTimeout);
         }
 
         /// <summary>
@@ -174,12 +174,12 @@ namespace Microsoft.Azure.EventHubs
             EventHubsEventSource.Log.SetReceiveHandlerStop(this.ClientId);
         }
 
-        public sealed override async Task CloseAsync()
+        public sealed override Task CloseAsync()
         {
             EventHubsEventSource.Log.ClientCloseStart(this.ClientId);
             try
             {
-                await this.OnCloseAsync();
+                return this.OnCloseAsync();
             }
             finally
             {
