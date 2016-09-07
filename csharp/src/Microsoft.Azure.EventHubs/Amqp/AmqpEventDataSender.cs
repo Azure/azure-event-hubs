@@ -74,7 +74,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                             throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
                         }
 
-                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                        this.retryPolicy.ResetRetryCount();
                     }
                     catch (Exception ex)
                     {

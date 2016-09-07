@@ -76,7 +76,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                             throw receiveLink.TerminalException;
                         }
 
-                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                        this.retryPolicy.ResetRetryCount();
 
                         if (hasMessages && amqpMessages != null)
                         {

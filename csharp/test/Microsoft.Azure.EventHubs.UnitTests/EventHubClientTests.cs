@@ -331,7 +331,7 @@
         void ValidateRetryPolicy()
         {
             String clientId = "someClientEntity";
-            RetryPolicy retry = RetryPolicy.Default;
+            RetryPolicy retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.Default);
 
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
@@ -384,12 +384,12 @@
             TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new ServiceBusException(false), TimeSpan.FromSeconds(60));
             Assert.True(nextRetryInterval == null);
 
-            retry.ResetRetryCount(clientId);
+            retry.ResetRetryCount();
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryIntervalAfterReset = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(firstRetryInterval.Equals(firstRetryIntervalAfterReset));
 
-            retry = RetryPolicy.NoRetry;
+            retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.NoRetry);
             retry.IncrementRetryCount(clientId);
             TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(noRetryInterval == null);
