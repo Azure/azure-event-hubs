@@ -49,17 +49,17 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="sharedAccessKeyName">Shared Access Key name</param>
         /// <param name="sharedAccessKey">Shared Access Key</param>
         public ServiceBusConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
-            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicyType.Default)
+            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicy.Default)
         {
         }
 
-        public ServiceBusConnectionSettings(
+        ServiceBusConnectionSettings(
             string namespaceName,
             string entityPath,
             string sharedAccessKeyName,
             string sharedAccessKey,
             TimeSpan operationTimeout,
-            RetryPolicyType retryPolicy)
+            RetryPolicy retryPolicy)
         {
             if (string.IsNullOrWhiteSpace(namespaceName) || string.IsNullOrWhiteSpace(entityPath))
             {
@@ -84,7 +84,7 @@ namespace Microsoft.Azure.EventHubs
             this.SasKey = sharedAccessKey;
             this.SasKeyName = sharedAccessKeyName;
             this.OperationTimeout = operationTimeout;
-            this.RetryPolicy = RetryPolicyType.Default;
+            this.RetryPolicy = retryPolicy ?? RetryPolicy.Default;
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Microsoft.Azure.EventHubs
             }
 
             this.OperationTimeout = DefaultOperationTimeout;
-            this.RetryPolicy = RetryPolicyType.Default;
+            this.RetryPolicy = RetryPolicy.Default;
             this.ParseConnectionString(connectionString);
         }
 
@@ -130,7 +130,7 @@ namespace Microsoft.Azure.EventHubs
         /// <summary>
         /// Get the retry policy instance that was created as part of this builder's creation.
         /// </summary>
-        public RetryPolicyType RetryPolicy { get; set; }
+        public RetryPolicy RetryPolicy { get; set; }
 
         public ServiceBusConnectionSettings Clone()
         {

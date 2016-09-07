@@ -33,7 +33,7 @@ namespace Microsoft.Azure.EventHubs
 
         protected override TimeSpan? OnGetNextRetryInterval(string clientId, Exception lastException, TimeSpan remainingTime, int baseWaitTimeSecs)
         {
-            int currentRetryCount = this.GetRetryCount();
+            int currentRetryCount = this.GetRetryCount(clientId);
 
             if (currentRetryCount >= this.maximumRetryCount)
             {
