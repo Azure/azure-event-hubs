@@ -23,3 +23,4 @@ Details about how to build and use the clients and how to explore and run the sa
   to a state where Microsoft can provide full product support. Learn more in the [README for the C client](./c/readme.md)
 * The *Azure Event Hub Client for Node* is likewise in "preview" state. Learn more in the [README for the Node client](./node/README.md)
 
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
