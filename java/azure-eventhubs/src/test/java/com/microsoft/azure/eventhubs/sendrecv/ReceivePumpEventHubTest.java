@@ -76,6 +76,26 @@ public class ReceivePumpEventHubTest extends ApiTestBase
 		invokeSignal.get(3, TimeUnit.SECONDS);
 	}
 	
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetReceiveHandlerMultipleTimes() throws ServiceBusException, InterruptedException, ExecutionException, TimeoutException
+	{
+		CompletableFuture<Void> invokeSignal = new CompletableFuture<Void>();
+		receiver.setReceiveTimeout(Duration.ofSeconds(1));
+		receiver.setReceiveHandler(new InvokeOnReceiveEventValidator(invokeSignal), true);
+		
+		receiver.setReceiveHandler(new InvokeOnReceiveEventValidator(invokeSignal), true);
+	}
+	
+	@Test()
+	public void testGraceFulCloseReceivePump() throws ServiceBusException, InterruptedException, ExecutionException, TimeoutException
+	{
+		CompletableFuture<Void> invokeSignal = new CompletableFuture<Void>();
+		receiver.setReceiveTimeout(Duration.ofSeconds(1));
+		receiver.setReceiveHandler(new InvokeOnReceiveEventValidator(invokeSignal), true);
+		
+		receiver.setReceiveHandler(null).get();
+	}
+	
 	@After
 	public void cleanupTest() throws ServiceBusException
 	{

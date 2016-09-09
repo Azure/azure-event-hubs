@@ -320,7 +320,7 @@ public final class PartitionReceiver extends ClientEntity
 			}
 			else
 			{
-				if (this.receivePump != null)
+				if (this.receivePump != null && this.receivePump.isRunning())
 					throw new IllegalArgumentException(
 					"Unexpected value for parameter 'receiveHandler'. PartitionReceiver was already registered with a PartitionReceiveHandler instance. Only 1 instance can be registered.");
 
