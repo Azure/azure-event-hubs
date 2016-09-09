@@ -87,13 +87,17 @@ public class ReceivePumpEventHubTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void testGraceFulCloseReceivePump() throws ServiceBusException, InterruptedException, ExecutionException, TimeoutException
+	public void testGraceFullCloseReceivePump() throws ServiceBusException, InterruptedException, ExecutionException, TimeoutException
 	{
 		CompletableFuture<Void> invokeSignal = new CompletableFuture<Void>();
 		receiver.setReceiveTimeout(Duration.ofSeconds(1));
 		receiver.setReceiveHandler(new InvokeOnReceiveEventValidator(invokeSignal), true);
 		
 		receiver.setReceiveHandler(null).get();
+		
+		invokeSignal = new CompletableFuture<Void>();
+		receiver.setReceiveHandler(new InvokeOnReceiveEventValidator(invokeSignal), true);
+		invokeSignal.get(3, TimeUnit.SECONDS);
 	}
 	
 	@After

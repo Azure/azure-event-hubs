@@ -294,9 +294,9 @@ public final class PartitionReceiver extends ClientEntity
 	 * 
 	 * @param receiveHandler An implementation of {@link PartitionReceiveHandler}. Setting this handler to <code>null</code> will stop the receive pump.
 	 */
-	public void setReceiveHandler(final PartitionReceiveHandler receiveHandler)
+	public CompletableFuture<Void> setReceiveHandler(final PartitionReceiveHandler receiveHandler)
 	{
-		this.setReceiveHandler(receiveHandler, false);
+		return this.setReceiveHandler(receiveHandler, false);
 	}
 
 	/**
