@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.eventhubs.sendrecv;
 
 import java.io.IOException;
@@ -23,7 +27,7 @@ import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.ServiceBusException;
 
-public class ReceiveHandlerTest extends ApiTestBase
+public class ReceivePumpEventHubTest extends ApiTestBase
 {
 	static final String cgName = TestContext.getConsumerGroupName();
 	static final String partitionId = "0";
