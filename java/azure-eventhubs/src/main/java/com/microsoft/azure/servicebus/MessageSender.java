@@ -632,7 +632,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			this.underlyingFactory.deregisterForConnectionError(oldSender);
 		}
 		
-		MessageSender.this.sendLink = sender;	
+		this.sendLink = sender;	
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
