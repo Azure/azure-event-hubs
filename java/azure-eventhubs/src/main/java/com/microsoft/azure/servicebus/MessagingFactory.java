@@ -7,6 +7,7 @@ package com.microsoft.azure.servicebus;
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private final ConnectionHandler connectionHandler;
 	private final LinkedList<Link> registeredLinks;
 	private final Object reactorLock;
+	private final Hashtable<String, Session> sessionCache;
 	
 	private Reactor reactor;
 	private ReactorDispatcher reactorScheduler;
@@ -73,6 +75,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		this.reactorLock = new Object();
 		this.connectionHandler = new ConnectionHandler(this, builder.getSasKeyName(), builder.getSasKey());
 		this.openConnection = new CompletableFuture<Connection>();
+		this.sessionCache = new Hashtable<String, Session>();
 		
 		this.closeTask = new CompletableFuture<Void>();
 		this.closeTask.thenAccept(new Consumer<Void>()
@@ -139,14 +142,36 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public Session getSession(final String sessionId)
 	{
+		final Session session;
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
 		{
 			this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
+			
+			session = this.connection.session();
+
+			if (!StringUtil.isNullOrEmpty(sessionId))
+				sessionCache.put(sessionId, session);
+		}
+		else
+		{
+			if (!StringUtil.isNullOrEmpty(sessionId) && this.sessionCache.containsKey(sessionId))
+			{
+				final Session oldSession = this.sessionCache.get(sessionId);
+				if (oldSession.getLocalState() != EndpointState.CLOSED && oldSession.getRemoteState() != EndpointState.CLOSED)
+					session = oldSession;
+				else
+				{
+					session = this.connection.session();
+					sessionCache.put(sessionId, session);
+				}
+			}
+			else
+			{
+				session = this.connection.session();
+			}
 		}
 
-		final Session session = this.connection.session();
 		session.open();
-		
 		return session;
 	}
 
