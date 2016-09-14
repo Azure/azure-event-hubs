@@ -598,16 +598,12 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void createSendLink()
 	{
-		final Connection connection = this.underlyingFactory.getConnection();
-
-		final Session session = connection.session();
-		session.setOutgoingWindow(Integer.MAX_VALUE);
-		session.open();
+		final Session session = this.underlyingFactory.getSession(null);
 		BaseHandler.setHandler(session, new SessionHandler(sendPath));
 
 		final String sendLinkNamePrefix = StringUtil.getRandomString();
-		final String sendLinkName = !StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ?
-				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
+		final String sendLinkName = !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ?
+				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
 				sendLinkNamePrefix;
 		
 		final Sender sender = session.sender(sendLinkName);

@@ -22,6 +22,7 @@ import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.engine.Handler;
 import org.apache.qpid.proton.engine.HandlerException;
 import org.apache.qpid.proton.engine.Link;
+import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.reactor.Reactor;
 
 import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
@@ -36,7 +37,7 @@ import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
  * Abstracts all amqp related details and exposes AmqpConnection object
  * Manages connection life-cycle
  */
-public class MessagingFactory extends ClientEntity implements IAmqpConnection, IConnectionFactory
+public class MessagingFactory extends ClientEntity implements IAmqpConnection, ISessionProvider
 {
 	public static final Duration DefaultOperationTimeout = Duration.ofSeconds(60); 
 
@@ -136,14 +137,17 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public Connection getConnection()
+	public Session getSession(final String sessionId)
 	{
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
 		{
 			this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
 		}
 
-		return this.connection;
+		final Session session = this.connection.session();
+		session.open();
+		
+		return session;
 	}
 
 	public Duration getOperationTimeout()

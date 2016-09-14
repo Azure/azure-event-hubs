@@ -439,8 +439,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	private void createReceiveLink()
 	{	
-		Connection connection = this.underlyingFactory.getConnection();
-
 		Source source = new Source();
 		source.setAddress(receivePath);
 
@@ -448,14 +446,12 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		if (filterMap != null)
 			source.setFilter(filterMap);
 
-		final Session session = connection.session();
-		session.setIncomingCapacity(Integer.MAX_VALUE);
-		session.open();
+		final Session session = this.underlyingFactory.getSession(null);
 		BaseHandler.setHandler(session, new SessionHandler(this.receivePath));
 
 		final String receiveLinkNamePrefix = StringUtil.getRandomString();
-		final String receiveLinkName = !StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ? 
-				receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
+		final String receiveLinkName = session.getConnection() != null && !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ? 
+				receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
 				receiveLinkNamePrefix;
 		final Receiver receiver = session.receiver(receiveLinkName);
 		receiver.setSource(source);
