@@ -109,6 +109,12 @@ namespace Microsoft.Azure.EventHubs.Processor
                 this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, this.PartitionContext.PartitionId, e, "Closing Event Processor");
             }
 
+            if (reason != CloseReason.LeaseLost)
+            {
+                // Since this pump is dead, release the lease. 
+                await this.Host.LeaseManager.ReleaseLeaseAsync(this.PartitionContext.Lease);
+            }
+
             this.PumpStatus = PartitionPumpStatus.Closed;
             ProcessorEventSource.Log.PartitionPumpCloseStop(this.Host.Id, this.PartitionContext.PartitionId);
         }

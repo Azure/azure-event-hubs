@@ -81,13 +81,21 @@ namespace Microsoft.Azure.EventHubs.Processor
         async Task OpenClientsAsync() // throws ServiceBusException, IOException, InterruptedException, ExecutionException
         {
             // Create new clients
-            string startOffset = await this.PartitionContext.GetInitialOffsetAsync();
+            object startAt = await this.PartitionContext.GetInitialOffsetAsync();
             long epoch = this.Lease.Epoch;
-            ProcessorEventSource.Log.PartitionPumpCreateClientsStart(this.Host.Id, this.PartitionContext.PartitionId, epoch, startOffset);
+            ProcessorEventSource.Log.PartitionPumpCreateClientsStart(this.Host.Id, this.PartitionContext.PartitionId, epoch, startAt);
 		    this.eventHubClient = EventHubClient.Create(this.Host.ConnectionSettings);
 
             // Create new receiver and set options
-            this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, startOffset, epoch);
+            if (startAt is string)
+            {
+                this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, (string)startAt, epoch);
+            }
+            else if (startAt is DateTime)
+            {
+                this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, (DateTime)startAt, epoch);
+            }
+
             this.partitionReceiver.PrefetchCount = this.Host.EventProcessorOptions.PrefetchCount;
             
             ProcessorEventSource.Log.PartitionPumpCreateClientsStop(this.Host.Id, this.PartitionContext.PartitionId);
@@ -166,29 +174,6 @@ namespace Microsoft.Azure.EventHubs.Processor
                 }
 
                 this.eventHubPartitionPump.PumpStatus = PartitionPumpStatus.Errored;
-            }
-
-            public Task CloseAsync(Exception error)
-            {
-                if (error == null)
-                {
-                    ProcessorEventSource.Log.PartitionPumpInfo(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed");
-                }
-                else if (error is ReceiverDisconnectedException)
-                {
-                    ProcessorEventSource.Log.PartitionPumpWarning(
-                        this.eventHubPartitionPump.Host.Id,
-                        this.eventHubPartitionPump.PartitionContext.PartitionId,
-                        "PartitionReceiveHandler closed",
-                        $"{error.GetType().Name}: {error.Message}");
-                }
-                else
-                {
-                    ProcessorEventSource.Log.PartitionPumpError(this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "PartitionReceiveHandler closed", error.ToString());
-                }
-
-                this.eventHubPartitionPump.PumpStatus = PartitionPumpStatus.Errored;
-                return Task.CompletedTask;
             }
         }
     }

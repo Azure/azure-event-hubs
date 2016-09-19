@@ -171,12 +171,12 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
-        [Event(57, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Creating EventHubClient and PartitionReceiver with Epoch:{2} Offset: {3}.")]
-        public void PartitionPumpCreateClientsStart(string hostId, string partitionId, long epoch, string startOffset)
+        [Event(57, Level = EventLevel.Informational, Message = "{0}: Partition {1}: Creating EventHubClient and PartitionReceiver with Epoch:{2} StartAt:{3}.")]
+        public void PartitionPumpCreateClientsStart(string hostId, string partitionId, long epoch, object startAt)
         {
             if (IsEnabled())
             {
-                WriteEvent(57, hostId, partitionId, epoch, startOffset ?? string.Empty);
+                WriteEvent(57, hostId, partitionId, epoch, startAt ?? string.Empty);
             }
         }
 

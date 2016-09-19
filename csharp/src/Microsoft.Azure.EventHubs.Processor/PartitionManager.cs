@@ -411,6 +411,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                 }
             }
+
             return stealTheseLeases;
         }
 

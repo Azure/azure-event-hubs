@@ -75,9 +75,14 @@ namespace Microsoft.Azure.EventHubs.Processor
         public async Task<Checkpoint> GetCheckpointAsync(string partitionId)
         {
     	    AzureBlobLease lease = (AzureBlobLease)(await GetLeaseAsync(partitionId));
-            Checkpoint checkpoint = new Checkpoint(partitionId);
-            checkpoint.Offset = lease.Offset;
-    	    checkpoint.SequenceNumber = lease.SequenceNumber;
+            Checkpoint checkpoint = null;
+            if (lease != null && lease.Offset != null)
+            {
+                checkpoint = new Checkpoint(partitionId);
+                checkpoint.Offset = lease.Offset;
+                checkpoint.SequenceNumber = lease.SequenceNumber;
+            }
+
     	    return checkpoint;
         }
 
@@ -85,10 +90,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
     	    // Normally the lease will already be created, checkpoint store is initialized after lease store.
     	    AzureBlobLease lease = (AzureBlobLease)(await CreateLeaseIfNotExistsAsync(partitionId));
-            Checkpoint checkpoint = new Checkpoint(partitionId);
-            checkpoint.Offset = lease.Offset;
-    	    checkpoint.SequenceNumber = lease.SequenceNumber;
-    	    return checkpoint;
+            Checkpoint checkpoint = new Checkpoint(partitionId, lease.Offset, lease.SequenceNumber);
+
+            return checkpoint;
         }
 
         public async Task UpdateCheckpointAsync(Checkpoint checkpoint)

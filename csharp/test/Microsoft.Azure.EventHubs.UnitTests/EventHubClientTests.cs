@@ -11,9 +11,11 @@
 
     public class EventHubClientTests
     {
+        string connectionString;
+
         public EventHubClientTests()
         {
-            string connectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
+            this.connectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException("EVENTHUBCONNECTIONSTRING environment variable was not found!");
@@ -23,6 +25,61 @@
         }
 
         EventHubClient EventHubClient { get; }
+
+        [Fact]
+        async Task CloseSenderClient()
+        {
+            var pSender = this.EventHubClient.CreatePartitionSender("0");
+            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow);
+
+            WriteLine("Sending single event to partition 0");
+            var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+            await pSender.SendAsync(eventData);
+
+            WriteLine("Closing partition sender");
+            await pSender.CloseAsync();
+
+            try
+            {
+                WriteLine("Sending another event to partition 0 on the closed sender, this should fail");
+                eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+                await pSender.SendAsync(eventData);
+                throw new InvalidOperationException("Send should have failed");
+            }
+            catch (ObjectDisposedException)
+            {
+                WriteLine("Caught ObjectDisposedException as expected");
+            }
+        }
+
+        [Fact]
+        async Task CloseReceiverClient()
+        {
+            var pSender = this.EventHubClient.CreatePartitionSender("0");
+            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow);
+
+            WriteLine("Sending single event to partition 0");
+            var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+            await pSender.SendAsync(eventData);
+
+            WriteLine("Receiving the event.");
+            var events = await pReceiver.ReceiveAsync(1);
+            Assert.True(events != null && events.Count() == 1, "Failed to receive 1 event");
+
+            WriteLine("Closing partition receiver");
+            await pReceiver.CloseAsync();
+
+            try
+            {
+                WriteLine("Receiving another event from partition 0 on the closed receiver, this should fail");
+                await pReceiver.ReceiveAsync(1);
+                throw new InvalidOperationException("Receive should have failed");
+            }
+            catch (ObjectDisposedException)
+            {
+                WriteLine("Caught ObjectDisposedException as expected");
+            }
+        }
 
         [Fact]
         async Task EventHubClientSend()
@@ -242,7 +299,7 @@
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             string partitionId = "1";
-            PartitionReceiver partitionReceiver1 = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
+            PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             try
             {
@@ -253,7 +310,6 @@
                 await partitionSender.SendAsync(sendEvent);
 
                 EventWaitHandle dataReceivedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
-                EventWaitHandle handlerClosedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
                 var handler = new TestPartitionReceiveHandler();
                 handler.ErrorReceived += (s, e) => WriteLine($"TestPartitionReceiveHandler.ProcessError {e.GetType().Name}: {e.Message}");
                 handler.EventsReceived += (s, eventDatas) =>
@@ -277,30 +333,17 @@
                         }
                     }
                 };
-
-                handler.Closed += (s, error) =>
-                {
-                    WriteLine($"IPartitionReceiveHandler.CloseAsync called.");
-                    handlerClosedEvent.Set();
-                };
-
-                partitionReceiver1.SetReceiveHandler(handler);
+                
+                partitionReceiver.SetReceiveHandler(handler);
 
                 if (!dataReceivedEvent.WaitOne(TimeSpan.FromSeconds(20)))
                 {
                     throw new InvalidOperationException("Data Received Event was not signaled.");
                 }
-
-                WriteLine("Closing PartitionReceiver");
-                await partitionReceiver1.CloseAsync();
-                if (!handlerClosedEvent.WaitOne(TimeSpan.FromSeconds(20)))
-                {
-                    throw new InvalidOperationException("Handle Closed Event was not signalled.");
-                }
             }
             catch (Exception)
             {
-                await partitionReceiver1.CloseAsync();
+                await partitionReceiver.CloseAsync();
                 throw;
             }
             finally
@@ -331,7 +374,7 @@
         void ValidateRetryPolicy()
         {
             String clientId = "someClientEntity";
-            RetryPolicy retry = RetryPolicy.Default;
+            RetryPolicy retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.Default);
 
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
@@ -384,12 +427,12 @@
             TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new ServiceBusException(false), TimeSpan.FromSeconds(60));
             Assert.True(nextRetryInterval == null);
 
-            retry.ResetRetryCount(clientId);
+            retry.ResetRetryCount();
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryIntervalAfterReset = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(firstRetryInterval.Equals(firstRetryIntervalAfterReset));
 
-            retry = RetryPolicy.NoRetry;
+            retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.NoRetry);
             retry.IncrementRetryCount(clientId);
             TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(noRetryInterval == null);
@@ -442,20 +485,12 @@
 
             public event EventHandler<Exception> ErrorReceived;
 
-            public event EventHandler<Exception> Closed;
-
             public TestPartitionReceiveHandler()
             {
                 this.MaxBatchSize = 10;
             }
 
             public int MaxBatchSize { get; set; }
-
-            Task IPartitionReceiveHandler.CloseAsync(Exception error)
-            {
-                this.Closed?.Invoke(this, error);
-                return Task.CompletedTask;
-            }
 
             Task IPartitionReceiveHandler.ProcessErrorAsync(Exception error)
             {

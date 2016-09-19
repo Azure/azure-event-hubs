@@ -45,9 +45,9 @@ namespace Microsoft.Azure.EventHubs.Amqp
         protected override Task OnCloseAsync()
         {
             // Close any ReceiveHandler (this is safe if there is none) and the ReceiveLinkManager in parallel.
-            return Task.WhenAll(
-                this.ReceiveHandlerCloseAsync(null),
-                this.ReceiveLinkManager.CloseAsync());
+            this.ReceiveHandlerClose();
+            this.clientLinkManager.Close();
+            return this.ReceiveLinkManager.CloseAsync();
         }
 
         protected override async Task<IList<EventData>> OnReceiveAsync(int maxMessageCount, TimeSpan waitTime)
@@ -76,7 +76,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                             throw receiveLink.TerminalException;
                         }
 
-                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                        this.retryPolicy.ResetRetryCount();
 
                         if (hasMessages && amqpMessages != null)
                         {
@@ -127,8 +127,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
             {
                 if (this.receiveHandler != null)
                 {
-                    // Start closing the old receive handler (but don't wait).
-                    this.receiveHandler.CloseAsync(null); // .Fork();
+                    // Notify existing handler first (but don't wait).
+                    this.receiveHandler.ProcessErrorAsync(new OperationCanceledException("New handler has registered for this receiver.")); // .Fork();
                 }
 
                 this.receiveHandler = newReceiveHandler;
@@ -270,9 +270,11 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
         async Task ReceivePumpAsync(CancellationToken cancellationToken)
         {
+            // Loop until pump is shutdown or an error is hit.
             while (!cancellationToken.IsCancellationRequested)
             {
                 IEnumerable<EventData> receivedEvents;
+
                 try
                 {
                     int batchSize;
@@ -293,25 +295,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 }
                 catch (Exception e)
                 {
-                    ServiceBusException serviceBusException = e as ServiceBusException;
-                    if (serviceBusException != null && serviceBusException.IsTransient)
-                    {
-                        try
-                        {
-                            await this.ReceiveHandlerProcessErrorAsync(e);
-                            continue;
-                        }
-                        catch (Exception userCodeError)
-                        {
-                            await this.ReceiveHandlerCloseAsync(userCodeError);
-                            return;
-                        }
-                    }
-					else
-					{
-                        await this.ReceiveHandlerCloseAsync(e);
-                        return;
-                    }
+                    await this.ReceiveHandlerProcessErrorAsync(e);
+                    break;
                 }
 
                 try
@@ -320,20 +305,18 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 }
                 catch (Exception userCodeError)
                 {
-                    await this.ReceiveHandlerCloseAsync(userCodeError);
-                    return;
+                    await this.ReceiveHandlerProcessErrorAsync(userCodeError);
+                    break;
                 }
             }
 
-            // Shutting down gracefully
-            await this.ReceiveHandlerCloseAsync(null);
+            this.ReceiveHandlerClose();
         }
 
         // Encapsulates taking the receivePumpLock, checking this.receiveHandler for null,
         // calls this.receiveHandler.CloseAsync (starting this operation inside the receivePumpLock).
-        Task ReceiveHandlerCloseAsync(Exception error)
+        void ReceiveHandlerClose()
         {
-            Task closeTask = null;
             lock (this.receivePumpLock)
             {
                 if (this.receiveHandler != null)
@@ -346,13 +329,9 @@ namespace Microsoft.Azure.EventHubs.Amqp
                         this.receivePumpTask = null;
                     }
 
-                    var receiveHandlerToClose = this.receiveHandler;
                     this.receiveHandler = null;
-                    closeTask = receiveHandlerToClose.CloseAsync(error);
                 }
             }
-
-            return closeTask ?? Task.CompletedTask;
         }
 
         // Encapsulates taking the receivePumpLock, checking this.receiveHandler for null,

@@ -87,26 +87,43 @@ namespace Microsoft.Azure.EventHubs.Processor
             }
         }    
 
-        internal async Task<string> GetInitialOffsetAsync() // throws InterruptedException, ExecutionException
+        internal async Task<object> GetInitialOffsetAsync() // throws InterruptedException, ExecutionException
         {
-            Func<string, string> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
-    	    if (initialOffsetProvider != null)
-    	    {
+            Checkpoint startingCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(this.PartitionId);
+            Object startAt = null;
+
+            if (startingCheckpoint == null)
+            {
+                // No checkpoint was ever stored. Use the initialOffsetProvider instead.
+                Func<string, object> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
                 ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Calling user-provided initial offset provider");
-    		    this.offset = initialOffsetProvider(this.PartitionId);
-    		    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.offset}/{this.sequenceNumber}");
+                startAt = initialOffsetProvider(this.PartitionId);
+
+                if (startAt is string)
+                {
+                    this.offset = (string)startAt;
+                    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.offset}/{this.sequenceNumber}");
+                }
+                else if (startAt is DateTime)
+                {
+                    // can't set offset/sequenceNumber
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial timestamp provided: {(DateTime)startAt}");
+                }
+                else
+                {
+                    throw new ArgumentException("Unexpected object type returned by user-provided initialOffsetProvider");
+                }
     	    }
     	    else
     	    {
-	    	    Checkpoint startingCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(this.PartitionId);
-
                 this.offset = startingCheckpoint.Offset;
 	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
                 ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting offset/sequenceNumber: {this.offset}/{this.sequenceNumber}");
+                startAt = this.offset;
             }
 
-    	    return this.offset;
+    	    return startAt;
         }
 
         /// <summary>
@@ -151,8 +168,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             try
             {
                 Checkpoint inStoreCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(checkpoint.PartitionId);
-                if (checkpoint.SequenceNumber >= inStoreCheckpoint.SequenceNumber)
+                if (inStoreCheckpoint == null || checkpoint.SequenceNumber >= inStoreCheckpoint.SequenceNumber)
                 {
+                    if (inStoreCheckpoint == null)
+                    {
+                        inStoreCheckpoint = await this.host.CheckpointManager.CreateCheckpointIfNotExistsAsync(checkpoint.PartitionId);
+                    }
+
                     inStoreCheckpoint.Offset = checkpoint.Offset;
                     inStoreCheckpoint.SequenceNumber = checkpoint.SequenceNumber;
                     await this.host.CheckpointManager.UpdateCheckpointAsync(inStoreCheckpoint);
@@ -161,7 +183,6 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     string msg = $"Ignoring out of date checkpoint with offset {checkpoint.Offset}/sequence number {checkpoint.SequenceNumber}" +
                             $" because current persisted checkpoint has higher offset {inStoreCheckpoint.Offset}/sequence number {inStoreCheckpoint.SequenceNumber}";
-
                     ProcessorEventSource.Log.PartitionPumpError(this.host.Id, checkpoint.PartitionId, msg);
                     throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
                 }
