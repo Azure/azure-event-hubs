@@ -15,7 +15,7 @@ namespace Microsoft.Azure.EventHubs
     {
         EventDataSender innerSender;
 
-        internal EventHubClient(ServiceBusConnectionSettings connectionSettings)
+        internal EventHubClient(EventHubsConnectionSettings connectionSettings)
             : base($"{nameof(EventHubClient)}{ClientEntity.GetNextId()}({connectionSettings.EntityPath})")
         {
             this.ConnectionSettings = connectionSettings;
@@ -24,7 +24,7 @@ namespace Microsoft.Azure.EventHubs
 
         public string EventHubName { get; }
 
-        public ServiceBusConnectionSettings ConnectionSettings { get; }
+        public EventHubsConnectionSettings ConnectionSettings { get; }
 
         protected object ThisLock { get; } = new object();
 
@@ -54,11 +54,11 @@ namespace Microsoft.Azure.EventHubs
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(connectionString));
             }
 
-            var connectionSettings = new ServiceBusConnectionSettings(connectionString);
+            var connectionSettings = new EventHubsConnectionSettings(connectionString);
             return Create(connectionSettings);
         }
 
-        public static EventHubClient Create(ServiceBusConnectionSettings connectionSettings)
+        public static EventHubClient Create(EventHubsConnectionSettings connectionSettings)
         {
             if (connectionSettings == null)
             {

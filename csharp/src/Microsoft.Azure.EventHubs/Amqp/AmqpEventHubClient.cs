@@ -20,7 +20,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
         const string CbsSaslMechanismName = "MSSBCBS";
         AmqpServiceClient<IAmqpEntityManagement> managementServiceClient; // serviceClient that handles management calls
 
-        public AmqpEventHubClient(ServiceBusConnectionSettings connectionSettings)
+        public AmqpEventHubClient(EventHubsConnectionSettings connectionSettings)
             : base(connectionSettings)
         {
             this.ContainerId = Guid.NewGuid().ToString("N");

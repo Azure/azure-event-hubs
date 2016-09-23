@@ -8,14 +8,14 @@ namespace Microsoft.Azure.EventHubs
     /// <summary>
     /// Exception for signaling general communication errors related to messaging operations.
     /// </summary>
-    public class ServiceBusCommunicationException : ServiceBusException
+    public class EventHubsCommunicationException : EventHubsException
     {
-        protected internal ServiceBusCommunicationException(string message)
+        protected internal EventHubsCommunicationException(string message)
             : this(message, null)
         {
         }
 
-        protected internal ServiceBusCommunicationException(string message, Exception innerException)
+        protected internal EventHubsCommunicationException(string message, Exception innerException)
             : base(true, message, innerException)
         {
         }

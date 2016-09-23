@@ -47,7 +47,7 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="data">the <see cref="EventData"/> to be sent.</param>
         /// <returns>A Task that completes when the send operations is done.</returns>
         /// <exception cref="PayloadSizeExceedeedException">the total size of the <see cref="EventData"/> exceeds a pre-defined limit set by the service. Default is 256k bytes.</exception>
-        /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
+        /// <exception cref="EventHubsException">Event Hubs service encountered problems during the operation.</exception>
         public Task SendAsync(EventData eventData)
         {
             if (eventData == null)
@@ -96,7 +96,7 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="eventDatas">batch of events to send to EventHub</param>
         /// <returns>a Task that completes when the send operation is done.</returns>
         /// <exception cref="PayloadSizeExceededException">the total size of the <see cref="EventData"/> exceeds a pre-defined limit set by the service. Default is 256k bytes.</exception>
-        /// <exception cref="ServiceBusException">Service Bus service encountered problems during the operation.</exception>
+        /// <exception cref="EventHubsException">Event Hubs service encountered problems during the operation.</exception>
         public async Task SendAsync(IEnumerable<EventData> eventDatas)
         {
             if (eventDatas == null)
