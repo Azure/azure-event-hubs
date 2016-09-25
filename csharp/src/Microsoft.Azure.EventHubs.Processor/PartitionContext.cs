@@ -22,6 +22,28 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.ThisLock = new object();
         }
 
+        /// <summary>
+        /// Returns the current offset of the partition.
+        /// </summary>
+        public string Offset
+        {
+            get
+            {
+                return this.offset;
+            }
+        }
+
+        /// <summary>
+        /// Returns the current sequence number of the partition.
+        /// </summary>
+        public long SequenceNumber
+        {
+            get
+            {
+                return this.sequenceNumber;
+            }
+        }
+
         public string ConsumerGroupName { get; }
 
         public string EventHubPath { get; }
@@ -82,23 +104,23 @@ namespace Microsoft.Azure.EventHubs.Processor
         internal async Task<string> GetInitialOffsetAsync() // throws InterruptedException, ExecutionException
         {
             Func<string, string> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
-    	    if (initialOffsetProvider != null)
-    	    {
+            if (initialOffsetProvider != null)
+            {
                 ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Calling user-provided initial offset provider");
-    		    this.offset = initialOffsetProvider(this.PartitionId);
-    		    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
+                this.offset = initialOffsetProvider(this.PartitionId);
+                this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
                 ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.offset}/{this.sequenceNumber}");
-    	    }
-    	    else
-    	    {
-	    	    Checkpoint startingCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(this.PartitionId);
+            }
+            else
+            {
+                Checkpoint startingCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(this.PartitionId);
 
                 this.offset = startingCheckpoint.Offset;
-	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
+                this.sequenceNumber = startingCheckpoint.SequenceNumber;
                 ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting offset/sequenceNumber: {this.offset}/{this.sequenceNumber}");
             }
 
-    	    return this.offset;
+            return this.offset;
         }
 
         /// <summary>
@@ -107,11 +129,11 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <exception cref="ArgumentOutOfRangeException">If this.sequenceNumber is less than the last checkpointed value</exception>
         public Task CheckpointAsync()
         {
-    	    // Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
-    	    // instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
-    	    // task runs, the fields in this object may have changed, but we should only write to store what the user
-    	    // has directed us to write.
-    	    Checkpoint capturedCheckpoint;
+            // Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
+            // instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
+            // task runs, the fields in this object may have changed, but we should only write to store what the user
+            // has directed us to write.
+            Checkpoint capturedCheckpoint;
             lock(this.ThisLock)
             {
                 capturedCheckpoint = new Checkpoint(this.PartitionId, this.offset, this.sequenceNumber);
