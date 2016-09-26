@@ -10,8 +10,6 @@ namespace Microsoft.Azure.EventHubs.Processor
     public class PartitionContext
     {
         readonly EventProcessorHost host;
-        string offset = PartitionReceiver.StartOfStream;
-        long sequenceNumber = 0;
 
         internal PartitionContext(EventProcessorHost host, string partitionId, string eventHubPath, string consumerGroupName)
         {
@@ -20,29 +18,19 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.EventHubPath = eventHubPath;
             this.ConsumerGroupName = consumerGroupName;
             this.ThisLock = new object();
+            this.SequenceNumber = 0;
+            this.Offset = PartitionReceiver.StartOfStream;
         }
 
         /// <summary>
-        /// Returns the current offset of the partition.
+        /// Returns the current Offset of the partition.
         /// </summary>
-        public string Offset
-        {
-            get
-            {
-                return this.offset;
-            }
-        }
+        public string Offset { get; private set; }
 
         /// <summary>
         /// Returns the current sequence number of the partition.
         /// </summary>
-        public long SequenceNumber
-        {
-            get
-            {
-                return this.sequenceNumber;
-            }
-        }
+        public long SequenceNumber { get; private set; }
 
         public string ConsumerGroupName { get; }
 
@@ -56,14 +44,14 @@ namespace Microsoft.Azure.EventHubs.Processor
         object ThisLock { get; }
 
         /// <summary>
-        /// Updates the offset/sequenceNumber in the PartitionContext with the values in the received EventData object.
+        /// Updates the Offset/SequenceNumber in the PartitionContext with the values in the received EventData object.
         ///  
-        /// <para>Since offset is a string it cannot be compared easily, but sequenceNumber is checked. The new sequenceNumber must be
-        /// at least the same as the current value or the entire assignment is aborted. It is assumed that if the new sequenceNumber
-        /// is equal or greater, the new offset will be as well.</para>
+        /// <para>Since Offset is a string it cannot be compared easily, but SequenceNumber is checked. The new SequenceNumber must be
+        /// at least the same as the current value or the entire assignment is aborted. It is assumed that if the new SequenceNumber
+        /// is equal or greater, the new Offset will be as well.</para>
         /// </summary>
-        /// <param name="eventData">A received EventData with valid offset and sequenceNumber</param>
-        /// <exception cref="ArgumentOutOfRangeException">If the sequenceNumber in the provided event is less than the current value</exception>
+        /// <param name="eventData">A received EventData with valid Offset and SequenceNumber</param>
+        /// <exception cref="ArgumentOutOfRangeException">If the SequenceNumber in the provided event is less than the current value</exception>
         public void SetOffsetAndSequenceNumber(EventData eventData)
         {
             if (eventData == null)
@@ -75,28 +63,28 @@ namespace Microsoft.Azure.EventHubs.Processor
         }
 
         /// <summary>
-        /// Updates the offset/sequenceNumber in the PartitionContext.
+        /// Updates the Offset/SequenceNumber in the PartitionContext.
         /// 
         /// <para>These two values are closely tied and must be updated in an atomic fashion, hence the combined setter.
-        /// Since offset is a string it cannot be compared easily, but sequenceNumber is checked. The new sequenceNumber must be
-        /// at least the same as the current value or the entire assignment is aborted. It is assumed that if the new sequenceNumber
-        /// is equal or greater, the new offset will be as well.</para>
+        /// Since Offset is a string it cannot be compared easily, but SequenceNumber is checked. The new SequenceNumber must be
+        /// at least the same as the current value or the entire assignment is aborted. It is assumed that if the new SequenceNumber
+        /// is equal or greater, the new Offset will be as well.</para>
         /// </summary>
-        /// <param name="offset">New offset value</param>
-        /// <param name="sequenceNumber">New sequenceNumber value </param>
-        /// <exception cref="ArgumentOutOfRangeException">If the sequenceNumber in the provided event is less than the current value</exception>
-        public void SetOffsetAndSequenceNumber(string offset, long sequenceNumber)
+        /// <param name="Offset">New Offset value</param>
+        /// <param name="SequenceNumber">New SequenceNumber value </param>
+        /// <exception cref="ArgumentOutOfRangeException">If the SequenceNumber in the provided event is less than the current value</exception>
+        public void SetOffsetAndSequenceNumber(string Offset, long SequenceNumber)
         {
             lock(this.ThisLock)
             {
-                if (sequenceNumber >= this.sequenceNumber)
+                if (SequenceNumber >= this.SequenceNumber)
                 {
-                    this.offset = offset;
-                    this.sequenceNumber = sequenceNumber;
+                    this.Offset = Offset;
+                    this.SequenceNumber = SequenceNumber;
                 }
                 else
                 {
-                    throw new ArgumentOutOfRangeException("offset/sequenceNumber", $"New offset {offset}/{sequenceNumber} is less than previous {this.offset}/{this.sequenceNumber}");
+                    throw new ArgumentOutOfRangeException("Offset/SequenceNumber", $"New Offset {Offset}/{SequenceNumber} is less than previous {this.Offset}/{this.SequenceNumber}");
                 }
             }
         }    
@@ -106,48 +94,48 @@ namespace Microsoft.Azure.EventHubs.Processor
             Func<string, string> initialOffsetProvider = this.host.EventProcessorOptions.InitialOffsetProvider;
             if (initialOffsetProvider != null)
             {
-                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Calling user-provided initial offset provider");
-                this.offset = initialOffsetProvider(this.PartitionId);
-                this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.offset}/{this.sequenceNumber}");
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, "Calling user-provided initial Offset provider");
+                this.Offset = initialOffsetProvider(this.PartitionId);
+                this.SequenceNumber = 0; // TODO we use SequenceNumber to check for regression of Offset, 0 could be a problem until it gets updated from an event
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial Offset/SequenceNumber provided: {this.Offset}/{this.SequenceNumber}");
             }
             else
             {
                 Checkpoint startingCheckpoint = await this.host.CheckpointManager.GetCheckpointAsync(this.PartitionId);
 
-                this.offset = startingCheckpoint.Offset;
-                this.sequenceNumber = startingCheckpoint.SequenceNumber;
-                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting offset/sequenceNumber: {this.offset}/{this.sequenceNumber}");
+                this.Offset = startingCheckpoint.Offset;
+                this.SequenceNumber = startingCheckpoint.SequenceNumber;
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting Offset/SequenceNumber: {this.Offset}/{this.SequenceNumber}");
             }
 
-            return this.offset;
+            return this.Offset;
         }
 
         /// <summary>
-        /// Writes the current offset and sequenceNumber to the checkpoint store via the checkpoint manager.
+        /// Writes the current Offset and SequenceNumber to the checkpoint store via the checkpoint manager.
         /// </summary>
-        /// <exception cref="ArgumentOutOfRangeException">If this.sequenceNumber is less than the last checkpointed value</exception>
+        /// <exception cref="ArgumentOutOfRangeException">If this.SequenceNumber is less than the last checkpointed value</exception>
         public Task CheckpointAsync()
         {
-            // Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
+            // Capture the current Offset and SequenceNumber. Synchronize to be sure we get a matched pair
             // instead of catching an update halfway through. Do the capturing here because by the time the checkpoint
             // task runs, the fields in this object may have changed, but we should only write to store what the user
             // has directed us to write.
             Checkpoint capturedCheckpoint;
             lock(this.ThisLock)
             {
-                capturedCheckpoint = new Checkpoint(this.PartitionId, this.offset, this.sequenceNumber);
+                capturedCheckpoint = new Checkpoint(this.PartitionId, this.Offset, this.SequenceNumber);
             }
 
             return this.PersistCheckpointAsync(capturedCheckpoint);
         }
 
         /// <summary>
-        /// Stores the offset and sequenceNumber from the provided received EventData instance, then writes those
+        /// Stores the Offset and SequenceNumber from the provided received EventData instance, then writes those
         /// values to the checkpoint store via the checkpoint manager.
         /// </summary>
-        /// <param name="eventData">A received EventData with valid offset and sequenceNumber</param>
-        /// <exception cref="ArgumentOutOfRangeException">If the sequenceNumber is less than the last checkpointed value</exception>
+        /// <param name="eventData">A received EventData with valid Offset and SequenceNumber</param>
+        /// <exception cref="ArgumentOutOfRangeException">If the SequenceNumber is less than the last checkpointed value</exception>
         public Task CheckpointAsync(EventData eventData)
         {
             this.SetOffsetAndSequenceNumber(eventData.SystemProperties.Offset, eventData.SystemProperties.SequenceNumber);
@@ -156,7 +144,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public override string ToString()
         {
-            return $"PartitionContext({this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.sequenceNumber})";
+            return $"PartitionContext({this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.SequenceNumber})";
         }
 
         async Task PersistCheckpointAsync(Checkpoint checkpoint) // throws ArgumentOutOfRangeException, InterruptedException, ExecutionException
@@ -176,7 +164,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     string msg = $"Ignoring out of date checkpoint {checkpoint.Offset}/{checkpoint.SequenceNumber}" +
                             $" because store is at {inStoreCheckpoint.Offset}/{inStoreCheckpoint.SequenceNumber}";
                     ProcessorEventSource.Log.PartitionPumpError(this.host.Id, checkpoint.PartitionId, msg);
-                    throw new ArgumentOutOfRangeException("offset/sequenceNumber", msg);
+                    throw new ArgumentOutOfRangeException("Offset/SequenceNumber", msg);
                 }
             }
             catch (Exception e)
