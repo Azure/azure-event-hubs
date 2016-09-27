@@ -50,7 +50,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// </summary>
         /// <param name="eventData">A received EventData with valid offset and sequenceNumber</param>
         /// <exception cref="ArgumentOutOfRangeException">If the sequenceNumber in the provided event is less than the current value</exception>
-        public void SetOffsetAndSequenceNumber(EventData eventData)
+        internal void SetOffsetAndSequenceNumber(EventData eventData)
         {
             if (eventData == null)
             {
@@ -71,7 +71,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <param name="offset">New offset value</param>
         /// <param name="sequenceNumber">New sequenceNumber value </param>
         /// <exception cref="ArgumentOutOfRangeException">If the sequenceNumber in the provided event is less than the current value</exception>
-        public void SetOffsetAndSequenceNumber(string offset, long sequenceNumber)
+        void SetOffsetAndSequenceNumber(string offset, long sequenceNumber)
         {
             lock(this.ThisLock)
             {
