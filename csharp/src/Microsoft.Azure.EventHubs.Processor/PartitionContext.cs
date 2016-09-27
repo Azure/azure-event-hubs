@@ -23,12 +23,12 @@ namespace Microsoft.Azure.EventHubs.Processor
         }
 
         /// <summary>
-        /// Returns the current Offset of the partition.
+        /// Returns the current Offset from the last checkpoint of the partition.
         /// </summary>
         public string Offset { get; private set; }
 
         /// <summary>
-        /// Returns the current sequence number of the partition.
+        /// Returns the current sequence number from the last checkpoint of the partition.
         /// </summary>
         public long SequenceNumber { get; private set; }
 
