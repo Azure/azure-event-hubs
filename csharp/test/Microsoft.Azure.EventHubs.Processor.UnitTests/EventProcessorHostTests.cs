@@ -99,7 +99,7 @@
                     processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
                     processor.OnProcessEvents += (_, eventsArgs) =>
                     {
-                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                         WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                         if (eventCount > 0)
                         {
@@ -174,7 +174,7 @@
                 processor.OnOpen += (_, partitionContext) => WriteLine($"Partition {partitionId} TestEventProcessor opened");
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount == 0)
                     {
@@ -230,7 +230,7 @@
                 string partitionId = createArgs.Item1.PartitionId;
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount == 0)
                     {
@@ -277,7 +277,7 @@
                 processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount > 0)
                     {
@@ -457,6 +457,42 @@
             Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
         }
 
+        /// <summary>
+        /// If a host doesn't checkpoint on the processed events and shuts down, new host should start processing from the beginning.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        async Task NoCheckpointThenNewHostReadsFromStart()
+        {
+            // Generate a new lease container name that will use through out the test.
+            string leaseContainerName = Guid.NewGuid().ToString();
+
+            // Consume all messages with first host.
+            var eventProcessorHostFirst = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents1 = await RunGenericScenario(eventProcessorHostFirst, checkPointEvents: false);
+            var totalEventsFromFirstHost = receivedEvents1.Sum(part => part.Value.Count);
+
+            // Seconds time we initiate a host, it should pick from where previous host left.
+            // In other words, it shouldn't start receiving from start of the stream.
+            var eventProcessorHostSecond = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents2 = await RunGenericScenario(eventProcessorHostSecond);
+            var totalEventsFromSecondHost = receivedEvents2.Sum(part => part.Value.Count);
+
+            // Second host should have received +partition-count messages.
+            Assert.True(totalEventsFromFirstHost + PartitionIds.Count() == totalEventsFromSecondHost,
+                $"Second host received {receivedEvents2} events where as first host receive {receivedEvents1} events.");
+        }
+
         async Task<Dictionary<string, EventData>> SendAndReceiveSingleEvent()
         {
             // Send single event to each partition.
@@ -496,11 +532,10 @@
             return lastEvents.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
-        async Task<Dictionary<string, List<EventData>>> RunGenericScenario(EventProcessorHost eventProcessorHost, EventProcessorOptions epo = null)
+        async Task<Dictionary<string, List<EventData>>> RunGenericScenario(EventProcessorHost eventProcessorHost,
+            EventProcessorOptions epo = null, int totalNumberOfEventsToSend = 1, bool checkPointEvents = true)
         {
             var receivedEvents = new ConcurrentDictionary<string, List<EventData>>();
-
-            WriteLine($"EventHub has {PartitionIds.Length} partitions");
 
             if (epo == null)
             {
@@ -522,7 +557,7 @@
                     processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
                     processor.OnProcessEvents += (_, eventsArgs) =>
                     {
-                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                         WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                         if (eventCount > 0)
                         {
@@ -533,19 +568,24 @@
                                 events = new List<EventData>();
                             }
 
-                            events.AddRange(eventsArgs.Item2);
+                            events.AddRange(eventsArgs.Item2.events);
                             receivedEvents[partitionId] = events;
                         }
+
+                        eventsArgs.Item2.checkPointLastEvent = checkPointEvents;
                     };
                 };
 
                 await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, epo);
 
-                WriteLine($"Sending an event to each partition");
+                WriteLine($"Sending {totalNumberOfEventsToSend} event(s) to each partition");
                 var sendTasks = new List<Task>();
                 foreach (var partitionId in PartitionIds)
                 {
-                    sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+                    for (int i = 0; i < totalNumberOfEventsToSend; i++)
+                    {
+                        sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+                    }
                 }
 
                 await Task.WhenAll(sendTasks);
@@ -610,7 +650,7 @@
         {
             public event EventHandler<PartitionContext> OnOpen;
             public event EventHandler<Tuple<PartitionContext, CloseReason>> OnClose;
-            public event EventHandler<Tuple<PartitionContext, IEnumerable<EventData>>> OnProcessEvents;
+            public event EventHandler<Tuple<PartitionContext, ReceivedEventArgs>> OnProcessEvents;
             public event EventHandler<Tuple<PartitionContext, Exception>> OnProcessError;
 
             public TestEventProcessor()
@@ -631,9 +671,11 @@
 
             Task IEventProcessor.ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> events)
             {
-                this.OnProcessEvents?.Invoke(this, new Tuple<PartitionContext, IEnumerable<EventData>>(context, events));
+                var eventsArgs = new ReceivedEventArgs();
+                eventsArgs.events = events;
+                this.OnProcessEvents?.Invoke(this, new Tuple<PartitionContext, ReceivedEventArgs>(context, eventsArgs));
                 EventData lastEvent = events?.LastOrDefault();
-                if (lastEvent != null)
+                if (eventsArgs.checkPointLastEvent && lastEvent != null)
                 {
                     return context.CheckpointAsync(lastEvent);
                 }
@@ -658,6 +700,12 @@
                 this.OnCreateProcessor?.Invoke(this, new Tuple<PartitionContext, TestEventProcessor>(context, processor));
                 return processor;
             }
+        }
+
+        class ReceivedEventArgs
+        {
+            public IEnumerable<EventData> events;
+            public bool checkPointLastEvent = true;
         }
     }
 }
