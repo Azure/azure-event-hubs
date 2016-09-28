@@ -8,7 +8,7 @@ namespace Microsoft.Azure.EventHubs
     /// <summary>
     /// The exception that is thrown when a server is busy.  Callers should wait a while and retry the operation.
     /// </summary>
-    public sealed class ServerBusyException : ServiceBusException
+    public sealed class ServerBusyException : EventHubsException
     {
         public ServerBusyException(string message)
             : this(message, null)

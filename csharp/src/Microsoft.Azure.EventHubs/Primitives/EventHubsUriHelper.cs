@@ -5,7 +5,7 @@ namespace Microsoft.Azure.EventHubs
 {
     using System;
 
-    static class ServiceBusUriHelper
+    static class EventHubsUriHelper
     {
         internal static string NormalizeUri(string uri, string scheme, bool stripQueryParameters = true, bool stripPath = false, bool ensureTrailingSlash = false)
         {

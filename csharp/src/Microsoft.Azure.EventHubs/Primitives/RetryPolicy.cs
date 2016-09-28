@@ -51,9 +51,9 @@ namespace Microsoft.Azure.EventHubs
                 throw new ArgumentNullException("exception");
             }
 
-            if (exception is ServiceBusException)
+            if (exception is EventHubsException)
             {
-                return ((ServiceBusException)exception).IsTransient;
+                return ((EventHubsException)exception).IsTransient;
             }
 
             return false;

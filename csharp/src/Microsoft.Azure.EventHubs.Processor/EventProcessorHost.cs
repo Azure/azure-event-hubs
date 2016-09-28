@@ -69,7 +69,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             this.initializeLeaseManager = true;
         }
-
+    
         /// <summary>
         /// Create a new host to process events from an Event Hub.
         /// 
@@ -141,7 +141,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// using ConnectionStringBuilder, so it's not clear that there's any value to making this
         /// string accessible.</para>
         /// </summary>
-        internal ServiceBusConnectionSettings ConnectionSettings { get; private set; }
+        internal EventHubsConnectionSettings ConnectionSettings { get; private set; }
 
         public string EventHubPath { get; }
 
@@ -216,7 +216,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                this.ConnectionSettings = new ServiceBusConnectionSettings(this.eventHubConnectionString);
+                this.ConnectionSettings = new EventHubsConnectionSettings(this.eventHubConnectionString);
                 this.ConnectionSettings.OperationTimeout = processorOptions.ReceiveTimeout;
 
                 if (this.initializeLeaseManager)
@@ -249,13 +249,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             try
             {
                 await this.PartitionManager.StopAsync();
-		    }
+            }
             catch (Exception e)
             {
                 // Log the failure but nothing really to do about it.
                 ProcessorEventSource.Log.EventProcessorHostCloseError(this.Id, e.ToString());
                 throw;
-		    }
+            }
             finally
             {
                 ProcessorEventSource.Log.EventProcessorHostCloseStop(this.Id);

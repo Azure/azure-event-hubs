@@ -424,7 +424,7 @@
             Assert.True(seventhRetryInterval?.TotalMilliseconds > sixthRetryInterval?.TotalMilliseconds);
 
             retry.IncrementRetryCount(clientId);
-            TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new ServiceBusException(false), TimeSpan.FromSeconds(60));
+            TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new EventHubsException(false), TimeSpan.FromSeconds(60));
             Assert.True(nextRetryInterval == null);
 
             retry.ResetRetryCount();

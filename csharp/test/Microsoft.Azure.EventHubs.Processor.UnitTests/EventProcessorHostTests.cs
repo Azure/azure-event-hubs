@@ -13,7 +13,7 @@
 
     public class EventProcessorHostTests
     {
-        ServiceBusConnectionSettings ConnectionSettings;
+        EventHubsConnectionSettings ConnectionSettings;
         string StorageConnectionString;
         string EventHubConnectionString;
         string LeaseContainerName;
@@ -33,7 +33,7 @@
                 throw new InvalidOperationException("EVENTPROCESSORSTORAGECONNECTIONSTRING environment variable was not found!");
             }
 
-            this.ConnectionSettings = new ServiceBusConnectionSettings(eventHubConnectionString);
+            this.ConnectionSettings = new EventHubsConnectionSettings(eventHubConnectionString);
             this.StorageConnectionString = storageConnectionString;
             this.EventHubConnectionString = eventHubConnectionString;
 
@@ -610,7 +610,7 @@
             return receivedEvents.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
-        async Task<string[]> GetPartitionIdsAsync(ServiceBusConnectionSettings connectionSettings)
+        async Task<string[]> GetPartitionIdsAsync(EventHubsConnectionSettings connectionSettings)
         {
             var eventHubClient = EventHubClient.Create(connectionSettings);
             try
@@ -624,7 +624,7 @@
             }
         }
 
-        async Task SendToPartitionAsync(string partitionId, string messageBody, ServiceBusConnectionSettings connectionSettings)
+        async Task SendToPartitionAsync(string partitionId, string messageBody, EventHubsConnectionSettings connectionSettings)
         {
             var eventHubClient = EventHubClient.Create(connectionSettings);
             try
