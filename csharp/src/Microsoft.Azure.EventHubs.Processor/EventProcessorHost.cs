@@ -25,7 +25,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// Azure Storage account specified by the storageConnectionString parameter is used by the built-in
         /// managers to record leases and checkpoints.
         /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
+        /// <param name="namespaceName">The name of the Event Hubs namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
         /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
         /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
@@ -54,7 +54,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <para>This overload of the constructor uses the default, built-in lease and checkpoint managers, but
         /// uses a non-default storage container name. The first parameters are the same as the other overloads.</para>
         /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
+        /// <param name="namespaceName">The name of the Event Hubs namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
         /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
         /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
@@ -98,7 +98,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <para>This overload of the constructor allows the caller to provide their own lease and checkpoint
         /// managers. The first parameters are the same as other overloads.</para>
         /// </summary>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
+        /// <param name="namespaceName">The name of the Event Hubs namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
         /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
         /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
@@ -134,7 +134,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// information, such as machine name, in the processor host name, it is best to stick to those.</para>
         /// </summary>
         /// <param name="hostName">Name of the processor host. MUST BE UNIQUE. Strongly recommend including a Guid to ensure uniqueness.</param>
-        /// <param name="namespaceName">The name of the Service Bus namespace in which the Event Hub exists.</param>
+        /// <param name="namespaceName">The name of the Event Hubs namespace in which the Event Hub exists.</param>
         /// <param name="eventHubPath">The path of the Event Hub.</param>
         /// <param name="sharedAccessKeyName">The name of the shared access key to use for authn/authz.</param>
         /// <param name="sharedAccessKey">The shared access key (base64 encoded)</param>
@@ -191,7 +191,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// using ConnectionStringBuilder, so it's not clear that there's any value to making this
         /// string accessible.</para>
         /// </summary>
-        internal ServiceBusConnectionSettings ConnectionSettings { get; private set; }
+        internal EventHubsConnectionSettings ConnectionSettings { get; private set; }
 
         public string EventHubPath { get; }
 
@@ -266,7 +266,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                this.ConnectionSettings = new ServiceBusConnectionSettings(
+                this.ConnectionSettings = new EventHubsConnectionSettings(
                     this.namespaceName,
                     this.EventHubPath,
                     this.sharedAccessKeyName,
@@ -304,13 +304,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             try
             {
                 await this.PartitionManager.StopAsync();
-		    }
+            }
             catch (Exception e)
             {
                 // Log the failure but nothing really to do about it.
                 ProcessorEventSource.Log.EventProcessorHostCloseError(this.Id, e.ToString());
                 throw;
-		    }
+            }
             finally
             {
                 ProcessorEventSource.Log.EventProcessorHostCloseStop(this.Id);

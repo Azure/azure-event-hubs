@@ -8,28 +8,28 @@ namespace Microsoft.Azure.EventHubs
     using Microsoft.Azure.EventHubs.Amqp;
 
     /// <summary>
-    /// ServiceBusConnectionSettings can be used to construct a connection string which can establish communication with ServiceBus entities.
+    /// EventHubsConnectionSettings can be used to construct a connection string which can establish communication with Event Hubs entities.
     /// It can also be used to perform basic validation on an existing connection string.
     /// <para/>
     /// A connection string is basically a string consisted of key-value pair separated by ";". 
     /// Basic format is "&lt;key&gt;=&lt;value&gt;[;&lt;key&gt;=&lt;value&gt;]" where supported key name are as follow:
-    /// <para/> Endpoint - the URL that contains the servicebus namespace
-    /// <para/> EntityPath - the path to the service bus entity (queue/topic/eventhub/subscription/consumergroup/partition)
+    /// <para/> Endpoint - the URL that contains the Event Hubs namespace
+    /// <para/> EntityPath - the path to the Event Hub entity
     /// <para/> SharedAccessKeyName - the key name to the corresponding shared access policy rule for the namespace, or entity.
     /// <para/> SharedAccessKey - the key for the corresponding shared access policy rule of the namespace or entity.
     /// </summary>
     /// <example>
     /// Sample code:
     /// <code>
-    /// var connectionSettings = new ServiceBusConnectionSettings(
-    ///     "ServiceBusNamespaceName", 
-    ///     "ServiceBusEntityName", // eventHub, queue, or topic name 
+    /// var connectionSettings = new EventHubsConnectionSettings(
+    ///     "EventHubsNamespaceName", 
+    ///     "EventHubsEntityName", // Event Hub Name 
     ///     "SharedAccessSignatureKeyName", 
     ///     "SharedAccessSignatureKey");
     ///  string connectionString = connectionSettings.ToString();
     /// </code>
     /// </example>
-    public class ServiceBusConnectionSettings
+    public class EventHubsConnectionSettings
     {
         static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(1);
         static readonly string EndpointScheme = "amqps";
@@ -48,12 +48,12 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="entityPath">Entity path. For eventHubs case specify eventHub name.</param>
         /// <param name="sharedAccessKeyName">Shared Access Key name</param>
         /// <param name="sharedAccessKey">Shared Access Key</param>
-        public ServiceBusConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
+        public EventHubsConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
             : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicy.Default)
         {
         }
 
-        ServiceBusConnectionSettings(
+        EventHubsConnectionSettings(
             string namespaceName,
             string entityPath,
             string sharedAccessKeyName,
@@ -91,8 +91,8 @@ namespace Microsoft.Azure.EventHubs
         /// ConnectionString format:
         /// Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
         /// </summary>
-        /// <param name="connectionString">ServiceBus ConnectionString</param>
-        public ServiceBusConnectionSettings(string connectionString)
+        /// <param name="connectionString">Event Hubs ConnectionString</param>
+        public EventHubsConnectionSettings(string connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -123,7 +123,7 @@ namespace Microsoft.Azure.EventHubs
         public string EntityPath { get; set; }
 
         /// <summary>
-        /// OperationTimeout is applied in erroneous situations to notify the caller about the relevant <see cref="ServiceBusException"/>
+        /// OperationTimeout is applied in erroneous situations to notify the caller about the relevant <see cref="EventHubsException"/>
         /// </summary>
         public TimeSpan OperationTimeout { get; set; }
 
@@ -132,16 +132,16 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         public RetryPolicy RetryPolicy { get; set; }
 
-        public ServiceBusConnectionSettings Clone()
+        public EventHubsConnectionSettings Clone()
         {
-            var clone = new ServiceBusConnectionSettings(this.ToString());
+            var clone = new EventHubsConnectionSettings(this.ToString());
             clone.OperationTimeout = this.OperationTimeout;
             clone.RetryPolicy = this.RetryPolicy;
             return clone;
         }
 
         /// <summary>
-        /// Creates a TokenProvider given the credentials in this ServiceBusConnectionSettings.
+        /// Creates a TokenProvider given the credentials in this EventHubsConnectionSettings.
         /// </summary>
         /// <returns></returns>
         public TokenProvider CreateTokenProvider()
@@ -150,7 +150,7 @@ namespace Microsoft.Azure.EventHubs
         }
 
         /// <summary>
-        /// Returns an interoperable connection string that can be used to connect to ServiceBus Namespace
+        /// Returns an interoperable connection string that can be used to connect to Event Hubs Namespace
         /// </summary>
         /// <returns>the connection string</returns>
         public override string ToString()

@@ -34,7 +34,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 {
                     lastException = e;
                     if (e is ReceiverDisconnectedException)
-	        	    {
+                    {
                         // TODO Assuming this is due to a receiver with a higher epoch.
                         // Is there a way to be sure without checking the exception text?
                         ProcessorEventSource.Log.PartitionPumpWarning(
@@ -42,8 +42,8 @@ namespace Microsoft.Azure.EventHubs.Processor
                         // If it's a bad epoch, then retrying isn't going to help.
                         break;
                     }
-	        	    else
-	        	    {
+                    else
+                    {
                         ProcessorEventSource.Log.PartitionPumpWarning(
                             this.Host.Id, this.PartitionContext.PartitionId, "Failure creating client or receiver, retrying", e.ToString());
                         retryCount++;
@@ -78,13 +78,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             }
         }
 
-        async Task OpenClientsAsync() // throws ServiceBusException, IOException, InterruptedException, ExecutionException
+        async Task OpenClientsAsync() // throws EventHubsException, IOException, InterruptedException, ExecutionException
         {
             // Create new clients
             string startOffset = await this.PartitionContext.GetInitialOffsetAsync();
             long epoch = this.Lease.Epoch;
             ProcessorEventSource.Log.PartitionPumpCreateClientsStart(this.Host.Id, this.PartitionContext.PartitionId, epoch, startOffset);
-		    this.eventHubClient = EventHubClient.Create(this.Host.ConnectionSettings);
+            this.eventHubClient = EventHubClient.Create(this.Host.ConnectionSettings);
 
             // Create new receiver and set options
             this.partitionReceiver = this.eventHubClient.CreateEpochReceiver(this.PartitionContext.ConsumerGroupName, this.PartitionContext.PartitionId, startOffset, epoch);
@@ -153,13 +153,13 @@ namespace Microsoft.Azure.EventHubs.Processor
                 }
 
                 if (error is ReceiverDisconnectedException)
-			    {
+                {
                     ProcessorEventSource.Log.PartitionPumpWarning(
                         this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId,
                         "EventHub client disconnected, probably another host took the partition");
                 }
-			    else
-			    {
+                else
+                {
                     ProcessorEventSource.Log.PartitionPumpError(
                         this.eventHubPartitionPump.Host.Id, this.eventHubPartitionPump.PartitionContext.PartitionId, "EventHub client error:", error.ToString());
                     await this.eventHubPartitionPump.ProcessErrorAsync(error);

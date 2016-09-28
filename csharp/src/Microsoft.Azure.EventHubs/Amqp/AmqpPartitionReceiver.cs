@@ -293,8 +293,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 }
                 catch (Exception e)
                 {
-                    ServiceBusException serviceBusException = e as ServiceBusException;
-                    if (serviceBusException != null && serviceBusException.IsTransient)
+                    EventHubsException eventHubsException = e as EventHubsException;
+                    if (eventHubsException != null && eventHubsException.IsTransient)
                     {
                         try
                         {
@@ -307,8 +307,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                             return;
                         }
                     }
-					else
-					{
+                    else
+                    {
                         await this.ReceiveHandlerCloseAsync(e);
                         return;
                     }

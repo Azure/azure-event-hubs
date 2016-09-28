@@ -105,7 +105,7 @@ namespace Microsoft.Azure.EventHubs
 
         protected virtual string NormalizeAppliesTo(string appliesTo)
         {
-            return ServiceBusUriHelper.NormalizeUri(appliesTo, "http", true, stripPath: this.TokenScope == TokenScope.Namespace, ensureTrailingSlash: true);
+            return EventHubsUriHelper.NormalizeUri(appliesTo, "http", true, stripPath: this.TokenScope == TokenScope.Namespace, ensureTrailingSlash: true);
         }
     }
 }
