@@ -75,14 +75,14 @@ namespace Microsoft.Azure.EventHubs.Amqp
             }
             else if (string.Equals(condition, AmqpErrorCode.NotFound.Value))
             {
-                //if (connectionError)
+                if (message.ToLower().Contains("status-code: 404"))
                 {
-                    return new EventHubsCommunicationException(message, null);
+                    return new MessagingEntityNotFoundException(message);
                 }
-                //else
-                //{
-                //    return new MessagingEntityNotFoundException(message, null);
-                //}
+                else
+                {
+                    return new EventHubsCommunicationException(message);
+                }
             }
             else if (string.Equals(condition, AmqpErrorCode.NotImplemented.Value))
             {
@@ -116,55 +116,6 @@ namespace Microsoft.Azure.EventHubs.Amqp
             {
                 return new EventHubsException(true, message);
             }
-
-            // else if (string.Equals(condition, AmqpClientConstants.EntityAlreadyExistsError.Value))
-            // {
-            //     return new MessagingEntityAlreadyExistsException(message, null, null);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.MessageLockLostError.Value))
-            // {
-            //     return new MessageLockLostException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.SessionLockLostError.Value))
-            // {
-            //     return new SessionLockLostException(message);
-            // }
-            // else if (string.Equals(condition, AmqpErrorCode.ResourceLimitExceeded.Value))
-            // {
-            //     return new Microsoft.ServiceBus.Messaging.QuotaExceededException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.NoMatchingSubscriptionError.Value))
-            // {
-            //     return new NoMatchingSubscriptionException(message);
-            // }
-            // else if (string.Equals(condition, AmqpErrorCode.MessageSizeExceeded.Value))
-            // {
-            //     return new MessageSizeExceededException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.StoreLockLostError.Value))
-            // {
-            //     return new MessageStoreLockLostException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.SessionCannotBeLockedError.Value))
-            // {
-            //     return new SessionCannotBeLockedException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.PartitionNotOwnedError.Value))
-            // {
-            //     return new PartitionNotOwnedException(message);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.EntityDisabledError.Value))
-            // {
-            //     return new MessagingEntityDisabledException(message, null);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.PublisherRevokedError.Value))
-            // {
-            //     return new PublisherRevokedException(message, null);
-            // }
-            // else if (string.Equals(condition, AmqpClientConstants.MessageNotFoundError.Value))
-            // {
-            //     return new MessageNotFoundException(message);
-            // }
         }
     }
 }
