@@ -10,6 +10,8 @@ namespace Microsoft.Azure.EventHubs.Processor
 
     class AzureBlobLease : Lease
     {
+        string offset = null;
+
         // ctor needed for deserialization
         internal AzureBlobLease()
         {
@@ -19,7 +21,6 @@ namespace Microsoft.Azure.EventHubs.Processor
             : base(partitionId)
         {
             this.Blob = blob;
-            this.Offset = PartitionReceiver.StartOfStream;
         }
 
         internal AzureBlobLease(AzureBlobLease source)
@@ -42,7 +43,18 @@ namespace Microsoft.Azure.EventHubs.Processor
         [JsonIgnore]
         public CloudBlockBlob Blob { get; }
 
-        public string Offset { get; set; }
+        public string Offset
+        {
+            get
+            {
+                return this.offset;
+            }
+
+            set
+            {
+                this.offset = value;
+            }
+        }
 
         public long SequenceNumber { get; set; }
 

@@ -23,7 +23,5 @@ namespace Microsoft.Azure.EventHubs
         Task ProcessEventsAsync(IEnumerable<EventData> events);
 
         Task ProcessErrorAsync(Exception error);
-
-        Task CloseAsync(Exception error);
     }
 }

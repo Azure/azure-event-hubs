@@ -96,7 +96,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             catch (Exception e)
             {
                 ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Exception from partition manager main loop, shutting down", e.ToString());
-                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerMainLoop);
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, "N/A", e, EventProcessorHostActionStrings.PartitionManagerMainLoop);
             }
 
             try
@@ -108,7 +108,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             catch (Exception e)
 	    	{
                 ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Failure during shutdown", e.ToString());
-                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.PartitionManagerCleanup);
+                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, "N/A", e, EventProcessorHostActionStrings.PartitionManagerCleanup);
             }
         }
 
@@ -244,7 +244,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     catch (Exception e)
                     {
                         ProcessorEventSource.Log.EventProcessorHostWarning(this.host.Id, "Failure getting/acquiring/renewing lease, skipping", e.ToString());
-                        this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.CheckingLeases);
+                        this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, "N/A", e, EventProcessorHostActionStrings.CheckingLeases);
                     }
                 }
 
@@ -273,7 +273,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                             catch (Exception e)
                             {
                                 ProcessorEventSource.Log.EventProcessorHostError(this.host.Id, "Exception stealing lease for partition " + stealee.PartitionId, e.ToString());
-                                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, e, EventProcessorHostActionStrings.StealingLease);
+                                this.host.EventProcessorOptions.NotifyOfException(this.host.HostName, stealee.PartitionId, e, EventProcessorHostActionStrings.StealingLease);
                             }
                         }
                     }
@@ -411,6 +411,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     }
                 }
             }
+
             return stealTheseLeases;
         }
 

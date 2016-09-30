@@ -49,7 +49,7 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="sharedAccessKeyName">Shared Access Key name</param>
         /// <param name="sharedAccessKey">Shared Access Key</param>
         public EventHubsConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
-            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicy.Default)
+            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicyType.Default)
         {
         }
 
@@ -59,7 +59,7 @@ namespace Microsoft.Azure.EventHubs
             string sharedAccessKeyName,
             string sharedAccessKey,
             TimeSpan operationTimeout,
-            RetryPolicy retryPolicy)
+            RetryPolicyType retryPolicy)
         {
             if (string.IsNullOrWhiteSpace(namespaceName) || string.IsNullOrWhiteSpace(entityPath))
             {
@@ -84,7 +84,7 @@ namespace Microsoft.Azure.EventHubs
             this.SasKey = sharedAccessKey;
             this.SasKeyName = sharedAccessKeyName;
             this.OperationTimeout = operationTimeout;
-            this.RetryPolicy = retryPolicy ?? RetryPolicy.Default;
+            this.RetryPolicy = RetryPolicyType.Default;
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Microsoft.Azure.EventHubs
             }
 
             this.OperationTimeout = DefaultOperationTimeout;
-            this.RetryPolicy = RetryPolicy.Default;
+            this.RetryPolicy = RetryPolicyType.Default;
             this.ParseConnectionString(connectionString);
         }
 
@@ -130,7 +130,7 @@ namespace Microsoft.Azure.EventHubs
         /// <summary>
         /// Get the retry policy instance that was created as part of this builder's creation.
         /// </summary>
-        public RetryPolicy RetryPolicy { get; set; }
+        public RetryPolicyType RetryPolicy { get; set; }
 
         public EventHubsConnectionSettings Clone()
         {
