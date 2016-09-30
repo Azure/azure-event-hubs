@@ -52,16 +52,12 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.eventHubContainer = this.storageClient.GetContainerReference(this.leaseContainerName);
         
             this.consumerGroupDirectory = this.eventHubContainer.GetDirectoryReference(this.host.ConsumerGroupName);
-        
-            // The only option that .NET sets on renewRequestOptions is ServerTimeout, which doesn't exist in Java equivalent.
-            // So right now renewRequestOptions is completely default, but keep it around in case we need to change something later.
         }
 
         //
         // In this implementation, checkpoints are data that's actually in the lease blob, so checkpoint operations
         // turn into lease operations under the covers.
         //
-
         public Task<bool> CheckpointStoreExistsAsync()
         {
             return LeaseStoreExistsAsync();
@@ -197,12 +193,12 @@ namespace Microsoft.Azure.EventHubs.Processor
     	    AzureBlobLease retval = null;
 
             CloudBlockBlob leaseBlob = this.consumerGroupDirectory.GetBlockBlobReference(partitionId);
-		    if (await leaseBlob.ExistsAsync())
+            if (await leaseBlob.ExistsAsync())
 		    {
-			    retval = await DownloadLeaseAsync(partitionId, leaseBlob);
+                retval = await DownloadLeaseAsync(partitionId, leaseBlob);
 		    }
 
-    	    return retval;
+            return retval;
         }
 
         public IEnumerable<Task<Lease>> GetAllLeases()

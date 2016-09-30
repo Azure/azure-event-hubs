@@ -267,7 +267,7 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// that take a hostName argument.
         ///  
         /// If a prefix is supplied, the constructed name begins with that string. If the prefix argument is null or
-        /// an empty string, the constructed name begins with "javahost". Then a dash '-' and a unique ID are appended to
+        /// an empty string, the constructed name begins with "host". Then a dash '-' and a unique ID are appended to
         /// create a unique name.
         /// </summary>
         /// <param name="prefix">String to use as the beginning of the name. If null or empty, a default is used.</param>

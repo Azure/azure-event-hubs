@@ -65,7 +65,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 this.partitionReceiveHandler = new PartitionReceiveHandler(this);
                 // IEventProcessor.OnOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
                 // meaning it is safe to set the handler and start calling IEventProcessor.OnEvents.
-                // Set the status to running before setting the javaClient handler, so the IEventProcessor.OnEvents can never race and see status != running.
+                // Set the status to running before setting the client handler, so the IEventProcessor.OnEvents can never race and see status != running.
                 this.PumpStatus = PartitionPumpStatus.Running;
                 this.partitionReceiver.SetReceiveHandler(this.partitionReceiveHandler);
             }
@@ -145,7 +145,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
             public Task ProcessEventsAsync(IEnumerable<EventData> events)
             {
-                // This method is called on the thread that the Java EH client uses to run the pump.
+                // This method is called on the thread that the EH client uses to run the pump.
                 // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
                 // using that thread to call OnEvents does no harm. Even if OnEvents is slow, the pump will
                 // get control back each time OnEvents returns, and be able to receive a new batch of messages
