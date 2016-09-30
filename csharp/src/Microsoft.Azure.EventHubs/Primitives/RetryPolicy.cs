@@ -55,6 +55,10 @@ namespace Microsoft.Azure.EventHubs
             {
                 return ((EventHubsException)exception).IsTransient;
             }
+            else if (exception is OperationCanceledException)
+            {
+                return true;
+            }
 
             return false;
         }
