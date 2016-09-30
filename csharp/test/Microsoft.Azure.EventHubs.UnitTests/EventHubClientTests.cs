@@ -12,6 +12,7 @@
     public class EventHubClientTests
     {
         string connectionString;
+        string[] PartitionIds;
 
         public EventHubClientTests()
         {
@@ -22,6 +23,12 @@
             }
 
             this.EventHubClient = EventHubClient.Create(connectionString);
+            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
+
+            // Discover partition ids.
+            var eventHubInfo = this.EventHubClient.GetRuntimeInformationAsync().Result;
+            this.PartitionIds = eventHubInfo.PartitionIds;
+            WriteLine($"EventHub has {PartitionIds.Length} partitions");
         }
 
         EventHubClient EventHubClient { get; }
@@ -50,6 +57,8 @@
             {
                 WriteLine("Caught ObjectDisposedException as expected");
             }
+
+            await pReceiver.CloseAsync();
         }
 
         [Fact]
@@ -187,6 +196,82 @@
                     partitionReceiver.CloseAsync(),
                     partitionSender.CloseAsync());
             }
+        }
+
+        [Fact]
+        async Task CreateReceiverWithOffset()
+        {
+            // Randomly pick one of the available partitons.
+            var partitionId = this.PartitionIds[new Random().Next(this.PartitionIds.Count())];
+            WriteLine($"Randomly picked partition {partitionId}");
+
+            // Send and receive a message to identify the end of stream.
+            var lastMessage = await SendAndReceiveSingleEvent(partitionId);
+
+            // Send a new message which is expected to go to the end of stream.
+            // We are expecting to receive only this message.
+            var eventSent = new EventData(new byte[1]);
+            eventSent.Properties = new Dictionary<string, object>();
+            eventSent.Properties.Add("stamp", Guid.NewGuid().ToString());
+            await this.EventHubClient.CreatePartitionSender(partitionId).SendAsync(eventSent);
+
+            // Create a new receiver which will start reading from the last message on the stream.
+            WriteLine($"Creating a new receiver with offset {lastMessage.SystemProperties.Offset}");
+            var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, lastMessage.SystemProperties.Offset);
+            var receivedMessages = await receiver.ReceiveAsync(100);
+
+            // We should have received only 1 message from this call.
+            Assert.True(receivedMessages.Count() == 1, $"Didn't receive 1 message. Received {receivedMessages.Count()} messages(s).");
+
+            // Check stamp.
+            Assert.True(receivedMessages.Single().Properties["stamp"].ToString() == eventSent.Properties["stamp"].ToString()
+                , "Stamps didn't match on the message sent and received!");
+
+            WriteLine("Received correct message as expected.");
+
+            // Next receive on this partition shouldn't return any more messages.
+            receivedMessages = await receiver.ReceiveAsync(100, TimeSpan.FromSeconds(15));
+            Assert.True(receivedMessages == null, $"Received messages at the end.");
+
+            await receiver.CloseAsync();
+        }
+
+        [Fact]
+        async Task CreateReceiverWithDateTime()
+        {
+            // Randomly pick one of the available partitons.
+            var partitionId = this.PartitionIds[new Random().Next(this.PartitionIds.Count())];
+            WriteLine($"Randomly picked partition {partitionId}");
+
+            // Send and receive a message to identify the end of stream.
+            var lastMessage = await SendAndReceiveSingleEvent(partitionId);
+
+            // Send a new message which is expected to go to the end of stream.
+            // We are expecting to receive only this message.
+            var eventSent = new EventData(new byte[1]);
+            eventSent.Properties = new Dictionary<string, object>();
+            eventSent.Properties.Add("stamp", Guid.NewGuid().ToString());
+            await this.EventHubClient.CreatePartitionSender(partitionId).SendAsync(eventSent);
+
+            // Create a new receiver which will start reading from the last message on the stream.
+            WriteLine($"Creating a new receiver with date-time {lastMessage.SystemProperties.EnqueuedTimeUtc}");
+            var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, lastMessage.SystemProperties.EnqueuedTimeUtc);
+            var receivedMessages = await receiver.ReceiveAsync(100);
+
+            // We should have received only 1 message from this call.
+            Assert.True(receivedMessages.Count() == 1, $"Didn't receive 1 message. Received {receivedMessages.Count()} messages(s).");
+
+            // Check stamp.
+            Assert.True(receivedMessages.Single().Properties["stamp"].ToString() == eventSent.Properties["stamp"].ToString()
+                , "Stamps didn't match on the message sent and received!");
+
+            WriteLine("Received correct message as expected.");
+
+            // Next receive on this partition shouldn't return any more messages.
+            receivedMessages = await receiver.ReceiveAsync(100, TimeSpan.FromSeconds(15));
+            Assert.True(receivedMessages == null, $"Received messages at the end.");
+
+            await receiver.CloseAsync();
         }
 
         [Fact]
@@ -341,15 +426,11 @@
                     throw new InvalidOperationException("Data Received Event was not signaled.");
                 }
             }
-            catch (Exception)
-            {
-                await partitionReceiver.CloseAsync();
-                throw;
-            }
             finally
             {
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
                 await partitionSender.CloseAsync();
+                await partitionReceiver.CloseAsync();
             }
         }
 
@@ -444,6 +525,7 @@
             var testValues = new[] { 10, 30, 120 };
 
             TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
+            PartitionReceiver receiver = null;
 
             try
             {
@@ -452,7 +534,7 @@
                     WriteLine($"Testing with {receiveTimeoutInSeconds} seconds.");
 
                     // Start receiving from a future time so that Receive call won't be able to fetch any events.
-                    var receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow.AddMinutes(1));
+                    receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow.AddMinutes(1));
 
                     var startTime = DateTime.Now;
                     await receiver.ReceiveAsync(1, TimeSpan.FromSeconds(receiveTimeoutInSeconds));
@@ -468,7 +550,197 @@
             finally
             {
                 this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
+                await receiver.CloseAsync();
             }
+        }
+
+        [Fact]
+        async Task MessageSizeExceededException()
+        {
+            try
+            { 
+                WriteLine("Sending large event via EventHubClient.SendAsync(EventData)");
+                var eventData = new EventData(new byte[300000]);
+                await this.EventHubClient.SendAsync(eventData);
+                throw new InvalidOperationException("Send should have failed with " +
+                    typeof(MessageSizeExceededException).Name);
+            }
+            catch (MessageSizeExceededException)
+            {
+                WriteLine("Caught MessageSizeExceededException as expected");
+            }
+        }
+
+        [Fact]
+        async Task SendReceiveNonexistentEntity()
+        {
+            // Rebuild connection string with a nonexistent entity.
+            var conSettings = new EventHubsConnectionSettings(this.connectionString);
+            var conString = this.connectionString.Replace(conSettings.EntityPath, Guid.NewGuid().ToString());
+            var ehClient = EventHubClient.Create(conString);
+
+            // Try sending.
+            try
+            {
+                WriteLine("Sending an event to nonexistent entity.");
+                var sender = ehClient.CreatePartitionSender("0");
+                await sender.SendAsync(new EventData(Encoding.UTF8.GetBytes("this send should fail.")));
+                throw new InvalidOperationException("Send should have failed");
+            }
+            catch (MessagingEntityNotFoundException)
+            {
+                WriteLine("Caught expected MessagingEntityNotFoundException");
+            }
+
+            // Try receiving.
+            PartitionReceiver receiver = null;
+            try
+            {
+                WriteLine("Receiving from nonexistent entity.");
+                receiver = ehClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", PartitionReceiver.StartOfStream);
+                await receiver.ReceiveAsync(1);
+                throw new InvalidOperationException("Receive should have failed");
+            }
+            catch (MessagingEntityNotFoundException)
+            {
+                WriteLine("Caught expected MessagingEntityNotFoundException");
+            }
+            finally
+            {
+                await receiver.CloseAsync();
+            }
+        }
+
+        [Fact]
+        async Task PartitionKeyValidation()
+        {
+            int NumberOfMessagesToSend = 100;
+            var partitionOffsets = new Dictionary<string, string>();
+
+            // Discover the end of stream on each partition.
+            WriteLine("Discovering end of stream on each partition.");
+            foreach (var partitionId in this.PartitionIds)
+            {
+                var lastEvent = await SendAndReceiveSingleEvent(partitionId);
+                partitionOffsets.Add(partitionId, lastEvent.SystemProperties.Offset);
+                WriteLine($"Partition {partitionId} has last message with offset {lastEvent.SystemProperties.Offset}");
+            }
+
+            // Now send a set of messages with different partition keys.
+            WriteLine($"Sending {NumberOfMessagesToSend} messages.");
+            Random rnd = new Random();
+            for (int i=0; i<NumberOfMessagesToSend; i++)
+            {
+                var partitionKey = rnd.Next(10);
+                await this.EventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes("Hello EventHub!")), partitionKey.ToString());
+            }
+
+            // It is time to receive all messages that we just sent.
+            // Prepare partition key to partition map while receiving.
+            // Validation: All messages of a partition key should be received from a single partition.
+            WriteLine("Starting to receive all messages from each partition.");
+            var partitionMap = new Dictionary<string, string>();
+            int totalReceived = 0;
+            foreach (var partitionId in this.PartitionIds)
+            {
+                PartitionReceiver receiver = null;
+                try
+                {
+                    receiver = this.EventHubClient.CreateReceiver(
+                        PartitionReceiver.DefaultConsumerGroupName,
+                        partitionId,
+                        partitionOffsets[partitionId]);
+                    var messagesFromPartition = await ReceiveAllMessages(receiver);
+                    WriteLine($"Received {messagesFromPartition.Count} messages from partition {partitionId}.");
+                    foreach (var ed in messagesFromPartition)
+                    {
+                        var pk = ed.SystemProperties.PartitionKey;
+                        if (partitionMap.ContainsKey(pk) && partitionMap[pk] != partitionId)
+                        {
+                            throw new Exception($"Received a message from partition {partitionId} with partition key {pk}, whereas the same key was observed on partition {partitionMap[pk]} before.");
+                        }
+
+                        partitionMap[pk] = partitionId;
+                    }
+
+                    totalReceived += messagesFromPartition.Count;
+                }
+                finally
+                {
+                    await receiver.CloseAsync();
+                }
+            }
+
+            Assert.True(totalReceived == NumberOfMessagesToSend,
+                $"Didn't receive the same number of messages that we sent. Sent: {NumberOfMessagesToSend}, Received: {totalReceived}");
+        }
+
+        // Sends single message to given partition and returns it after receiving.
+        async Task<EventData> SendAndReceiveSingleEvent(string partitionId)
+        {
+            var eDataToSend = new EventData(new byte[1]);
+
+            // Stamp this message so we can recognize it when received.
+            var stampValue = Guid.NewGuid().ToString();
+            var sendEvent = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
+            eDataToSend.Properties = new Dictionary<string, object>();
+            eDataToSend.Properties.Add("stamp", stampValue);
+            PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
+            WriteLine($"Sending single event to partition {partitionId} with stamp {stampValue}");
+            await partitionSender.SendAsync(eDataToSend);
+
+            WriteLine($"Receiving all messages from partition {partitionId}");
+            PartitionReceiver receiver = null;
+            try
+            {
+                receiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName,
+                    partitionId, PartitionReceiver.StartOfStream);
+                while (true)
+                {
+                    var receivedEvents = await receiver.ReceiveAsync(100);
+                    if (receivedEvents == null || receivedEvents.Count() == 0)
+                    {
+                        throw new Exception("Not able to receive stamped message!");
+                    }
+
+                    WriteLine($"Received {receivedEvents.Count()} event(s) in batch where last event is sent on {receivedEvents.Last().SystemProperties.EnqueuedTimeUtc}");
+
+                    // Continue until we locate stamped message.
+                    foreach (var receivedEvent in receivedEvents)
+                    {
+                        if (receivedEvent.Properties != null &&
+                            receivedEvent.Properties.ContainsKey("stamp") &&
+                            receivedEvent.Properties["stamp"].ToString() == eDataToSend.Properties["stamp"].ToString())
+                        {
+                            return receivedEvent;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                await receiver.CloseAsync();
+            }
+        }
+
+        // Receives all messages on the given receiver.
+        async Task<List<EventData>> ReceiveAllMessages(PartitionReceiver receiver)
+        {
+            List<EventData> messages = new List<EventData>();
+
+            while (true)
+            {
+                var receivedEvents = await receiver.ReceiveAsync(100);
+                if (receivedEvents == null)
+                {
+                    // There is no more events to receive.
+                    break;
+                }
+
+                messages.AddRange(receivedEvents);
+            }
+
+            return messages;
         }
 
         static void WriteLine(string message)
