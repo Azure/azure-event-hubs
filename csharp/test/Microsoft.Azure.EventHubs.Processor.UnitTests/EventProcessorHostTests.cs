@@ -174,7 +174,7 @@
                 processor.OnOpen += (_, partitionContext) => WriteLine($"Partition {partitionId} TestEventProcessor opened");
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
+                    int eventCount = eventsArgs.Item2.events != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount == 0)
                     {
