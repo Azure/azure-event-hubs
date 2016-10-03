@@ -3,14 +3,14 @@
 
   "dependencies": {
     "Microsoft.Azure.EventHubs": "1.0.0-*",
-    "Newtonsoft.Json": "8.0.4-beta1",
-    "WindowsAzure.Storage": "7.0.2-preview"
+    "Newtonsoft.Json": "9.0.1",
+    "WindowsAzure.Storage": "7.2.1"
   },
 
   "frameworks": {
     "net46": {
     },
-    "netstandard1.5": {
+    "netstandard1.6": {
       "imports": [
         "dnxcore50",
         "portable-net451+win8"

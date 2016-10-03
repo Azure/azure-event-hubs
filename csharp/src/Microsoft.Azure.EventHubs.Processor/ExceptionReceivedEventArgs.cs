@@ -7,9 +7,10 @@ namespace Microsoft.Azure.EventHubs.Processor
 
     public sealed class ExceptionReceivedEventArgs
     {
-        internal ExceptionReceivedEventArgs(string hostname, Exception exception, string action)
+        internal ExceptionReceivedEventArgs(string hostname, string partitionId, Exception exception, string action)
         {
             this.Hostname = hostname;
+            this.PartitionId = partitionId;
             this.Exception = exception;
             this.Action = action;
         }
@@ -19,6 +20,12 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// </summary>
         /// <value>The name of the host that experienced the exception.</value>
         public string Hostname { get; }
+
+        /// <summary>
+        /// Allows distinguishing the error source if multiple hosts in a single process.
+        /// </summary>
+        /// <value>The partition id that experienced the exception.</value>
+        public string PartitionId { get; }
 
         /// <summary>
         /// The exception that was thrown.

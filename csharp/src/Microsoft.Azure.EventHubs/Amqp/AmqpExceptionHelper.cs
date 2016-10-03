@@ -61,7 +61,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
         {
             if (error == null)
             {
-                return new ServiceBusException(true, "Unknown error.");
+                return new EventHubsException(true, "Unknown error.");
             }
 
             return ToMessagingContract(error.Condition.Value, error.Description, connectionError);
@@ -77,7 +77,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             {
                 //if (connectionError)
                 {
-                    return new ServiceBusCommunicationException(message, null);
+                    return new EventHubsCommunicationException(message, null);
                 }
                 //else
                 //{
@@ -114,7 +114,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             }
             else
             {
-                return new ServiceBusException(true, message);
+                return new EventHubsException(true, message);
             }
 
             // else if (string.Equals(condition, AmqpClientConstants.EntityAlreadyExistsError.Value))

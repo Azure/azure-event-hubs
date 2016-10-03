@@ -15,8 +15,8 @@ namespace Microsoft.Azure.EventHubs
         {
             this.EventHubClient = eventHubClient;
             this.PartitionId = partitionId;
-            this.retryPolicy = eventHubClient.ConnectionSettings.RetryPolicy;
-            this.retryPolicy.ResetRetryCount(this.ClientId);
+            this.retryPolicy = RetryPolicy.GetRetryPolicy(eventHubClient.ConnectionSettings.RetryPolicy);
+            this.retryPolicy.ResetRetryCount();
         }
 
         protected EventHubClient EventHubClient { get; }

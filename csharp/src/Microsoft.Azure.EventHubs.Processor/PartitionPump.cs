@@ -57,7 +57,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     // Null it out so we don't try to operate on it further.
                     ProcessorEventSource.Log.PartitionPumpError(this.Host.Id, this.PartitionContext.PartitionId, "Failed " + action, e.ToString());
                     this.Processor = null;
-                    this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, action);
+                    this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, this.PartitionContext.PartitionId, e, action);
                     this.PumpStatus = PartitionPumpStatus.OpenFailed;
                 }
             }
@@ -106,7 +106,13 @@ namespace Microsoft.Azure.EventHubs.Processor
                 ProcessorEventSource.Log.PartitionPumpCloseError(this.Host.Id, this.PartitionContext.PartitionId, e.ToString());
                 // If closing the processor has failed, the state of the processor is suspect.
                 // Report the failure to the general error handler instead.
-                this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, e, "Closing Event Processor");
+                this.Host.EventProcessorOptions.NotifyOfException(this.Host.HostName, this.PartitionContext.PartitionId, e, "Closing Event Processor");
+            }
+
+            if (reason != CloseReason.LeaseLost)
+            {
+                // Since this pump is dead, release the lease. 
+                await this.Host.LeaseManager.ReleaseLeaseAsync(this.PartitionContext.Lease);
             }
 
             this.PumpStatus = PartitionPumpStatus.Closed;
@@ -148,7 +154,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                     ProcessorEventSource.Log.PartitionPumpInvokeProcessorEventsStop(this.Host.Id, this.PartitionContext.PartitionId);
                 }
 
-                EventData last = events.LastOrDefault();
+                EventData last = events?.LastOrDefault();
                 if (last != null)
                 {
                     ProcessorEventSource.Log.PartitionPumpInfo(

@@ -5,7 +5,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 {
     using System;
 
-    public class EventProcessorRuntimeException : ServiceBusException
+    public class EventProcessorRuntimeException : EventHubsException
     {
         public EventProcessorRuntimeException(string message, string action)
             : this(message, action, null)

@@ -13,6 +13,12 @@
 
     public class EventProcessorHostTests
     {
+        EventHubsConnectionSettings ConnectionSettings;
+        string StorageConnectionString;
+        string EventHubConnectionString;
+        string LeaseContainerName;
+        string[] PartitionIds;
+
         public EventProcessorHostTests()
         {
             string eventHubConnectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
@@ -27,108 +33,55 @@
                 throw new InvalidOperationException("EVENTPROCESSORSTORAGECONNECTIONSTRING environment variable was not found!");
             }
 
-            this.ConnectionSettings = new ServiceBusConnectionSettings(eventHubConnectionString);
+            this.ConnectionSettings = new EventHubsConnectionSettings(eventHubConnectionString);
             this.StorageConnectionString = storageConnectionString;
+            this.EventHubConnectionString = eventHubConnectionString;
+
+            // Use entity name as lease container name.
+            this.LeaseContainerName = this.ConnectionSettings.EntityPath;
+
+            // Discover partition ids.
+            PartitionIds = this.GetPartitionIdsAsync(this.ConnectionSettings).Result;
+            WriteLine($"EventHub has {PartitionIds.Length} partitions");
         }
-
-        ServiceBusConnectionSettings ConnectionSettings { get; }
-
-        string StorageConnectionString { get; }
 
         [Fact]
         async Task SingleProcessorHost()
         {
-            WriteLine($"Testing with single EventProcessorHost");
-            string[] partitionIds = await this.GetPartitionIdsAsync(this.ConnectionSettings);
-            WriteLine($"EventHub has {partitionIds.Length} partitions");
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
-                this.ConnectionSettings.SasKeyName,
-                this.ConnectionSettings.SasKey,
                 PartitionReceiver.DefaultConsumerGroupName,
-                this.StorageConnectionString);
-            try
-            {
-                WriteLine($"Calling RegisterEventProcessorAsync");
-                var processorOptions = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(10) };
-                var processorFactory = new TestEventProcessorFactory();
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                this.LeaseContainerName);
 
-                var partitionReceiveEvents = new ConcurrentDictionary<string, AsyncAutoResetEvent>();
-                foreach (var partitionId in partitionIds)
-                {
-                    partitionReceiveEvents[partitionId] = new AsyncAutoResetEvent(false);
-                }
-
-                processorFactory.OnCreateProcessor += (f, createArgs) =>
-                {
-                    var processor = createArgs.Item2;
-                    string partitionId = createArgs.Item1.PartitionId;
-                    processor.OnOpen += (_, partitionContext) => WriteLine($"Partition {partitionId} TestEventProcessor opened");
-                    processor.OnClose += (_, closeArgs) => WriteLine($"Partition {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
-                    processor.OnProcessError += (_, errorArgs) => WriteLine($"Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
-                    processor.OnProcessEvents += (_, eventsArgs) =>
-                    {
-                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
-                        WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
-                        if (eventCount > 0)
-                        {
-                            var receivedEvent = partitionReceiveEvents[partitionId];
-                            receivedEvent.Set();
-                        }
-                    };
-                };
-
-                await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, processorOptions);
-
-                WriteLine($"Sending an event to each partition");
-                var sendTasks = new List<Task>();
-                foreach (var partitionId in partitionIds)
-                {
-                    sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
-                }
-
-                await Task.WhenAll(sendTasks);
-
-                WriteLine($"Verifying an event was received by each partition");
-                foreach (var partitionId in partitionIds)
-                {
-                    var receivedEvent = partitionReceiveEvents[partitionId];
-                    bool partitionReceivedMessage = await receivedEvent.WaitAsync(TimeSpan.FromSeconds(30));
-                    Assert.True(partitionReceivedMessage, $"Partition {partitionId} didn't receive any message!");
-                }
-
-                WriteLine($"Success");
-            }
-            finally
-            {
-                WriteLine($"Calling UnregisterEventProcessorAsync");
-                await eventProcessorHost.UnregisterEventProcessorAsync();
-            }
+            await RunGenericScenario(eventProcessorHost);
         }
 
         [Fact]
         async Task MultipleProcessorHosts()
         {
             WriteLine($"Testing with 2 EventProcessorHost instances");
-            string[] partitionIds = await this.GetPartitionIdsAsync(this.ConnectionSettings);
-            WriteLine($"EventHub has {partitionIds.Length} partitions");
+
+            var partitionReceiveEvents = new ConcurrentDictionary<string, AsyncAutoResetEvent>();
+            foreach (var partitionId in PartitionIds)
+            {
+                partitionReceiveEvents[partitionId] = new AsyncAutoResetEvent(false);
+            }
 
             int hostCount = 2;
             var hosts = new List<EventProcessorHost>();
             for (int i = 0; i < hostCount; i++)
             {
-                int index = i;
-                WriteLine($"Host{index} Creating EventProcessorHost");
+                WriteLine($"Creating EventProcessorHost");
                 var eventProcessorHost = new EventProcessorHost(
-                    this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                     this.ConnectionSettings.EntityPath,
-                    this.ConnectionSettings.SasKeyName,
-                    this.ConnectionSettings.SasKey,
                     PartitionReceiver.DefaultConsumerGroupName,
-                    this.StorageConnectionString);
+                    this.EventHubConnectionString,
+                    this.StorageConnectionString,
+                    this.LeaseContainerName);
                 hosts.Add(eventProcessorHost);
-                WriteLine($"Host{index} Calling RegisterEventProcessorAsync");
+                WriteLine($"Calling RegisterEventProcessorAsync");
                 var processorOptions = new EventProcessorOptions
                 {
                     ReceiveTimeout = TimeSpan.FromSeconds(10),
@@ -139,18 +92,44 @@
                 processorFactory.OnCreateProcessor += (f, createArgs) =>
                 {
                     var processor = createArgs.Item2;
-                    string partitionId = "Partition " + createArgs.Item1.PartitionId;
-                    processor.OnOpen += (_, partitionContext) => WriteLine($"Host {index} {partitionId} TestEventProcessor opened");
-                    processor.OnClose += (_, closeArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
-                    processor.OnProcessError += (_, errorArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
-                    processor.OnProcessEvents += (_, eventsArgs) => WriteLine($"Host {index} {partitionId} TestEventProcessor process events " + (eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0));
+                    string partitionId = createArgs.Item1.PartitionId;
+                    string hostName = createArgs.Item1.Owner;
+                    processor.OnOpen += (_, partitionContext) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor opened");
+                    processor.OnClose += (_, closeArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
+                    processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
+                    processor.OnProcessEvents += (_, eventsArgs) =>
+                    {
+                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
+                        WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
+                        if (eventCount > 0)
+                        {
+                            var receivedEvent = partitionReceiveEvents[partitionId];
+                            receivedEvent.Set();
+                        }
+                    };
                 };
 
                 await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, processorOptions);
             }
 
-            WriteLine($"Waiting for events...");
+            WriteLine($"Waiting for partition ownership to settle...");
             await Task.Delay(TimeSpan.FromSeconds(30));
+
+            WriteLine($"Sending an event to each partition");
+            var sendTasks = new List<Task>();
+            foreach (var partitionId in PartitionIds)
+            {
+                sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+            }
+            await Task.WhenAll(sendTasks);
+
+            WriteLine($"Verifying an event was received by each partition");
+            foreach (var partitionId in PartitionIds)
+            {
+                var receivedEvent = partitionReceiveEvents[partitionId];
+                bool partitionReceivedMessage = await receivedEvent.WaitAsync(TimeSpan.FromSeconds(30));
+                Assert.True(partitionReceivedMessage, $"Partition {partitionId} didn't receive any message!");
+            }
 
             var shutdownTasks = new List<Task>();
             for (int i = 0; i < hostCount; i++)
@@ -165,27 +144,25 @@
         [Fact]
         async Task InvokeAfterReceiveTimeoutTrue()
         {
+            const int ReceiveTimeoutInSeconds = 15;
+
             WriteLine($"Testing EventProcessorHost with InvokeProcessorAfterReceiveTimeout=true");
 
-            string[] partitionIds = await this.GetPartitionIdsAsync(this.ConnectionSettings);
-            WriteLine($"EventHub has {partitionIds.Length} partitions");
-
             var emptyBatchReceiveEvents = new ConcurrentDictionary<string, AsyncAutoResetEvent>();
-            foreach (var partitionId in partitionIds)
+            foreach (var partitionId in PartitionIds)
             {
                 emptyBatchReceiveEvents[partitionId] = new AsyncAutoResetEvent(false);
             }
 
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
-                this.ConnectionSettings.SasKeyName,
-                this.ConnectionSettings.SasKey,
                 PartitionReceiver.DefaultConsumerGroupName,
-                this.StorageConnectionString);
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                this.LeaseContainerName);
 
             var processorOptions = new EventProcessorOptions {
-                ReceiveTimeout = TimeSpan.FromSeconds(5),
+                ReceiveTimeout = TimeSpan.FromSeconds(ReceiveTimeoutInSeconds),
                 InvokeProcessorAfterReceiveTimeout = true
             };
 
@@ -197,7 +174,7 @@
                 processor.OnOpen += (_, partitionContext) => WriteLine($"Partition {partitionId} TestEventProcessor opened");
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount == 0)
                     {
@@ -211,10 +188,10 @@
             try
             {
                 WriteLine($"Waiting for each partition to receive an empty batch of events...");
-                foreach (var partitionId in partitionIds)
+                foreach (var partitionId in PartitionIds)
                 {
                     var emptyBatchReceiveEvent = emptyBatchReceiveEvents[partitionId];
-                    bool emptyBatchReceived = await emptyBatchReceiveEvent.WaitAsync(TimeSpan.FromSeconds(30));
+                    bool emptyBatchReceived = await emptyBatchReceiveEvent.WaitAsync(TimeSpan.FromSeconds(ReceiveTimeoutInSeconds * 2));
                     Assert.True(emptyBatchReceived, $"Partition {partitionId} didn't receive an empty batch!");
                 }
             }
@@ -228,18 +205,20 @@
         [Fact]
         async Task InvokeAfterReceiveTimeoutFalse()
         {
+            const int ReceiveTimeoutInSeconds = 15;
+
             WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=false");
+
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.Endpoint.Host.Split('.')[0],
                 this.ConnectionSettings.EntityPath,
-                this.ConnectionSettings.SasKeyName,
-                this.ConnectionSettings.SasKey,
                 PartitionReceiver.DefaultConsumerGroupName,
-                this.StorageConnectionString);
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                this.LeaseContainerName);
 
             var processorOptions = new EventProcessorOptions
             {
-                ReceiveTimeout = TimeSpan.FromSeconds(5),
+                ReceiveTimeout = TimeSpan.FromSeconds(ReceiveTimeoutInSeconds),
                 InvokeProcessorAfterReceiveTimeout = false
             };
 
@@ -251,7 +230,7 @@
                 string partitionId = createArgs.Item1.PartitionId;
                 processor.OnProcessEvents += (_, eventsArgs) =>
                 {
-                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.Count() : 0;
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
                     WriteLine($"Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
                     if (eventCount == 0)
                     {
@@ -264,7 +243,7 @@
             try
             {
                 WriteLine($"Verifying no empty batches arrive...");
-                bool waitSucceeded = await emptyBatchReceiveEvent.WaitAsync(TimeSpan.FromSeconds(10));
+                bool waitSucceeded = await emptyBatchReceiveEvent.WaitAsync(TimeSpan.FromSeconds(ReceiveTimeoutInSeconds * 2));
                 Assert.False(waitSucceeded, "No empty batch should have been received!");
             }
             finally
@@ -274,7 +253,364 @@
             }
         }
 
-        async Task<string[]> GetPartitionIdsAsync(ServiceBusConnectionSettings connectionSettings)
+        /// <summary>
+        /// This test requires a eventhub with consumer groups $Default and cgroup1.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        async Task MultipleConsumerGroups()
+        {
+            var consumerGroupNames = new string[] { PartitionReceiver.DefaultConsumerGroupName, "cgroup1"};
+            var processorOptions = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(15) };
+            var processorFactory = new TestEventProcessorFactory();
+            var partitionReceiveEvents = new ConcurrentDictionary<string, AsyncAutoResetEvent>();
+            var hosts = new List<EventProcessorHost>();
+
+            processorFactory.OnCreateProcessor += (f, createArgs) =>
+            {
+                var processor = createArgs.Item2;
+                string partitionId = createArgs.Item1.PartitionId;
+                string hostName = createArgs.Item1.Owner;
+                string consumerGroupName = createArgs.Item1.ConsumerGroupName;
+                processor.OnOpen += (_, partitionContext) => WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor opened");
+                processor.OnClose += (_, closeArgs) => WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
+                processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
+                processor.OnProcessEvents += (_, eventsArgs) =>
+                {
+                    int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
+                    WriteLine($"{hostName} > {consumerGroupName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
+                    if (eventCount > 0)
+                    {
+                        var receivedEvent = partitionReceiveEvents[consumerGroupName + "-" + partitionId];
+                        receivedEvent.Set();
+                    }
+                };
+            };
+
+            // Register a new host for each consumer group.
+            foreach (var consumerGroupName in consumerGroupNames)
+            {
+                var eventProcessorHost = new EventProcessorHost(
+                    this.ConnectionSettings.EntityPath,
+                    consumerGroupName,
+                    this.EventHubConnectionString,
+                    this.StorageConnectionString,
+                    this.LeaseContainerName);
+
+                WriteLine($"Calling RegisterEventProcessorAsync on consumer group {consumerGroupName}");
+
+                foreach (var partitionId in PartitionIds)
+                {
+                    partitionReceiveEvents[consumerGroupName + "-" + partitionId] = new AsyncAutoResetEvent(false);
+                }
+
+                await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, processorOptions);
+                hosts.Add(eventProcessorHost);
+            }
+
+            WriteLine($"Sending an event to each partition");
+            var sendTasks = new List<Task>();
+            foreach (var partitionId in PartitionIds)
+            {
+                sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+            }
+
+            await Task.WhenAll(sendTasks);
+
+            WriteLine($"Verifying an event was received by each partition for each consumer group");
+            foreach (var consumerGroupName in consumerGroupNames)
+            {
+                foreach (var partitionId in PartitionIds)
+                {
+                    var receivedEvent = partitionReceiveEvents[consumerGroupName + "-" + partitionId];
+                    bool partitionReceivedMessage = await receivedEvent.WaitAsync(TimeSpan.FromSeconds(30));
+                    Assert.True(partitionReceivedMessage, $"ConsumerGroup {consumerGroupName} > Partition {partitionId} didn't receive any message!");
+                }
+            }
+
+            WriteLine($"Success");
+
+            WriteLine($"Calling UnregisterEventProcessorAsync on both hosts.");
+            foreach (var eph in hosts)
+            {
+                await eph.UnregisterEventProcessorAsync();
+            }
+        }
+
+        [Fact]
+        async Task InitialOffsetProviderWithDateTime()
+        {
+            // Send and receive single message so we can find out enqueue date-time of the last message.
+            var lastEvents = await SendAndReceiveSingleEvent();
+
+            // We will use last enqueued message's enqueue date-time so EPH will pick messages only after that point.
+            var lastEnqueueDateTime = lastEvents.Max(le => le.Value.SystemProperties.EnqueuedTimeUtc);
+            WriteLine($"Last message enqueued at {lastEnqueueDateTime}");
+
+            // Use a randomly generated container name so that initial offset provider will be respected.
+            var eventProcessorHost = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                Guid.NewGuid().ToString());
+
+            var processorOptions = new EventProcessorOptions
+            {
+                ReceiveTimeout = TimeSpan.FromSeconds(15),
+                InitialOffsetProvider = (partitionId) => lastEnqueueDateTime
+            };
+
+            var receivedEvents = await this.RunGenericScenario(eventProcessorHost, processorOptions);
+
+            // We should have received only 1 event from each partition.
+            Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
+        }
+
+        [Fact]
+        async Task InitialOffsetProviderWithOffset()
+        {
+            // Send and receive single message so we can find out offset of the last message.
+            var lastEvents = await SendAndReceiveSingleEvent();
+
+            // Use a randomly generated container name so that initial offset provider will be respected.
+            var eventProcessorHost = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                Guid.NewGuid().ToString());
+
+            var processorOptions = new EventProcessorOptions
+            {
+                ReceiveTimeout = TimeSpan.FromSeconds(15),
+                InitialOffsetProvider = (partitionId) => lastEvents[partitionId].SystemProperties.Offset
+            };
+
+            var receivedEvents = await this.RunGenericScenario(eventProcessorHost, processorOptions);
+
+            // We should have received only 1 event from each partition.
+            Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
+        }
+
+        [Fact]
+        async Task InitialOffsetProviderOverrideBehavior()
+        {
+            // Generate a new lease container name that will use through out the test.
+            string leaseContainerName = Guid.NewGuid().ToString();
+
+            // First host will send and receive as usual.
+            var eventProcessorHost = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            await this.RunGenericScenario(eventProcessorHost);
+
+            // Second host will use an initial offset provider.
+            // Since we are still on the same lease container, initial offset provider shouldn't rule.
+            // We should continue receiving where we left instead if start-of-stream where initial offset provider dictates.
+            eventProcessorHost = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var processorOptions = new EventProcessorOptions
+            {
+                ReceiveTimeout = TimeSpan.FromSeconds(15),
+                InitialOffsetProvider = (partitionId) => PartitionReceiver.StartOfStream
+            };
+            var receivedEvents = await this.RunGenericScenario(eventProcessorHost);
+
+            // We should have received only 1 event from each partition.
+            Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
+        }
+
+        [Fact]
+        async Task CheckpointShouldHold()
+        {
+            // Generate a new lease container name that will use through out the test.
+            string leaseContainerName = Guid.NewGuid().ToString();
+
+            // Consume all messages with first host.
+            var eventProcessorHostFirst = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            await RunGenericScenario(eventProcessorHostFirst);
+
+            // Seconds time we initiate a host, it should pick from where previous host left.
+            // In other words, it shouldn't start receiving from start of the stream.
+            var eventProcessorHostSecond = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents = await RunGenericScenario(eventProcessorHostSecond);
+
+            // We should have received only 1 event from each partition.
+            Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
+        }
+
+        /// <summary>
+        /// If a host doesn't checkpoint on the processed events and shuts down, new host should start processing from the beginning.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        async Task NoCheckpointThenNewHostReadsFromStart()
+        {
+            // Generate a new lease container name that will use through out the test.
+            string leaseContainerName = Guid.NewGuid().ToString();
+
+            // Consume all messages with first host.
+            var eventProcessorHostFirst = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents1 = await RunGenericScenario(eventProcessorHostFirst, checkPointEvents: false);
+            var totalEventsFromFirstHost = receivedEvents1.Sum(part => part.Value.Count);
+
+            // Seconds time we initiate a host, it should pick from where previous host left.
+            // In other words, it shouldn't start receiving from start of the stream.
+            var eventProcessorHostSecond = new EventProcessorHost(
+                this.ConnectionSettings.EntityPath,
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents2 = await RunGenericScenario(eventProcessorHostSecond);
+            var totalEventsFromSecondHost = receivedEvents2.Sum(part => part.Value.Count);
+
+            // Second host should have received +partition-count messages.
+            Assert.True(totalEventsFromFirstHost + PartitionIds.Count() == totalEventsFromSecondHost,
+                $"Second host received {receivedEvents2} events where as first host receive {receivedEvents1} events.");
+        }
+
+        async Task<Dictionary<string, EventData>> SendAndReceiveSingleEvent()
+        {
+            // Send single event to each partition.
+            WriteLine($"Sending an event to each partition");
+            var sendTasks = new List<Task>();
+            foreach (var partitionId in PartitionIds)
+            {
+                sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+            }
+
+            await Task.WhenAll(sendTasks);
+
+            // Receive all events including last events from each partition.
+            var ehClient = EventHubClient.Create(this.ConnectionSettings);
+            ConcurrentDictionary<string, EventData> lastEvents = new ConcurrentDictionary<string, EventData>();
+            var receiveTasks = PartitionIds.Select(async partitionId =>
+                {
+                    var receiver = ehClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, PartitionReceiver.StartOfStream);
+                    while (true)
+                    {
+                        var messages = await receiver.ReceiveAsync(100, TimeSpan.FromSeconds(10));
+                        if (messages == null)
+                        {
+                            break;
+                        }
+
+                        WriteLine($"Received {messages.Count()} events from partition {receiver.PartitionId}");
+                        lastEvents[receiver.PartitionId] = messages.Last();
+                    }
+                });
+
+            await Task.WhenAll(receiveTasks);
+
+            // Assert we have received at least one event from each partition.
+            Assert.True(lastEvents.Count == PartitionIds.Count(), "SendAndReceiveSingleEvent didn't receive expected number of events");
+
+            return lastEvents.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
+
+        async Task<Dictionary<string, List<EventData>>> RunGenericScenario(EventProcessorHost eventProcessorHost,
+            EventProcessorOptions epo = null, int totalNumberOfEventsToSend = 1, bool checkPointEvents = true)
+        {
+            var receivedEvents = new ConcurrentDictionary<string, List<EventData>>();
+
+            if (epo == null)
+            {
+                epo = new EventProcessorOptions { ReceiveTimeout = TimeSpan.FromSeconds(15) };
+            }
+
+            try
+            {
+                WriteLine($"Calling RegisterEventProcessorAsync");
+                var processorFactory = new TestEventProcessorFactory();
+
+                processorFactory.OnCreateProcessor += (f, createArgs) =>
+                {
+                    var processor = createArgs.Item2;
+                    string partitionId = createArgs.Item1.PartitionId;
+                    string hostName = createArgs.Item1.Owner;
+                    processor.OnOpen += (_, partitionContext) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor opened");
+                    processor.OnClose += (_, closeArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor closing: {closeArgs.Item2}");
+                    processor.OnProcessError += (_, errorArgs) => WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor process error {errorArgs.Item2.Message}");
+                    processor.OnProcessEvents += (_, eventsArgs) =>
+                    {
+                        int eventCount = eventsArgs.Item2 != null ? eventsArgs.Item2.events.Count() : 0;
+                        WriteLine($"{hostName} > Partition {partitionId} TestEventProcessor processing {eventCount} event(s)");
+                        if (eventCount > 0)
+                        {
+                            List<EventData> events;
+                            receivedEvents.TryGetValue(partitionId, out events);
+                            if (events == null)
+                            {
+                                events = new List<EventData>();
+                            }
+
+                            events.AddRange(eventsArgs.Item2.events);
+                            receivedEvents[partitionId] = events;
+                        }
+
+                        eventsArgs.Item2.checkPointLastEvent = checkPointEvents;
+                    };
+                };
+
+                await eventProcessorHost.RegisterEventProcessorFactoryAsync(processorFactory, epo);
+
+                WriteLine($"Sending {totalNumberOfEventsToSend} event(s) to each partition");
+                var sendTasks = new List<Task>();
+                foreach (var partitionId in PartitionIds)
+                {
+                    for (int i = 0; i < totalNumberOfEventsToSend; i++)
+                    {
+                        sendTasks.Add(this.SendToPartitionAsync(partitionId, $"{partitionId} event.", this.ConnectionSettings));
+                    }
+                }
+
+                await Task.WhenAll(sendTasks);
+
+                // Give 1 minute to host pick up all events.
+                await Task.Delay(TimeSpan.FromSeconds(60));
+
+                WriteLine($"Verifying at least an event was received by each partition");
+                foreach (var partitionId in PartitionIds)
+                {
+                    Assert.True(receivedEvents.ContainsKey(partitionId), $"Partition {partitionId} didn't receive any message!");
+                }
+
+                WriteLine($"Success");
+            }
+            finally
+            {
+                WriteLine($"Calling UnregisterEventProcessorAsync");
+                await eventProcessorHost.UnregisterEventProcessorAsync();
+            }
+
+            return receivedEvents.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
+
+        async Task<string[]> GetPartitionIdsAsync(EventHubsConnectionSettings connectionSettings)
         {
             var eventHubClient = EventHubClient.Create(connectionSettings);
             try
@@ -288,7 +624,7 @@
             }
         }
 
-        async Task SendToPartitionAsync(string partitionId, string messageBody, ServiceBusConnectionSettings connectionSettings)
+        async Task SendToPartitionAsync(string partitionId, string messageBody, EventHubsConnectionSettings connectionSettings)
         {
             var eventHubClient = EventHubClient.Create(connectionSettings);
             try
@@ -314,7 +650,7 @@
         {
             public event EventHandler<PartitionContext> OnOpen;
             public event EventHandler<Tuple<PartitionContext, CloseReason>> OnClose;
-            public event EventHandler<Tuple<PartitionContext, IEnumerable<EventData>>> OnProcessEvents;
+            public event EventHandler<Tuple<PartitionContext, ReceivedEventArgs>> OnProcessEvents;
             public event EventHandler<Tuple<PartitionContext, Exception>> OnProcessError;
 
             public TestEventProcessor()
@@ -335,9 +671,11 @@
 
             Task IEventProcessor.ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> events)
             {
-                this.OnProcessEvents?.Invoke(this, new Tuple<PartitionContext, IEnumerable<EventData>>(context, events));
+                var eventsArgs = new ReceivedEventArgs();
+                eventsArgs.events = events;
+                this.OnProcessEvents?.Invoke(this, new Tuple<PartitionContext, ReceivedEventArgs>(context, eventsArgs));
                 EventData lastEvent = events?.LastOrDefault();
-                if (lastEvent != null)
+                if (eventsArgs.checkPointLastEvent && lastEvent != null)
                 {
                     return context.CheckpointAsync(lastEvent);
                 }
@@ -362,6 +700,12 @@
                 this.OnCreateProcessor?.Invoke(this, new Tuple<PartitionContext, TestEventProcessor>(context, processor));
                 return processor;
             }
+        }
+
+        class ReceivedEventArgs
+        {
+            public IEnumerable<EventData> events;
+            public bool checkPointLastEvent = true;
         }
     }
 }

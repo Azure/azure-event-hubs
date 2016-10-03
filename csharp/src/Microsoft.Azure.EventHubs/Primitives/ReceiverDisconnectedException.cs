@@ -9,7 +9,7 @@ namespace Microsoft.Azure.EventHubs
     /// This exception is thrown if two or more <see cref="PartitionReceiver"/> instances connect
     /// to the same partition with different epoch values.
     /// </summary>
-    public sealed class ReceiverDisconnectedException : ServiceBusException
+    public sealed class ReceiverDisconnectedException : EventHubsException
     {
         internal ReceiverDisconnectedException(string message)
             : this(message, null)

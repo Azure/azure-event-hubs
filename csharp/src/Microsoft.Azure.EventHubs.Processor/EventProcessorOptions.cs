@@ -32,6 +32,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.MaxBatchSize = 10;
             this.PrefetchCount = 300;
             this.ReceiveTimeout = TimeSpan.FromMinutes(1);
+            this.InitialOffsetProvider = (partitionId) => { return PartitionReceiver.StartOfStream; };
         }
 
         /// <summary>
@@ -64,12 +65,12 @@ namespace Microsoft.Azure.EventHubs.Processor
         public int PrefetchCount { get; set; }
 
         /// <summary>
-        /// Returns the current function used to determine the initial offset at which to start receiving
+        /// Get or sets the current function used to determine the initial offset at which to start receiving
         /// events for a partition.
         /// <para>A null return indicates that it is using the internal provider, which uses the last checkpointed
         /// offset value (if present) or StartOfSTream (if not).</para>
         /// </summary>
-        public Func<string, string> InitialOffsetProvider { get; set; }
+        public Func<string, object> InitialOffsetProvider { get; set; }
 
         /// <summary>
         /// Returns whether the EventProcessorHost will call IEventProcessor.OnEvents(null) when a receive
@@ -77,9 +78,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// </summary>
         public bool InvokeProcessorAfterReceiveTimeout { get; set; }
 
-        internal void NotifyOfException(string hostname, Exception exception, string action)
+        internal void NotifyOfException(string hostname, string partitionId, Exception exception, string action)
         {
-            this.exceptionHandler?.Invoke(new ExceptionReceivedEventArgs(hostname, exception, action));
+            this.exceptionHandler?.Invoke(new ExceptionReceivedEventArgs(hostname, partitionId, exception, action));
         }
     }
 }
