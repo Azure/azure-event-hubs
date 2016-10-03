@@ -92,7 +92,7 @@ namespace Microsoft.Azure.EventHubs
         /// Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
         /// </summary>
         /// <param name="connectionString">Event Hubs ConnectionString</param>
-        public EventHubsConnectionSettings(string connectionString)
+        public EventHubsConnectionSettings(string connectionString, string entityPath = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -102,6 +102,11 @@ namespace Microsoft.Azure.EventHubs
             this.OperationTimeout = DefaultOperationTimeout;
             this.RetryPolicy = RetryPolicyType.Default;
             this.ParseConnectionString(connectionString);
+
+            if (!string.IsNullOrWhiteSpace(entityPath))
+            {
+                this.EntityPath = entityPath;
+            }
         }
 
         public Uri Endpoint { get; set; }

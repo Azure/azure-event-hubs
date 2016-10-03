@@ -216,7 +216,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                this.ConnectionSettings = new EventHubsConnectionSettings(this.eventHubConnectionString);
+                this.ConnectionSettings = new EventHubsConnectionSettings(this.eventHubConnectionString, this.EventHubPath);
                 this.ConnectionSettings.OperationTimeout = processorOptions.ReceiveTimeout;
 
                 if (this.initializeLeaseManager)
