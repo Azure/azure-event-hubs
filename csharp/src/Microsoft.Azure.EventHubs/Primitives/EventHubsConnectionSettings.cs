@@ -88,10 +88,13 @@ namespace Microsoft.Azure.EventHubs
         }
 
         /// <summary>
+        /// Creates an EventHubsConnectionSettings object with a connection string and an optional entity path.
+        /// If the entity path is supplied in the connection string, the optional parameter will be ignored.
         /// ConnectionString format:
         /// Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
         /// </summary>
         /// <param name="connectionString">Event Hubs ConnectionString</param>
+        /// <param name="entityPath">Optional parameter for the Event Hub path / Event Hub name</param>
         public EventHubsConnectionSettings(string connectionString, string entityPath = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -103,7 +106,7 @@ namespace Microsoft.Azure.EventHubs
             this.RetryPolicy = RetryPolicyType.Default;
             this.ParseConnectionString(connectionString);
 
-            if (!string.IsNullOrWhiteSpace(entityPath))
+            if (!string.IsNullOrWhiteSpace(entityPath) && string.IsNullOrWhiteSpace(this.EntityPath))
             {
                 this.EntityPath = entityPath;
             }
