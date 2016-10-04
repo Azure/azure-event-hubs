@@ -49,7 +49,6 @@
         async Task SingleProcessorHost()
         {
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -75,7 +74,6 @@
             {
                 WriteLine($"Creating EventProcessorHost");
                 var eventProcessorHost = new EventProcessorHost(
-                    this.ConnectionSettings.EntityPath,
                     PartitionReceiver.DefaultConsumerGroupName,
                     this.EventHubConnectionString,
                     this.StorageConnectionString,
@@ -155,7 +153,6 @@
             }
 
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -210,7 +207,6 @@
             WriteLine($"Calling RegisterEventProcessorAsync with InvokeProcessorAfterReceiveTimeout=false");
 
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -291,7 +287,6 @@
             foreach (var consumerGroupName in consumerGroupNames)
             {
                 var eventProcessorHost = new EventProcessorHost(
-                    this.ConnectionSettings.EntityPath,
                     consumerGroupName,
                     this.EventHubConnectionString,
                     this.StorageConnectionString,
@@ -349,7 +344,6 @@
 
             // Use a randomly generated container name so that initial offset provider will be respected.
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -375,7 +369,6 @@
 
             // Use a randomly generated container name so that initial offset provider will be respected.
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -401,7 +394,6 @@
 
             // First host will send and receive as usual.
             var eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -412,7 +404,6 @@
             // Since we are still on the same lease container, initial offset provider shouldn't rule.
             // We should continue receiving where we left instead if start-of-stream where initial offset provider dictates.
             eventProcessorHost = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -436,7 +427,6 @@
 
             // Consume all messages with first host.
             var eventProcessorHostFirst = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -446,7 +436,6 @@
             // Seconds time we initiate a host, it should pick from where previous host left.
             // In other words, it shouldn't start receiving from start of the stream.
             var eventProcessorHostSecond = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -469,7 +458,6 @@
 
             // Consume all messages with first host.
             var eventProcessorHostFirst = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
@@ -480,7 +468,6 @@
             // Seconds time we initiate a host, it should pick from where previous host left.
             // In other words, it shouldn't start receiving from start of the stream.
             var eventProcessorHostSecond = new EventProcessorHost(
-                this.ConnectionSettings.EntityPath,
                 PartitionReceiver.DefaultConsumerGroupName,
                 this.EventHubConnectionString,
                 this.StorageConnectionString,

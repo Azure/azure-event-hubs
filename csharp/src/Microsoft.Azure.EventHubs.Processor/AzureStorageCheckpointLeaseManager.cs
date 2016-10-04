@@ -48,9 +48,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             BlobRequestOptions options = new BlobRequestOptions();
             options.MaximumExecutionTime = AzureStorageCheckpointLeaseManager.storageMaximumExecutionTime;
             this.storageClient.DefaultRequestOptions = options;
-        
             this.eventHubContainer = this.storageClient.GetContainerReference(this.leaseContainerName);
-        
             this.consumerGroupDirectory = this.eventHubContainer.GetDirectoryReference(this.host.ConsumerGroupName);
         }
 
