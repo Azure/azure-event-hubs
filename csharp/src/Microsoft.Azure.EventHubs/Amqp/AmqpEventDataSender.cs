@@ -55,27 +55,31 @@ namespace Microsoft.Azure.EventHubs.Amqp
 
                     try
                     {
-                        var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
-                        if (amqpLink.Settings.MaxMessageSize.HasValue)
+                        try
                         {
-                            ulong size = (ulong)amqpMessage.SerializedMessageSize;
-                            if (size > amqpLink.Settings.MaxMessageSize.Value)
+                            var amqpLink = await this.SendLinkManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
+                            if (amqpLink.Settings.MaxMessageSize.HasValue)
                             {
-                                // TODO: Add MessageSizeExceededException
-                                throw new NotImplementedException("MessageSizeExceededException: " + Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value));
-                                //throw Fx.Exception.AsError(new MessageSizeExceededException(
-                                //    Resources.AmqpMessageSizeExceeded.FormatForUser(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value)));
+                                ulong size = (ulong)amqpMessage.SerializedMessageSize;
+                                if (size > amqpLink.Settings.MaxMessageSize.Value)
+                                {
+                                    throw new MessageSizeExceededException(amqpMessage.DeliveryId.Value, size, amqpLink.Settings.MaxMessageSize.Value);
+                                }
                             }
-                        }
 
-                        Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
-                        if (outcome.DescriptorCode != Accepted.Code)
+                            Outcome outcome = await amqpLink.SendMessageAsync(amqpMessage, this.GetNextDeliveryTag(), AmqpConstants.NullBinary, timeoutHelper.RemainingTime());
+                            if (outcome.DescriptorCode != Accepted.Code)
+                            {
+                                Rejected rejected = (Rejected)outcome;
+                                throw new AmqpException(rejected.Error);
+                            }
+
+                            this.retryPolicy.ResetRetryCount();
+                        }
+                        catch (AmqpException amqpException)
                         {
-                            Rejected rejected = (Rejected)outcome;
-                            throw Fx.Exception.AsError(AmqpExceptionHelper.ToMessagingContract(rejected.Error));
+                            throw AmqpExceptionHelper.ToMessagingContract(amqpException.Error);
                         }
-
-                        this.retryPolicy.ResetRetryCount();
                     }
                     catch (Exception ex)
                     {

@@ -139,6 +139,13 @@ namespace Microsoft.Azure.EventHubs.Processor
                 ProcessorEventSource.Log.PartitionPumpInvokeProcessorEventsStart(this.Host.Id, this.PartitionContext.PartitionId, eventCount);
                 try
                 {
+                    if (eventCount > 0)
+                    {
+                        var lastMessage = events.Last();
+                        this.PartitionContext.SequenceNumber = lastMessage.SystemProperties.SequenceNumber;
+                        this.PartitionContext.Offset = lastMessage.SystemProperties.Offset;
+                    }
+
                     await this.Processor.ProcessEventsAsync(this.PartitionContext, events);
                 }
                 catch (Exception e)
@@ -168,10 +175,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         protected Task ProcessErrorAsync(Exception error)
         {
-            // This handler is called when client calls the error handler we have installed.
-            // JavaClient can only do that when execution is down in javaClient. Therefore no onEvents
-            // call can be in progress right now. JavaClient will not get control back until this handler
-            // returns, so there will be no calls to onEvents until after the user's error handler has returned.
             return this.Processor.ProcessErrorAsync(this.PartitionContext, error);
         }
     }

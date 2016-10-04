@@ -10,8 +10,6 @@ namespace Microsoft.Azure.EventHubs.Processor
     public class PartitionContext
     {
         readonly EventProcessorHost host;
-        string offset = PartitionReceiver.StartOfStream;
-        long sequenceNumber = 0;
 
         internal PartitionContext(EventProcessorHost host, string partitionId, string eventHubPath, string consumerGroupName)
         {
@@ -20,6 +18,8 @@ namespace Microsoft.Azure.EventHubs.Processor
             this.EventHubPath = eventHubPath;
             this.ConsumerGroupName = consumerGroupName;
             this.ThisLock = new object();
+            this.Offset = PartitionReceiver.StartOfStream;
+            this.SequenceNumber = 0;
         }
 
         public string ConsumerGroupName { get; }
@@ -35,6 +35,10 @@ namespace Microsoft.Azure.EventHubs.Processor
                 return this.Lease.Owner;
             }
         }
+
+        internal string Offset { get; set; }
+
+        internal long SequenceNumber { get; set; }
 
         // Unlike other properties which are immutable after creation, the lease is updated dynamically and needs a setter.
         internal Lease Lease { get; set; }
@@ -75,14 +79,14 @@ namespace Microsoft.Azure.EventHubs.Processor
         {
             lock(this.ThisLock)
             {
-                if (sequenceNumber >= this.sequenceNumber)
+                if (sequenceNumber >= this.SequenceNumber)
                 {
-                    this.offset = offset;
-                    this.sequenceNumber = sequenceNumber;
+                    this.Offset = offset;
+                    this.SequenceNumber = sequenceNumber;
                 }
                 else
                 {
-                    throw new ArgumentOutOfRangeException("offset/sequenceNumber", $"New offset {offset}/{sequenceNumber} is less than previous {this.offset}/{this.sequenceNumber}");
+                    throw new ArgumentOutOfRangeException("offset/sequenceNumber", $"New offset {offset}/{sequenceNumber} is less than previous {this.Offset}/{this.SequenceNumber}");
                 }
             }
         }    
@@ -101,9 +105,9 @@ namespace Microsoft.Azure.EventHubs.Processor
 
                 if (startAt is string)
                 {
-                    this.offset = (string)startAt;
-                    this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.offset}/{this.sequenceNumber}");
+                    this.Offset = (string)startAt;
+                    this.SequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
+                    ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Initial offset/sequenceNumber provided: {this.Offset}/{this.SequenceNumber}");
                 }
                 else if (startAt is DateTime)
                 {
@@ -117,10 +121,10 @@ namespace Microsoft.Azure.EventHubs.Processor
     	    }
     	    else
     	    {
-                this.offset = startingCheckpoint.Offset;
-	    	    this.sequenceNumber = startingCheckpoint.SequenceNumber;
-                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting offset/sequenceNumber: {this.offset}/{this.sequenceNumber}");
-                startAt = this.offset;
+                this.Offset = startingCheckpoint.Offset;
+	    	    this.SequenceNumber = startingCheckpoint.SequenceNumber;
+                ProcessorEventSource.Log.PartitionPumpInfo(this.host.Id, this.PartitionId, $"Retrieved starting offset/sequenceNumber: {this.Offset}/{this.SequenceNumber}");
+                startAt = this.Offset;
             }
 
     	    return startAt;
@@ -139,7 +143,7 @@ namespace Microsoft.Azure.EventHubs.Processor
     	    Checkpoint capturedCheckpoint;
             lock(this.ThisLock)
             {
-                capturedCheckpoint = new Checkpoint(this.PartitionId, this.offset, this.sequenceNumber);
+                capturedCheckpoint = new Checkpoint(this.PartitionId, this.Offset, this.SequenceNumber);
             }
 
             return this.PersistCheckpointAsync(capturedCheckpoint);
@@ -159,7 +163,7 @@ namespace Microsoft.Azure.EventHubs.Processor
 
         public override string ToString()
         {
-            return $"PartitionContext({this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.sequenceNumber})";
+            return $"PartitionContext({this.EventHubPath}/{this.ConsumerGroupName}/{this.PartitionId}/{this.SequenceNumber})";
         }
 
         async Task PersistCheckpointAsync(Checkpoint checkpoint) // throws ArgumentOutOfRangeException, InterruptedException, ExecutionException
