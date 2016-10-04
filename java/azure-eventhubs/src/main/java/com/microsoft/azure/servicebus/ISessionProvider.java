@@ -4,9 +4,9 @@
  */
 package com.microsoft.azure.servicebus;
 
-import org.apache.qpid.proton.engine.Connection;
+import org.apache.qpid.proton.engine.Session;
 
-interface IConnectionFactory
+interface ISessionProvider
 {
-	Connection getConnection();
+	Session getSession(final String sessionId);
 }
