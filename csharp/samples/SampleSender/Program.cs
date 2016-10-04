@@ -1,43 +1,48 @@
 ﻿namespace SampleSender
 {
-	using System;
-	using System.Text;
-	using System.Threading.Tasks;
-	using Microsoft.Azure.EventHubs;
+    using System;
+    using System.Text;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.EventHubs;
 
-	public class Program
-	{
-		private const string EH_CONNECTION_STRING = "{Event Hubs connection string}";
+    public class Program
+    {
+        private const string EhConnectionString = "{Event Hubs connection string}";
+        private const string EhEntityPath = "{Event Hub path/name}";
 
-		public static void Main(string[] args)
-		{
-			Console.WriteLine("Press Ctrl-C to stop the sender process");
-			Console.WriteLine("Press Enter to start now");
-			Console.ReadLine();
+        public static void Main(string[] args)
+        {
+            Console.WriteLine("Press Ctrl-C to stop the sender process");
+            Console.WriteLine("Press Enter to start now");
+            Console.ReadLine();
 
-			SendMessageToEh().GetAwaiter().GetResult();
-		}
+            // GetAwaiter().GetResult() will avoid System.AggregateException
+            SendMessageToEventHubs().GetAwaiter().GetResult();
+        }
 
-		private static async Task SendMessageToEh()
-		{
-			var eventHubClient = EventHubClient.Create(EH_CONNECTION_STRING);
-			while (true)
-			{
-				try
-				{
-					var message = Guid.NewGuid().ToString();
-					Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
-					await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
-				}
-				catch (Exception exception)
-				{
-					Console.ForegroundColor = ConsoleColor.Red;
-					Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
-					Console.ResetColor();
-				}
+        private static async Task SendMessageToEventHubs()
+        {
+            var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
+            {
+                EntityPath = EhEntityPath
+            };
 
-				await Task.Delay(200);
-			}
-		}
-	}
+            var eventHubClient = EventHubClient.Create(connectionSettings);
+            while (true)
+            {
+                try
+                {
+                    var message = Guid.NewGuid().ToString();
+                    Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
+                    await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
+                }
+
+                await Task.Delay(200);
+            }
+        }
+    }
 }

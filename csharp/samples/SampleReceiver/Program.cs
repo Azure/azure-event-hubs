@@ -7,27 +7,30 @@
 
     public class Program
     {
-        private const string EH_CONNECTION_STRING = "{Event Hubs connection string}";
-        private const string STORAGE_CONTAINER_NAME = "{Storage account container name}";
-        private const string STORAGE_ACCOUNT_NAME = "{Storage account name}";
-        private const string STORAGE_ACCOUNT_KEY = "{Storage account key}";
+        private const string EhConnectionString = "{Event Hubs connection string}";
+        private const string EhEntityPath = "{Event Hub path/name}";
+        private const string StorageContainerName = "{Storage account container name}";
+        private const string StorageAccountName = "{Storage account name}";
+        private const string StorageAccountKey = "{Storage account key}";
 
-        private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY);
+        private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
         public static void Main(string[] args)
         {
-            RunEph().GetAwaiter().GetResult();
+            // GetAwaiter().GetResult() will avoid System.AggregateException
+            ReceiveMessagesFromEventHubs().GetAwaiter().GetResult();
+
             Console.WriteLine("Receiving. Press enter key to stop worker.");
             Console.ReadLine();
         }
 
-        private static async Task RunEph()
+        private static async Task ReceiveMessagesFromEventHubs()
         {
             var eventProcessorHost = new EventProcessorHost(
                 PartitionReceiver.DefaultConsumerGroupName,
-                EH_CONNECTION_STRING,
+                EhConnectionString,
                 storageConnectionString,
-                STORAGE_CONTAINER_NAME
+                StorageContainerName
             );
 
             Console.WriteLine("Registering EventProcessor...");
