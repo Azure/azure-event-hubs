@@ -1,4 +1,7 @@
-﻿namespace SampleSender
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace SampleSender
 {
     using System;
     using System.Text;
@@ -16,11 +19,10 @@
             Console.WriteLine("Press Enter to start now");
             Console.ReadLine();
 
-            // GetAwaiter().GetResult() will avoid System.AggregateException
-            SendMessageToEventHubs().GetAwaiter().GetResult();
+            SendMessagesToEventHubs().Wait();
         }
 
-        private static async Task SendMessageToEventHubs()
+        private static async Task SendMessagesToEventHubs()
         {
             var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
             {
@@ -28,11 +30,12 @@
             };
 
             var eventHubClient = EventHubClient.Create(connectionSettings);
-            while (true)
+
+            for (var i = 0; i < 100; i ++)
             {
                 try
                 {
-                    var message = Guid.NewGuid().ToString();
+                    var message = $"Message {i}";
                     Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
                     await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
                 }
@@ -41,7 +44,7 @@
                     Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
                 }
 
-                await Task.Delay(200);
+                await Task.Delay(10);
             }
         }
     }

@@ -1,4 +1,7 @@
-﻿namespace SampleReceiver
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace SampleReceiver
 {
     using System;
     using System.Threading.Tasks;
@@ -15,18 +18,20 @@
 
         private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
+        private static EventProcessorHost eventProcessorHost;
+
         public static void Main(string[] args)
         {
-            // GetAwaiter().GetResult() will avoid System.AggregateException
-            ReceiveMessagesFromEventHubs().GetAwaiter().GetResult();
+            StartHost().Wait();
 
             Console.WriteLine("Receiving. Press enter key to stop worker.");
             Console.ReadLine();
+            StopHost().Wait();
         }
 
-        private static async Task ReceiveMessagesFromEventHubs()
+        private static Task StartHost()
         {
-            var eventProcessorHost = new EventProcessorHost(
+            eventProcessorHost = new EventProcessorHost(
                 PartitionReceiver.DefaultConsumerGroupName,
                 EhConnectionString,
                 storageConnectionString,
@@ -34,7 +39,12 @@
             );
 
             Console.WriteLine("Registering EventProcessor...");
-            await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+            return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+        }
+
+        private static Task StopHost()
+        {
+            return eventProcessorHost?.UnregisterEventProcessorAsync();
         }
     }
 }

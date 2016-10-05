@@ -1,4 +1,7 @@
-﻿namespace SampleReceiver
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+namespace SampleReceiver
 {
 	using System;
 	using System.Collections.Generic;
@@ -9,24 +12,22 @@
 
 	public class SimpleEventProcessor : IEventProcessor
 	{
-		public async Task CloseAsync(PartitionContext context, CloseReason reason)
+		public Task CloseAsync(PartitionContext context, CloseReason reason)
 		{
-			Console.WriteLine("Processor Shutting Down. Partition '{0}', Reason: '{1}'.", context.PartitionId, reason);
-			if (reason == CloseReason.Shutdown)
-			{
-				await context.CheckpointAsync();
-			}
+			Console.WriteLine($"Processor Shutting Down. Partition '{context.PartitionId}', Reason: '{reason}'.");
+			return Task.FromResult<object>(null);
 		}
 
 		public Task OpenAsync(PartitionContext context)
 		{
-			Console.WriteLine("SimpleEventProcessor initialized.  Partition: '{0}'", context.PartitionId);
+			Console.WriteLine($"SimpleEventProcessor initialized.  Partition: '{context.PartitionId}'");
 			return Task.FromResult<object>(null);
 		}
 
 		public Task ProcessErrorAsync(PartitionContext context, Exception error)
 		{
-			return Task.Factory.StartNew(() => { Console.WriteLine(error.Message); });
+			Console.WriteLine($"Error on Partition: {context.PartitionId}, Error: {error.Message}");
+			return Task.FromResult<object>(null);
 		}
 
 		public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
@@ -34,7 +35,7 @@
 			foreach (var eventData in messages)
 			{
 				var data = Encoding.UTF8.GetString(eventData.Body.Array, eventData.Body.Offset, eventData.Body.Count);
-				Console.WriteLine(string.Format("Message received.  Partition: '{0}', Data: '{1}'", context.PartitionId, data));
+				Console.WriteLine($"Message received.  Partition: '{context.PartitionId}', Data: '{data}'");
 			}
 
 			await context.CheckpointAsync();

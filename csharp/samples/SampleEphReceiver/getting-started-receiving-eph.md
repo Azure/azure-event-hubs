@@ -2,21 +2,23 @@
 
 ## What will be accomplished
 
-In this tutorial, we will write a console application to receive messages from an Event Hub using the **EventProcessorHost**.
+In this tutorial, we will write a .NET Core console application to receive messages from an Event Hub using the **EventProcessorHost**.
 
 ## Prerequisites
 
 1. [Visual Studio 2015](http://www.visualstudio.com).
 
-2. An Azure subscription.
+2. [.NET Core Visual Sudio 2015 Tooling](http://www.microsoft.com/net/core).
 
-3. [An Event Hubs namespace]().
+3. An Azure subscription.
+
+4. An Event Hubs namespace.
     
 ## Receive messages from the Event Hub
 
 ### Create a console application
 
-1. Launch Visual Studio and create a new Console application.
+1. Launch Visual Studio and create a new .NET Core console application.
 
 ### Add the Event Hubs NuGet package
 
