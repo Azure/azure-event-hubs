@@ -16,7 +16,7 @@ namespace SampleEphReceiver
         private const string StorageAccountName = "{Storage account name}";
         private const string StorageAccountKey = "{Storage account key}";
 
-        private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
+        private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
         private static EventProcessorHost eventProcessorHost;
 
@@ -34,9 +34,8 @@ namespace SampleEphReceiver
             eventProcessorHost = new EventProcessorHost(
                 PartitionReceiver.DefaultConsumerGroupName,
                 EhConnectionString,
-                storageConnectionString,
-                StorageContainerName
-            );
+                StorageConnectionString,
+                StorageContainerName);
 
             Console.WriteLine("Registering EventProcessor...");
             return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
