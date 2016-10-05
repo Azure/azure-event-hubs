@@ -1,27 +1,51 @@
-#Microsoft Azure Event Hubs C# Client Libraries
+# Microsoft Azure Event Hubs Client for .NET
 
-This subfolder contains open-source, client-side libraries for interacting with Microsoft Azure Event Hubs from C#.
+This libary is built using .NET Standard 1.6. For more information on what platforms are supported see [.NET Platforms Support](https://docs.microsoft.com/en-us/dotnet/articles/standard/library#net-platforms-support).
 
-To setup .NET Core (Core CLR) on your machine:
+Azure Event Hubs is a highly scalable publish-subscribe service that can ingest millions of events per second and stream them into multiple applications. This lets you process and analyze the massive amounts of data produced by your connected devices and applications. Once Event Hubs has collected the data, you can retrieve, transform and store it by using any real-time analytics provider or with batching/storage adapters. 
 
-1. Install Visual Studio 2015
+Refer to the [online documentation](https://azure.microsoft.com/services/event-hubs/) to learn more about Event Hubs in general.
 
-2. Run the "Visual Studio official MSI Installer" to install .NET Core RC2 and VS 2015 Tooling Preview 1:
-https://go.microsoft.com/fwlink/?LinkId=798481
+## Overview
 
-After installing .NET Core RC2 ensure to restart any command line windows in use since it updates the PATH environment variable.
+The .NET client library for Azure Event Hubs allows for both sending events to and receiving events from an Azure Event Hub. 
 
-These C# Event Hub libraries, Microsoft.Azure.EventHubs.dll and Microsoft.Azure.EventHubsProcessor.dll, require the Microsoft.Azure.Amqp.dll package for .NET Core.  Currently there is no published nuget package which contains this support.  Therefore in order to obtain this dependency one must follow these steps:
+An **event publisher** is a source of telemetry data, diagnostics information, usage logs, or other log data, as 
+part of an emvbedded device solution, a mobile device application, a game title running on a console or other device, 
+some client or server based business solution, or a web site.  
 
-1. Clone the Azure/azure-amqp "develop" branch.  It is found at https://github.com/Azure/azure-amqp/tree/develop
-2. Open the "develop" branch's solution, Microsoft\_Azure\_Amqp.sln.
-3. Change the configuration to "Release" and build the solution (or just build Microsoft.Azure.Amqp and Microsoft.Azure.Amqp.Uwp projects).
-4. In a command prompt change directory to "azure-amqp\Microsoft.Azure.Amqp\Nuget\" folder.
-5. Run "powershell .\make_nuget_package.ps1"
-6. Copy Microsoft.Azure.Amqp.2.0.0.nupkg to either "%PROGRAMFILES(X86)%\Microsoft SDKs\NuGetPackages\" or a custom folder on your machine which you have added to nuget's list of package sources (e.g. D:\Packages\ which is referenced by your nuget.config file).
+An **event consumer** picks up such information from the Event Hub and processes it. Processing may involve aggregation, complex 
+computation and filtering. Processing may also involve distribution or storage of the information in a raw or transformed fashion.
+Event Hub consumers are often robust and high-scale platform infrastructure parts with built-in analytics capabilites, like Azure 
+Stream Analytics, Apache Spark, or Apache Storm.   
+   
+Most applications will act either as an event publisher or an event consumer, but rarely both. The exception are event 
+consumers that filter and/or transform event streams and then forward them on to another Event Hub; an example for such is Azure Stream Analytics.
 
-NOTE: if you modify and rebuild Microsoft.Azure.Amqp.2.0.0.nupkg without changing the nuget package version (e.g. 2.0.0) then you must manually delete nuget's cached copy of the package at "%USERPROFILE%\.nuget\packages\Microsoft.Azure.Amqp\2.0.0".  Otherwise you will not get any new changes since the cached (previous) DLL will still be used.
+### Getting Started
 
-Once Microsoft.Azure.Amqp.2.0.0.nupkg is available and can be located by nuget you will be able to build the .NET Core EventHub Client assemblies.
+To get started sending events to an Event Hub refer to [Get started sending messages to Event Hubs in .NET Core](./samples/SampleSender/getting-started-sending.md).
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+To get started receiving events with the **EventProcessorHost** refer to [Get started receiving messages with the EventProcessorHost in .NET Core](./samples/SampleEphReceiver/getting-started-receiving-eph.md).  
+
+### Running the unit tests 
+
+In order to run the unit tests, you will need to set the following Environment Variables:
+
+1. `EVENTHUBCONNECTIONSTRING`
+
+2. `EVENTPROCESSORSTORAGECONNECTIONSTRING`
+
+## How to provide feedback
+
+First, if you experience any issues with the runtime behavior of the Azure Event Hubs service, please consider filing a support request
+right away. Your options for [getting support are enumerated here](https://azure.microsoft.com/support/options/). In the Azure portal, 
+you can file a support request from the "Help and support" menu in the upper right hand corner of the page.   
+
+If you find issues in this library or have suggestions for improvement of code or documentation, [you can file an issue in the project's 
+GitHub repository](https://github.com/Azure/azure-event-hubs/issues). Issues related to runtime behavior of the service, such as 
+sporadic exceptions or apparent service-side performance or reliability issues can not be handled here.
+
+Generally, if you want to discuss Azure Event Hubs or this client library with the community and the maintainers, you can turn to 
+[stackoverflow.com under the #azure-eventhub tag](http://stackoverflow.com/questions/tagged/azure-eventhub) or the 
+[MSDN Service Bus Forum](https://social.msdn.microsoft.com/Forums/en-US/home?forum=servbus). 

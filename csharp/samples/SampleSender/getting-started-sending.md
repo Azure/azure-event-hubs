@@ -1,4 +1,4 @@
-# Get started sending messages to Event Hubs in .NET
+# Get started sending messages to Event Hubs in .NET Core
 
 ## What will be accomplished
 

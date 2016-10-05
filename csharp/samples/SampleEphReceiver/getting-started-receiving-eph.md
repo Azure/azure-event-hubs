@@ -1,4 +1,4 @@
-# Get started with Event Hubs in .NET
+# Get started receiving messages with the EventProcessorHost in .NET Core
 
 ## What will be accomplished
 
