@@ -2,13 +2,15 @@
 
 ## What will be accomplished
 
+This tutorial will walk-through how to create the existing solution **SampleSender** (inside this folder). You can run the solution as-is replacing the EhConnectionString/EhEntityPath with your Event Hub values, or follow this tutorial to create your own.
+
 In this tutorial, we will write a .NET Core console application to send messages to an Event Hub.
 
 ## Prerequisites
 
 1. [Visual Studio 2015](http://www.visualstudio.com).
 
-2. [.NET Core Visual Sudio 2015 Tooling](http://www.microsoft.com/net/core).
+2. [.NET Core Visual Studio 2015 Tooling](http://www.microsoft.com/net/core).
 
 3. An Azure subscription.
 
@@ -60,7 +62,7 @@ To send messages to an Event Hub, we will write a C# console application using V
             try
             {
                 var message = $"Message {i}";
-                Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
+                Console.WriteLine($"Sending message: {message}");
                 await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
             }
             catch (Exception exception)
@@ -70,16 +72,16 @@ To send messages to an Event Hub, we will write a C# console application using V
 
             await Task.Delay(10);
         }
+
+        Console.WriteLine("All messages sent. Press any key to exit.");
+    }
     ```
 
 4. Add the following code to the `Main` method in the `Program` class.
 
     ```cs
-    Console.WriteLine("Press Ctrl-C to stop the sender process");
-    Console.WriteLine("Press Enter to start now");
-    Console.ReadLine();
-
     SendMessagesToEventHubs().Wait();
+    Console.ReadLine();
     ```
 
     Here is what your Program.cs should look like.
@@ -99,11 +101,8 @@ To send messages to an Event Hub, we will write a C# console application using V
 
             public static void Main(string[] args)
             {
-                Console.WriteLine("Press Ctrl-C to stop the sender process");
-                Console.WriteLine("Press Enter to start now");
-                Console.ReadLine();
-
                 SendMessagesToEventHubs().Wait();
+                Console.ReadLine();
             }
 
             private static async Task SendMessagesToEventHubs()
@@ -120,7 +119,7 @@ To send messages to an Event Hub, we will write a C# console application using V
                     try
                     {
                         var message = $"Message {i}";
-                        Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
+                        Console.WriteLine($"Sending message: {message}");
                         await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
                     }
                     catch (Exception exception)
@@ -130,6 +129,8 @@ To send messages to an Event Hub, we will write a C# console application using V
 
                     await Task.Delay(10);
                 }
+
+                Console.WriteLine("All messages sent. Press any key to exit.");
             }
         }
     }

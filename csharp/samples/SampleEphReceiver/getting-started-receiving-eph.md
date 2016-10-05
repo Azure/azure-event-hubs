@@ -2,13 +2,15 @@
 
 ## What will be accomplished
 
+This tutorial will walk-through how to create the existing solution **SampleEphReceiver** (inside this folder). You can run the solution as-is replacing the EhConnectionString/EhEntityPath/StorageAccount settings with your Event Hub and storage account values, or follow this tutorial to create your own.
+
 In this tutorial, we will write a .NET Core console application to receive messages from an Event Hub using the **EventProcessorHost**.
 
 ## Prerequisites
 
 1. [Visual Studio 2015](http://www.visualstudio.com).
 
-2. [.NET Core Visual Sudio 2015 Tooling](http://www.microsoft.com/net/core).
+2. [.NET Core Visual Studio 2015 Tooling](http://www.microsoft.com/net/core).
 
 3. An Azure subscription.
 
