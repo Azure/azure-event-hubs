@@ -28,8 +28,6 @@ To send messages to an Event Hub, we will write a C# console application using V
 
 2. Click the **Browse** tab, then search for “Microsoft Azure Event Hubs” and select the **Microsoft Azure Event Hubs** item. Click **Install** to complete the installation, then close this dialog box.
 
-    ![Select a NuGet package][nuget-pkg]
-
 ### Write some code to send messages to the Event Hub
 
 1. Add the following `using` statement to the top of the Program.cs file.
@@ -48,7 +46,7 @@ To send messages to an Event Hub, we will write a C# console application using V
 3. Add a new method to the `Program` class like the following:
 
     ```cs
-    private static async Task SendMessageToEh()
+    private static async Task SendMessagesToEventHubs()
     {
         var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
         {
@@ -56,11 +54,12 @@ To send messages to an Event Hub, we will write a C# console application using V
         };
 
         var eventHubClient = EventHubClient.Create(connectionSettings);
-        while (true)
+
+        for (var i = 0; i < 100; i ++)
         {
             try
             {
-                var message = Guid.NewGuid().ToString();
+                var message = $"Message {i}";
                 Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
                 await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
             }
@@ -69,9 +68,8 @@ To send messages to an Event Hub, we will write a C# console application using V
                 Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
             }
 
-            await Task.Delay(200);
+            await Task.Delay(10);
         }
-    }
     ```
 
 4. Add the following code to the `Main` method in the `Program` class.
@@ -81,8 +79,7 @@ To send messages to an Event Hub, we will write a C# console application using V
     Console.WriteLine("Press Enter to start now");
     Console.ReadLine();
 
-    // GetAwaiter().GetResult() will avoid System.AggregateException
-    SendMessageToEventHubs().GetAwaiter().GetResult();
+    SendMessagesToEventHubs().Wait();
     ```
 
     Here is what your Program.cs should look like.
@@ -106,11 +103,10 @@ To send messages to an Event Hub, we will write a C# console application using V
                 Console.WriteLine("Press Enter to start now");
                 Console.ReadLine();
 
-                // GetAwaiter().GetResult() will avoid System.AggregateException
-                SendMessageToEventHubs().GetAwaiter().GetResult();
+                SendMessagesToEventHubs().Wait();
             }
 
-            private static async Task SendMessageToEventHubs()
+            private static async Task SendMessagesToEventHubs()
             {
                 var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
                 {
@@ -118,11 +114,12 @@ To send messages to an Event Hub, we will write a C# console application using V
                 };
 
                 var eventHubClient = EventHubClient.Create(connectionSettings);
-                while (true)
+
+                for (var i = 0; i < 100; i ++)
                 {
                     try
                     {
-                        var message = Guid.NewGuid().ToString();
+                        var message = $"Message {i}";
                         Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
                         await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
                     }
@@ -131,7 +128,7 @@ To send messages to an Event Hub, we will write a C# console application using V
                         Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
                     }
 
-                    await Task.Delay(200);
+                    await Task.Delay(10);
                 }
             }
         }
@@ -141,11 +138,3 @@ To send messages to an Event Hub, we will write a C# console application using V
 5. Run the program, and ensure that there are no errors thrown.
   
 Congratulations! You have now created an Event Hub and sent messages to it.
-
-<!--Image references-->
-
-[nuget-pkg]: ./media/service-bus-dotnet-get-started-with-queues/nuget-package.png
-
-<!--Reference style links - using these makes the source content way more readable than using inline links-->
-
-[github-samples]: https://github.com/Azure-Samples/azure-servicebus-messaging-samples

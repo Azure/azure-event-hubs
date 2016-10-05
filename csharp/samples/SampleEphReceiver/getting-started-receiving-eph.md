@@ -26,8 +26,6 @@ In this tutorial, we will write a .NET Core console application to receive messa
 
 2. Click the **Browse** tab, then search for “Microsoft Azure Event Processor Host” and select the **Microsoft Azure Event Processor Host** item. Click **Install** to complete the installation, then close this dialog box.
 
-    ![Select a NuGet package][nuget-pkg]
-
 ### Implement the IEventProcessor interface
 
 1. Create a new class called `SimpleEventProcessor'.
@@ -53,24 +51,22 @@ In this tutorial, we will write a .NET Core console application to receive messa
 
         public class SimpleEventProcessor : IEventProcessor
         {
-            public async Task CloseAsync(PartitionContext context, CloseReason reason)
+            public Task CloseAsync(PartitionContext context, CloseReason reason)
             {
-                Console.WriteLine("Processor Shutting Down. Partition '{0}', Reason: '{1}'.", context.PartitionId, reason);
-                if (reason == CloseReason.Shutdown)
-                {
-                    await context.CheckpointAsync();
-                }
+                Console.WriteLine($"Processor Shutting Down. Partition '{context.PartitionId}', Reason: '{reason}'.");
+                return Task.FromResult<object>(null);
             }
 
             public Task OpenAsync(PartitionContext context)
             {
-                Console.WriteLine("SimpleEventProcessor initialized.  Partition: '{0}'", context.PartitionId);
+                Console.WriteLine($"SimpleEventProcessor initialized.  Partition: '{context.PartitionId}'");
                 return Task.FromResult<object>(null);
             }
 
             public Task ProcessErrorAsync(PartitionContext context, Exception error)
             {
-                return Task.Factory.StartNew(() => { Console.WriteLine(error.Message); });
+                Console.WriteLine($"Error on Partition: {context.PartitionId}, Error: {error.Message}");
+                return Task.FromResult<object>(null);
             }
 
             public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
@@ -78,7 +74,7 @@ In this tutorial, we will write a .NET Core console application to receive messa
                 foreach (var eventData in messages)
                 {
                     var data = Encoding.UTF8.GetString(eventData.Body.Array, eventData.Body.Offset, eventData.Body.Count);
-                    Console.WriteLine(string.Format("Message received.  Partition: '{0}', Data: '{1}'", context.PartitionId, data));
+                    Console.WriteLine($"Message received.  Partition: '{context.PartitionId}', Data: '{data}'");
                 }
 
                 await context.CheckpointAsync();
@@ -107,43 +103,52 @@ In this tutorial, we will write a .NET Core console application to receive messa
 
     private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY);
     ```   
-
-3. Add a new method to the `Program` class like the following:
+3. Add a local variable for the `EventProcessorHost`, like the following:
 
     ```cs
-    private static async Task ReceiveMessagesFromEventHubs()
-    {
-        var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
-        {
-            EntityPath = EhEntityPath
-        };
+    private static EventProcessorHost eventProcessorHost;
+    ```
 
-        var eventProcessorHost = new EventProcessorHost(
+4. Add a new method to the `Program` class called `StartHost`, like the following:
+
+    ```cs
+    private static Task StartHost()
+    {
+        eventProcessorHost = new EventProcessorHost(
             PartitionReceiver.DefaultConsumerGroupName,
-            connectionSettings,
+            EhConnectionString,
             storageConnectionString,
             StorageContainerName
         );
 
         Console.WriteLine("Registering EventProcessor...");
-        await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+        return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
     }
     ```
 
-3. Add the following code to the `Main` method:
+5. Add a new method to the `Program` class called `StopHost`, like the following:
 
     ```cs
-    // GetAwaiter().GetResult() will avoid System.AggregateException
-    ReceiveMessagesFromEventHubs().GetAwaiter().GetResult();
+    private static Task StopHost()
+    {
+        return eventProcessorHost?.UnregisterEventProcessorAsync();
+    }
+    ```
+
+6. Add the following code to the `Main` method:
+
+    ```cs
+    StartHost().Wait();
 
     Console.WriteLine("Receiving. Press enter key to stop worker.");
     Console.ReadLine();
+    StopHost().Wait();
     ```
 
 	Here is what your Program.cs file should look like:
 
     ```cs
-    namespace SampleReceiver
+    namespace SampleEphReceiver
     {
         using System;
         using System.Threading.Tasks;
@@ -153,51 +158,45 @@ In this tutorial, we will write a .NET Core console application to receive messa
         public class Program
         {
             private const string EhConnectionString = "{Event Hubs connection string}";
-            private const string EhEntityPath = "{Event Hub path/name}"
-            private const string STORAGE_CONTAINER_NAME = "{Storage account container name}";
-            private const string STORAGE_ACCOUNT_NAME = "{Storage account name}";
-            private const string STORAGE_ACCOUNT_KEY = "{Storage account key}";
+            private const string EhEntityPath = "{Event Hub path/name}";
+            private const string StorageContainerName = "{Storage account container name}";
+            private const string StorageAccountName = "{Storage account name}";
+            private const string StorageAccountKey = "{Storage account key}";
 
             private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
+            private static EventProcessorHost eventProcessorHost;
+
             public static void Main(string[] args)
             {
-                // GetAwaiter().GetResult() will avoid System.AggregateException
-                ReceiveMessagesFromEventHubs().GetAwaiter().GetResult();
+                StartHost().Wait();
 
                 Console.WriteLine("Receiving. Press enter key to stop worker.");
                 Console.ReadLine();
+                StopHost().Wait();
             }
 
-            private static async Task ReceiveMessagesFromEventHubs()
+            private static Task StartHost()
             {
-                var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
-                {
-                    EntityPath = EhEntityPath
-                };
-
-                var eventProcessorHost = new EventProcessorHost(
+                eventProcessorHost = new EventProcessorHost(
                     PartitionReceiver.DefaultConsumerGroupName,
-                    connectionSettings,
+                    EhConnectionString,
                     storageConnectionString,
                     StorageContainerName
                 );
 
                 Console.WriteLine("Registering EventProcessor...");
-                await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+                return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+            }
+
+            private static Task StopHost()
+            {
+                return eventProcessorHost?.UnregisterEventProcessorAsync();
             }
         }
     }
     ```
   
-4. Run the program, and ensure that there are no errors.
+7. Run the program, and ensure that there are no errors.
   
 Congratulations! You have now recieved messages from an Event Hub.
-
-<!--Image references-->
-
-[nuget-pkg]: ./media/service-bus-dotnet-get-started-with-queues/nuget-package.png
-
-<!--Reference style links - using these makes the source content way more readable than using inline links-->
-
-[github-samples]: https://github.com/Azure-Samples/azure-servicebus-messaging-samples
