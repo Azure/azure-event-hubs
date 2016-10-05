@@ -15,11 +15,8 @@ namespace SampleSender
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Press Ctrl-C to stop the sender process");
-            Console.WriteLine("Press Enter to start now");
-            Console.ReadLine();
-
             SendMessagesToEventHubs().Wait();
+            Console.ReadLine();
         }
 
         private static async Task SendMessagesToEventHubs()
@@ -36,7 +33,7 @@ namespace SampleSender
                 try
                 {
                     var message = $"Message {i}";
-                    Console.WriteLine("{0} > Sending message: {1}", DateTime.Now, message);
+                    Console.WriteLine($"Sending message: {message}");
                     await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
                 }
                 catch (Exception exception)
@@ -46,6 +43,8 @@ namespace SampleSender
 
                 await Task.Delay(10);
             }
+
+            Console.WriteLine("All messages sent. Press any key to exit.");
         }
     }
 }
