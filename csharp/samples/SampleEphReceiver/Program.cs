@@ -4,7 +4,6 @@
 namespace SampleEphReceiver
 {
     using System;
-    using System.Threading.Tasks;
     using Microsoft.Azure.EventHubs;
     using Microsoft.Azure.EventHubs.Processor;
 
@@ -18,32 +17,32 @@ namespace SampleEphReceiver
 
         private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
-        private static EventProcessorHost eventProcessorHost;
-
         public static void Main(string[] args)
         {
-            StartHost().Wait();
+            // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
+            // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
+            // we are using the connection string from the namespace.
+            var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
+            {
+                EntityPath = EhEntityPath
+            };
 
-            Console.WriteLine("Receiving. Press enter key to stop worker.");
-            Console.ReadLine();
-            StopHost().Wait();
-        }
+            Console.WriteLine("Registering EventProcessor...");
 
-        private static Task StartHost()
-        {
-            eventProcessorHost = new EventProcessorHost(
+            var eventProcessorHost = new EventProcessorHost(
                 PartitionReceiver.DefaultConsumerGroupName,
-                EhConnectionString,
+                connectionSettings.ToString(),
                 StorageConnectionString,
                 StorageContainerName);
 
-            Console.WriteLine("Registering EventProcessor...");
-            return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
-        }
+            // Registers the Event Processor Host and starts receiving messages
+            eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>().Wait();
 
-        private static Task StopHost()
-        {
-            return eventProcessorHost?.UnregisterEventProcessorAsync();
+            Console.WriteLine("Receiving. Press enter key to stop worker.");
+            Console.ReadLine();
+
+            // Disposes of the Event Processor Host
+            eventProcessorHost.UnregisterEventProcessorAsync().Wait();
         }
     }
 }

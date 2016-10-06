@@ -85,7 +85,7 @@ In this tutorial, we will write a .NET Core console application to receive messa
     }
     ```
 
-### Write some code that uses `SimpleEventProcessor` to receive messages from an Event Hub
+### Write a main console method that uses `SimpleEventProcessor` to receive messages from an Event Hub
 
 1. Add the following `using` statements to the top of the Program.cs file.
   
@@ -98,53 +98,41 @@ In this tutorial, we will write a .NET Core console application to receive messa
 
     ```cs
     private const string EhConnectionString = "{Event Hubs connection string}";
-    private const string EhEntityPath = "{Event Hub path/name}"
-    private const string STORAGE_CONTAINER_NAME = "{Storage account container name}";
-    private const string STORAGE_ACCOUNT_NAME = "{Storage account name}";
-    private const string STORAGE_ACCOUNT_KEY = "{Storage account key}";
+    private const string EhEntityPath = "{Event Hub path/name}";
+    private const string StorageContainerName = "{Storage account container name}";
+    private const string StorageAccountName = "{Storage account name}";
+    private const string StorageAccountKey = "{Storage account key}";
 
-    private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY);
+    private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
     ```   
-3. Add a local variable for the `EventProcessorHost`, like the following:
+
+3. Add the following code to the `Main` method:
 
     ```cs
-    private static EventProcessorHost eventProcessorHost;
-    ```
-
-4. Add a new method to the `Program` class called `StartHost`, like the following:
-
-    ```cs
-    private static Task StartHost()
+    // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
+    // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
+    // we are using the connection string from the namespace.
+    var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
     {
-        eventProcessorHost = new EventProcessorHost(
-            PartitionReceiver.DefaultConsumerGroupName,
-            EhConnectionString,
-            storageConnectionString,
-            StorageContainerName
-        );
+        EntityPath = EhEntityPath
+    };
 
-        Console.WriteLine("Registering EventProcessor...");
-        return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
-    }
-    ```
+    Console.WriteLine("Registering EventProcessor...");
 
-5. Add a new method to the `Program` class called `StopHost`, like the following:
+    var eventProcessorHost = new EventProcessorHost(
+        PartitionReceiver.DefaultConsumerGroupName,
+        connectionSettings.ToString(),
+        StorageConnectionString,
+        StorageContainerName);
 
-    ```cs
-    private static Task StopHost()
-    {
-        return eventProcessorHost?.UnregisterEventProcessorAsync();
-    }
-    ```
-
-6. Add the following code to the `Main` method:
-
-    ```cs
-    StartHost().Wait();
+    // Registers the Event Processor Host and starts receiving messages
+    eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>().Wait();
 
     Console.WriteLine("Receiving. Press enter key to stop worker.");
     Console.ReadLine();
-    StopHost().Wait();
+
+    // Disposes of the Event Processor Host
+    eventProcessorHost.UnregisterEventProcessorAsync().Wait();
     ```
 
 	Here is what your Program.cs file should look like:
@@ -153,7 +141,6 @@ In this tutorial, we will write a .NET Core console application to receive messa
     namespace SampleEphReceiver
     {
         using System;
-        using System.Threading.Tasks;
         using Microsoft.Azure.EventHubs;
         using Microsoft.Azure.EventHubs.Processor;
 
@@ -165,40 +152,39 @@ In this tutorial, we will write a .NET Core console application to receive messa
             private const string StorageAccountName = "{Storage account name}";
             private const string StorageAccountKey = "{Storage account key}";
 
-            private static readonly string storageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
-
-            private static EventProcessorHost eventProcessorHost;
+            private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
             public static void Main(string[] args)
             {
-                StartHost().Wait();
+                // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
+			    // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
+			    // we are using the connection string from the namespace.
+                var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
+                {
+                    EntityPath = EhEntityPath
+                };
+
+                Console.WriteLine("Registering EventProcessor...");
+
+                var eventProcessorHost = new EventProcessorHost(
+                    PartitionReceiver.DefaultConsumerGroupName,
+                    connectionSettings.ToString(),
+                    StorageConnectionString,
+                    StorageContainerName);
+
+                // Registers the Event Processor Host and starts receiving messages
+                eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>().Wait();
 
                 Console.WriteLine("Receiving. Press enter key to stop worker.");
                 Console.ReadLine();
-                StopHost().Wait();
-            }
 
-            private static Task StartHost()
-            {
-                eventProcessorHost = new EventProcessorHost(
-                    PartitionReceiver.DefaultConsumerGroupName,
-                    EhConnectionString,
-                    storageConnectionString,
-                    StorageContainerName
-                );
-
-                Console.WriteLine("Registering EventProcessor...");
-                return eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
-            }
-
-            private static Task StopHost()
-            {
-                return eventProcessorHost?.UnregisterEventProcessorAsync();
+                // Disposes of the Event Processor Host
+                eventProcessorHost.UnregisterEventProcessorAsync().Wait();
             }
         }
     }
     ```
   
-7. Run the program, and ensure that there are no errors.
+4. Run the program, and ensure that there are no errors.
   
-Congratulations! You have now recieved messages from an Event Hub.
+Congratulations! You have now received messages from an Event Hub.

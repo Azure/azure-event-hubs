@@ -15,12 +15,17 @@ namespace SampleSender
 
         public static void Main(string[] args)
         {
-            SendMessagesToEventHubs().Wait();
+            SendMessagesToEventHub(100).Wait();
+            Console.WriteLine("Press any key to exit.");
             Console.ReadLine();
         }
 
-        private static async Task SendMessagesToEventHubs()
+        // Creates an Event Hub client and sends 100 messages to the event hub.
+        private static async Task SendMessagesToEventHub(int numMessagesToSend)
         {
+            // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
+            // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
+            // we are using the connection string from the namespace.
             var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
             {
                 EntityPath = EhEntityPath
@@ -28,7 +33,7 @@ namespace SampleSender
 
             var eventHubClient = EventHubClient.Create(connectionSettings);
 
-            for (var i = 0; i < 100; i++)
+            for (var i = 0; i < numMessagesToSend; i++)
             {
                 try
                 {
@@ -38,13 +43,13 @@ namespace SampleSender
                 }
                 catch (Exception exception)
                 {
-                    Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
+                    Console.WriteLine($"{DateTime.Now} > Exception: {exception.Message}");
                 }
 
                 await Task.Delay(10);
             }
 
-            Console.WriteLine("All messages sent. Press any key to exit.");
+            Console.WriteLine($"{numMessagesToSend} messages sent.");
         }
     }
 }

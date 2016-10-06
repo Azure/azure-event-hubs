@@ -20,7 +20,7 @@ namespace SampleEphReceiver
 
         public Task OpenAsync(PartitionContext context)
         {
-            Console.WriteLine($"SimpleEventProcessor initialized.  Partition: '{context.PartitionId}'");
+            Console.WriteLine($"SimpleEventProcessor initialized. Partition: '{context.PartitionId}'");
             return Task.FromResult<object>(null);
         }
 
@@ -35,7 +35,7 @@ namespace SampleEphReceiver
             foreach (var eventData in messages)
             {
                 var data = Encoding.UTF8.GetString(eventData.Body.Array, eventData.Body.Offset, eventData.Body.Count);
-                Console.WriteLine($"Message received.  Partition: '{context.PartitionId}', Data: '{data}'");
+                Console.WriteLine($"Message received. Partition: '{context.PartitionId}', Data: '{data}'");
             }
 
             await context.CheckpointAsync();
