@@ -413,7 +413,7 @@
                 ReceiveTimeout = TimeSpan.FromSeconds(15),
                 InitialOffsetProvider = (partitionId) => PartitionReceiver.StartOfStream
             };
-            var receivedEvents = await this.RunGenericScenario(eventProcessorHost);
+            var receivedEvents = await this.RunGenericScenario(eventProcessorHost, processorOptions);
 
             // We should have received only 1 event from each partition.
             Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
@@ -551,6 +551,7 @@
             bool checkPointBatch = false)
         {
             var receivedEvents = new ConcurrentDictionary<string, List<EventData>>();
+            var lastReceivedAt = DateTime.Now;
 
             if (epo == null)
             {
@@ -585,6 +586,7 @@
 
                             events.AddRange(eventsArgs.Item2.events);
                             receivedEvents[partitionId] = events;
+                            lastReceivedAt = DateTime.Now;
                         }
 
                         eventsArgs.Item2.checkPointLastEvent = checkPointLastEvent;
@@ -606,8 +608,11 @@
 
                 await Task.WhenAll(sendTasks);
 
-                // Give 1 minute to host pick up all events.
-                await Task.Delay(TimeSpan.FromSeconds(60));
+                // Wait until all partitions are silent, i.e. no more events to receive.
+                while (lastReceivedAt > DateTime.Now.AddSeconds(-30))
+                {
+                    await Task.Delay(1000);
+                }
 
                 WriteLine($"Verifying at least an event was received by each partition");
                 foreach (var partitionId in PartitionIds)
