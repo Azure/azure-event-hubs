@@ -413,14 +413,14 @@
                 ReceiveTimeout = TimeSpan.FromSeconds(15),
                 InitialOffsetProvider = (partitionId) => PartitionReceiver.StartOfStream
             };
-            var receivedEvents = await this.RunGenericScenario(eventProcessorHost);
+            var receivedEvents = await this.RunGenericScenario(eventProcessorHost, processorOptions);
 
             // We should have received only 1 event from each partition.
             Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
         }
 
         [Fact]
-        async Task CheckpointShouldHold()
+        async Task CheckpointEventDataShouldHold()
         {
             // Generate a new lease container name that will use through out the test.
             string leaseContainerName = Guid.NewGuid().ToString();
@@ -433,7 +433,34 @@
                 leaseContainerName);
             await RunGenericScenario(eventProcessorHostFirst);
 
-            // Seconds time we initiate a host, it should pick from where previous host left.
+            // For the second time we initiate a host and this time it should pick from where the previous host left.
+            // In other words, it shouldn't start receiving from start of the stream.
+            var eventProcessorHostSecond = new EventProcessorHost(
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            var receivedEvents = await RunGenericScenario(eventProcessorHostSecond);
+
+            // We should have received only 1 event from each partition.
+            Assert.False(receivedEvents.Any(kvp => kvp.Value.Count != 1), "One of the partitions didn't return exactly 1 event");
+        }
+
+        [Fact]
+        async Task CheckpointBatchShouldHold()
+        {
+            // Generate a new lease container name that will use through out the test.
+            string leaseContainerName = Guid.NewGuid().ToString();
+
+            // Consume all messages with first host.
+            var eventProcessorHostFirst = new EventProcessorHost(
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                leaseContainerName);
+            await RunGenericScenario(eventProcessorHostFirst, checkPointLastEvent: false, checkPointBatch: true);
+
+            // For the second time we initiate a host and this time it should pick from where the previous host left.
             // In other words, it shouldn't start receiving from start of the stream.
             var eventProcessorHostSecond = new EventProcessorHost(
                 PartitionReceiver.DefaultConsumerGroupName,
@@ -462,7 +489,7 @@
                 this.EventHubConnectionString,
                 this.StorageConnectionString,
                 leaseContainerName);
-            var receivedEvents1 = await RunGenericScenario(eventProcessorHostFirst, checkPointEvents: false);
+            var receivedEvents1 = await RunGenericScenario(eventProcessorHostFirst, checkPointLastEvent: false);
             var totalEventsFromFirstHost = receivedEvents1.Sum(part => part.Value.Count);
 
             // Seconds time we initiate a host, it should pick from where previous host left.
@@ -520,9 +547,11 @@
         }
 
         async Task<Dictionary<string, List<EventData>>> RunGenericScenario(EventProcessorHost eventProcessorHost,
-            EventProcessorOptions epo = null, int totalNumberOfEventsToSend = 1, bool checkPointEvents = true)
+            EventProcessorOptions epo = null, int totalNumberOfEventsToSend = 1, bool checkPointLastEvent = true,
+            bool checkPointBatch = false)
         {
             var receivedEvents = new ConcurrentDictionary<string, List<EventData>>();
+            var lastReceivedAt = DateTime.Now;
 
             if (epo == null)
             {
@@ -557,9 +586,11 @@
 
                             events.AddRange(eventsArgs.Item2.events);
                             receivedEvents[partitionId] = events;
+                            lastReceivedAt = DateTime.Now;
                         }
 
-                        eventsArgs.Item2.checkPointLastEvent = checkPointEvents;
+                        eventsArgs.Item2.checkPointLastEvent = checkPointLastEvent;
+                        eventsArgs.Item2.checkPointBatch = checkPointBatch;
                     };
                 };
 
@@ -577,8 +608,11 @@
 
                 await Task.WhenAll(sendTasks);
 
-                // Give 1 minute to host pick up all events.
-                await Task.Delay(TimeSpan.FromSeconds(60));
+                // Wait until all partitions are silent, i.e. no more events to receive.
+                while (lastReceivedAt > DateTime.Now.AddSeconds(-30))
+                {
+                    await Task.Delay(1000);
+                }
 
                 WriteLine($"Verifying at least an event was received by each partition");
                 foreach (var partitionId in PartitionIds)
@@ -662,9 +696,17 @@
                 eventsArgs.events = events;
                 this.OnProcessEvents?.Invoke(this, new Tuple<PartitionContext, ReceivedEventArgs>(context, eventsArgs));
                 EventData lastEvent = events?.LastOrDefault();
+
+                // Checkpoint with last event?
                 if (eventsArgs.checkPointLastEvent && lastEvent != null)
                 {
                     return context.CheckpointAsync(lastEvent);
+                }
+
+                // Checkpoint batch? This should checkpoint with last message delivered.
+                if (eventsArgs.checkPointBatch)
+                {
+                    return context.CheckpointAsync();
                 }
 
                 return Task.CompletedTask;
@@ -693,6 +735,7 @@
         {
             public IEnumerable<EventData> events;
             public bool checkPointLastEvent = true;
+            public bool checkPointBatch = false;
         }
     }
 }
