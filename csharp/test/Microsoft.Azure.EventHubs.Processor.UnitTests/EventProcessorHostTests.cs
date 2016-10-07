@@ -58,6 +58,43 @@
         }
 
         [Fact]
+        async Task HostReregisterShouldFail()
+        {
+            var eventProcessorHost = new EventProcessorHost(
+                PartitionReceiver.DefaultConsumerGroupName,
+                this.EventHubConnectionString,
+                this.StorageConnectionString,
+                this.LeaseContainerName);
+
+            // Calling register for the first time should succeed.
+            WriteLine("Registering EventProcessorHost for the first time.");
+            await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
+
+            try
+            {
+                // Calling register for the second time should fail.
+                WriteLine("Registering EventProcessorHost for the second time which should fail.");
+                await eventProcessorHost.RegisterEventProcessorAsync<TestEventProcessor>();
+                throw new InvalidOperationException("Second RegisterEventProcessorAsync call should have failed.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("A PartitionManager cannot be started multiple times."))
+                {
+                    WriteLine($"Caught {ex.GetType()} as expected");
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            finally
+            {
+                await eventProcessorHost.UnregisterEventProcessorAsync();
+            }
+        }
+
+        [Fact]
         async Task MultipleProcessorHosts()
         {
             WriteLine($"Testing with 2 EventProcessorHost instances");
