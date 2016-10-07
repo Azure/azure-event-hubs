@@ -37,7 +37,7 @@
         async Task CloseSenderClient()
         {
             var pSender = this.EventHubClient.CreatePartitionSender("0");
-            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow);
+            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", PartitionReceiver.StartOfStream);
 
             WriteLine("Sending single event to partition 0");
             var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
@@ -65,7 +65,7 @@
         async Task CloseReceiverClient()
         {
             var pSender = this.EventHubClient.CreatePartitionSender("0");
-            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", DateTime.UtcNow);
+            var pReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, "0", PartitionReceiver.StartOfStream);
 
             WriteLine("Sending single event to partition 0");
             var eventData = new EventData(Encoding.UTF8.GetBytes("Hello EventHub!"));
@@ -452,10 +452,10 @@
         }
 
         [Fact]
-        void ValidateRetryPolicy()
+        void ValidateRetryPolicyBuiltIn()
         {
             String clientId = "someClientEntity";
-            RetryPolicy retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.Default);
+            RetryPolicy retry = RetryPolicy.Default;
 
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
@@ -508,15 +508,39 @@
             TimeSpan? nextRetryInterval = retry.GetNextRetryInterval(clientId, new EventHubsException(false), TimeSpan.FromSeconds(60));
             Assert.True(nextRetryInterval == null);
 
-            retry.ResetRetryCount();
+            retry.ResetRetryCount(clientId);
             retry.IncrementRetryCount(clientId);
             TimeSpan? firstRetryIntervalAfterReset = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(firstRetryInterval.Equals(firstRetryIntervalAfterReset));
 
-            retry = RetryPolicy.GetRetryPolicy(RetryPolicyType.NoRetry);
+            retry = RetryPolicy.NoRetry;
             retry.IncrementRetryCount(clientId);
             TimeSpan? noRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
             Assert.True(noRetryInterval == null);
+        }
+
+        [Fact]
+        void ValidateRetryPolicyCustom()
+        {
+            String clientId = "someClientEntity";
+
+            // Retry up to 5 times.
+            RetryPolicy retry = new RetryPolicyCustom(5);
+
+            // Retry 4 times. These should allow retry.
+            for (int i = 0; i < 4; i++)
+            {
+                retry.IncrementRetryCount(clientId);
+                TimeSpan? thisRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+                WriteLine("RetryInterval: " + thisRetryInterval);
+                Assert.True(thisRetryInterval.Value.TotalSeconds == 2 + i);
+            }
+
+            // Retry 5th times. This should not allow retry.
+            retry.IncrementRetryCount(clientId);
+            TimeSpan? newRetryInterval = retry.GetNextRetryInterval(clientId, new ServerBusyException(string.Empty), TimeSpan.FromSeconds(60));
+            WriteLine("RetryInterval: " + newRetryInterval);
+            Assert.True(newRetryInterval == null);
         }
 
         [Fact]
@@ -774,6 +798,34 @@
             {
                 this.EventsReceived?.Invoke(this, events);
                 return Task.CompletedTask;
+            }
+        }
+
+        public sealed class RetryPolicyCustom : RetryPolicy
+        {
+            readonly int maximumRetryCount;
+
+            public RetryPolicyCustom(int maximumRetryCount)
+            {
+                this.maximumRetryCount = maximumRetryCount;
+            }
+
+            protected override TimeSpan? OnGetNextRetryInterval(string clientId, Exception lastException, TimeSpan remainingTime, int baseWaitTimeSecs)
+            {
+                int currentRetryCount = this.GetRetryCount(clientId);
+
+                if (currentRetryCount >= this.maximumRetryCount)
+                {
+                    WriteLine("Not retrying: currentRetryCount >= maximumRetryCount");
+                    return null;
+                }
+
+                WriteLine("Retrying: currentRetryCount < maximumRetryCount");
+
+                // Retry after 1 second + retry count.
+                TimeSpan retryAfter = TimeSpan.FromSeconds(1 + currentRetryCount);
+
+                return retryAfter;
             }
         }
     }

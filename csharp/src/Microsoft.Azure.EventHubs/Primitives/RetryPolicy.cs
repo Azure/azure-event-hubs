@@ -7,12 +7,6 @@ namespace Microsoft.Azure.EventHubs
     using System.Collections.Concurrent;
     using System.Threading;
 
-    public enum RetryPolicyType
-    {
-        Default,
-        NoRetry
-    }
-
     public abstract class RetryPolicy
     {
         const int DefaultRetryMaxCount = 10;
@@ -20,29 +14,29 @@ namespace Microsoft.Azure.EventHubs
         static readonly TimeSpan DefaultRetryMinBackoff = TimeSpan.Zero;
         static readonly TimeSpan DefaultRetryMaxBackoff = TimeSpan.FromSeconds(30);
 
-        int retryCount;
+        // Same retry policy may be used by multiple senders and receivers.
+        // Because of this we keep track of retry counters in a concurrent dictionary.
+        ConcurrentDictionary<String, int> retryCounts;
         object serverBusySync;
 
         protected RetryPolicy()
         {
-            this.retryCount = 0;
+            this.retryCounts = new ConcurrentDictionary<string, int>();
             this.serverBusySync = new Object();
         }
 
         public void IncrementRetryCount(string clientId)
         {
-            Interlocked.Increment(ref this.retryCount);
+            int retryCount;
+            this.retryCounts.TryGetValue(clientId, out retryCount);
+            this.retryCounts[clientId] = retryCount + 1;
         }
 
-        public void ResetRetryCount()
+        public void ResetRetryCount(string clientId)
         {
-            this.retryCount = 0;
+            int currentRetryCount;
+            this.retryCounts.TryRemove(clientId, out currentRetryCount);
         }
-
-        public int GetRetryCount()
-        {
-            return this.retryCount;
-        } 
 
         public static bool IsRetryableException(Exception exception)
         {
@@ -63,18 +57,29 @@ namespace Microsoft.Azure.EventHubs
             return false;
         }
 
-        public static RetryPolicy GetRetryPolicy(RetryPolicyType retryPolicyType)
+        public static RetryPolicy Default
         {
-            switch (retryPolicyType)
+            get
             {
-                case RetryPolicyType.Default:
-                    return new RetryExponential(DefaultRetryMinBackoff, DefaultRetryMaxBackoff, DefaultRetryMaxCount);
-
-                case RetryPolicyType.NoRetry:
-                    return new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0);
+                return new RetryExponential(DefaultRetryMinBackoff, DefaultRetryMaxBackoff, DefaultRetryMaxCount);
             }
+        }
 
-            throw new NotImplementedException(string.Format("Retry policy implementation for {0}", retryPolicyType));
+        public static RetryPolicy NoRetry
+        {
+            get
+            {
+                return new RetryExponential(TimeSpan.Zero, TimeSpan.Zero, 0);
+            }
+        }
+
+        protected int GetRetryCount(string clientId)
+        {
+            int retryCount;
+
+            this.retryCounts.TryGetValue(clientId, out retryCount);
+
+            return retryCount;
         }
 
         protected abstract TimeSpan? OnGetNextRetryInterval(String clientId, Exception lastException, TimeSpan remainingTime, int baseWaitTime);
