@@ -23,15 +23,15 @@ namespace SampleSender
         // Creates an Event Hub client and sends 100 messages to the event hub.
         private static async Task SendMessagesToEventHub(int numMessagesToSend)
         {
-            // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
+            // Creates an EventHubsConnectionStringBuilder object from a the connection string, and sets the EntityPath.
             // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
             // we are using the connection string from the namespace.
-            var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
+            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EhConnectionString)
             {
                 EntityPath = EhEntityPath
             };
 
-            var eventHubClient = EventHubClient.Create(connectionSettings);
+            var eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
 
             for (var i = 0; i < numMessagesToSend; i++)
             {

@@ -109,19 +109,12 @@ In this tutorial, we will write a .NET Core console application to receive messa
 3. Add the following code to the `Main` method:
 
     ```cs
-    // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
-    // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
-    // we are using the connection string from the namespace.
-    var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
-    {
-        EntityPath = EhEntityPath
-    };
-
     Console.WriteLine("Registering EventProcessor...");
 
     var eventProcessorHost = new EventProcessorHost(
+	    EhEntityPath,
         PartitionReceiver.DefaultConsumerGroupName,
-        connectionSettings.ToString(),
+        EhConnectionString,
         StorageConnectionString,
         StorageContainerName);
 
@@ -156,19 +149,12 @@ In this tutorial, we will write a .NET Core console application to receive messa
 
             public static void Main(string[] args)
             {
-                // Creates an EventHubsConnectionSettings object from a the connection string, and sets the EntityPath.
-			    // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
-			    // we are using the connection string from the namespace.
-                var connectionSettings = new EventHubsConnectionSettings(EhConnectionString)
-                {
-                    EntityPath = EhEntityPath
-                };
-
                 Console.WriteLine("Registering EventProcessor...");
 
                 var eventProcessorHost = new EventProcessorHost(
+					EhEntityPath,
                     PartitionReceiver.DefaultConsumerGroupName,
-                    connectionSettings.ToString(),
+                    EhConnectionString,
                     StorageConnectionString,
                     StorageContainerName);
 
