@@ -20,13 +20,13 @@ namespace Microsoft.Azure.EventHubs.Amqp
         const string CbsSaslMechanismName = "MSSBCBS";
         AmqpServiceClient<IAmqpEntityManagement> managementServiceClient; // serviceClient that handles management calls
 
-        public AmqpEventHubClient(EventHubsConnectionSettings connectionSettings)
-            : base(connectionSettings)
+        public AmqpEventHubClient(EventHubsConnectionStringBuilder csb)
+            : base(csb)
         {
             this.ContainerId = Guid.NewGuid().ToString("N");
             this.AmqpVersion = new Version(1, 0, 0, 0);
             this.MaxFrameSize = AmqpConstants.DefaultMaxFrameSize;
-            this.TokenProvider = connectionSettings.CreateTokenProvider();
+            this.TokenProvider = csb.CreateTokenProvider();
             this.CbsTokenProvider = new TokenProviderAdapter(this);
             this.ConnectionManager = new FaultTolerantAmqpObject<AmqpConnection>(this.CreateConnectionAsync, this.CloseConnection);
         }
@@ -103,8 +103,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 // should always use the full EndpointUri as audience.
                 return new ActiveClientRequestResponseLink(
                     link,
-                    this.ConnectionSettings.Endpoint.AbsoluteUri, // audience
-                    this.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    this.ConnectionStringBuilder.Endpoint.AbsoluteUri, // audience
+                    this.ConnectionStringBuilder.Endpoint.AbsoluteUri, // endpointUri
                     requiredClaims,
                     isClientToken,
                     authorizationValidToUtc);
@@ -125,17 +125,15 @@ namespace Microsoft.Azure.EventHubs.Amqp
         {
             try
             {
-                var timeoutHelper = new TimeoutHelper(this.ConnectionSettings.OperationTimeout);
-                string serviceClientAddress = //this.ConnectionSettings.Endpoint.IsIoTDeviceUri() ?
-                    //string.Concat(this.ConnectionSettings.EntityPath, AmqpClientConstants.ManagementAddressSegment) :
-                    AmqpClientConstants.ManagementAddress;
+                var timeoutHelper = new TimeoutHelper(this.ConnectionStringBuilder.OperationTimeout);
+                string serviceClientAddress = AmqpClientConstants.ManagementAddress;
 
                 string entityType = AmqpClientConstants.ManagementEventHubEntityTypeValue;
-                SecurityToken token = await this.TokenProvider.GetTokenAsync(this.ConnectionSettings.Endpoint.AbsoluteUri, ClaimConstants.Manage, timeoutHelper.RemainingTime());
+                SecurityToken token = await this.TokenProvider.GetTokenAsync(this.ConnectionStringBuilder.Endpoint.AbsoluteUri, ClaimConstants.Manage, timeoutHelper.RemainingTime());
 
                 var serviceClient = this.GetManagementServiceClient(serviceClientAddress);
                 var eventHubRuntimeInformation = await serviceClient.Channel.GetRuntimeInfoAsync<EventHubRuntimeInformation>(
-                    entityType, this.ConnectionSettings.EntityPath, null, token.TokenValue.ToString(), this.ConnectionSettings.OperationTimeout);
+                    entityType, this.ConnectionStringBuilder.EntityPath, null, token.TokenValue.ToString(), this.ConnectionStringBuilder.OperationTimeout);
 
                 return eventHubRuntimeInformation;
             }
@@ -259,14 +257,15 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 ContainerId = containerId,
                 HostName = hostName
             };
+
             return connectionSettings;
         }
 
         async Task<AmqpConnection> CreateConnectionAsync(TimeSpan timeout)
         {
-            string hostName = this.ConnectionSettings.Endpoint.Host;
-            string networkHost = this.ConnectionSettings.Endpoint.Host;
-            int port = this.ConnectionSettings.Endpoint.Port;
+            string hostName = this.ConnectionStringBuilder.Endpoint.Host;
+            string networkHost = this.ConnectionStringBuilder.Endpoint.Host;
+            int port = this.ConnectionStringBuilder.Endpoint.Port;
 
             var timeoutHelper = new TimeoutHelper(timeout);
             var amqpSettings = CreateAmqpSettings(
@@ -319,7 +318,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             {
                 string claim = requiredClaims?.FirstOrDefault();
                 var tokenProvider = this.eventHubClient.TokenProvider;
-                var timeout = this.eventHubClient.ConnectionSettings.OperationTimeout;
+                var timeout = this.eventHubClient.ConnectionStringBuilder.OperationTimeout;
                 var token = await tokenProvider.GetTokenAsync(appliesTo, claim, timeout);
                 return new CbsToken(token.TokenValue, CbsConstants.ServiceBusSasTokenType, token.ExpiresAtUtc);
             }

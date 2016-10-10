@@ -32,7 +32,7 @@ namespace Microsoft.Azure.EventHubs.Processor
                 EventHubClient eventHubClient = null;
                 try
                 {
-                    eventHubClient = EventHubClient.Create(this.host.ConnectionSettings);
+                    eventHubClient = EventHubClient.CreateFromConnectionString(this.host.EventHubConnectionString);
                     var runtimeInfo = await eventHubClient.GetRuntimeInformationAsync();
                     this.partitionIds = runtimeInfo.PartitionIds.ToList();
                 }

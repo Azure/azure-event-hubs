@@ -3,6 +3,7 @@
 
 namespace Microsoft.Azure.EventHubs
 {
+    using Amqp;
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
@@ -15,16 +16,17 @@ namespace Microsoft.Azure.EventHubs
     {
         EventDataSender innerSender;
 
-        internal EventHubClient(EventHubsConnectionSettings connectionSettings)
-            : base($"{nameof(EventHubClient)}{ClientEntity.GetNextId()}({connectionSettings.EntityPath})")
+        internal EventHubClient(EventHubsConnectionStringBuilder csb)
+            : base($"{nameof(EventHubClient)}{ClientEntity.GetNextId()}({csb.EntityPath})")
         {
-            this.ConnectionSettings = connectionSettings;
-            this.EventHubName = connectionSettings.EntityPath;
+            this.ConnectionStringBuilder = csb;
+            this.EventHubName = csb.EntityPath;
+            this.RetryPolicy = RetryPolicy.Default;
         }
 
         public string EventHubName { get; }
 
-        public EventHubsConnectionSettings ConnectionSettings { get; }
+        internal EventHubsConnectionStringBuilder ConnectionStringBuilder { get; }
 
         protected object ThisLock { get; } = new object();
 
@@ -47,31 +49,27 @@ namespace Microsoft.Azure.EventHubs
             }
         }
 
-        public static EventHubClient Create(string connectionString)
+        public static EventHubClient CreateFromConnectionString(string connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(connectionString));
             }
 
-            var connectionSettings = new EventHubsConnectionSettings(connectionString);
-            return Create(connectionSettings);
+            var csb = new EventHubsConnectionStringBuilder(connectionString);
+            return Create(csb);
         }
 
-        public static EventHubClient Create(EventHubsConnectionSettings connectionSettings)
+        static EventHubClient Create(EventHubsConnectionStringBuilder csb)
         {
-            if (connectionSettings == null)
+            if (string.IsNullOrWhiteSpace(csb.EntityPath))
             {
-                throw Fx.Exception.ArgumentNull(nameof(connectionSettings));
-            }
-            else if (string.IsNullOrWhiteSpace(connectionSettings.EntityPath))
-            {
-                throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(connectionSettings.EntityPath));
+                throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(csb.EntityPath));
             }
 
-            EventHubsEventSource.Log.EventHubClientCreateStart(connectionSettings.Endpoint.Host, connectionSettings.EntityPath);
+            EventHubsEventSource.Log.EventHubClientCreateStart(csb.Endpoint.Host, csb.EntityPath);
             EventHubClient eventHubClient;
-            eventHubClient = connectionSettings.CreateEventHubClient();
+            eventHubClient = new AmqpEventHubClient(csb);
             EventHubsEventSource.Log.EventHubClientCreateStop(eventHubClient.ClientId);
             return eventHubClient;
         }

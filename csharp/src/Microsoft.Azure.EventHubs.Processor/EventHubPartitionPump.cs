@@ -84,7 +84,7 @@ namespace Microsoft.Azure.EventHubs.Processor
             object startAt = await this.PartitionContext.GetInitialOffsetAsync();
             long epoch = this.Lease.Epoch;
             ProcessorEventSource.Log.PartitionPumpCreateClientsStart(this.Host.Id, this.PartitionContext.PartitionId, epoch, startAt);
-		    this.eventHubClient = EventHubClient.Create(this.Host.ConnectionSettings);
+		    this.eventHubClient = EventHubClient.CreateFromConnectionString(this.Host.EventHubConnectionString);
 
             // Create new receiver and set options
             if (startAt is string)

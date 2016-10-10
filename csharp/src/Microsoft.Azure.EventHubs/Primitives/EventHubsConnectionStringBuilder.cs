@@ -8,7 +8,7 @@ namespace Microsoft.Azure.EventHubs
     using Microsoft.Azure.EventHubs.Amqp;
 
     /// <summary>
-    /// EventHubsConnectionSettings can be used to construct a connection string which can establish communication with Event Hubs entities.
+    /// EventHubsConnectionStringBuilder can be used to construct a connection string which can establish communication with Event Hubs entities.
     /// It can also be used to perform basic validation on an existing connection string.
     /// <para/>
     /// A connection string is basically a string consisted of key-value pair separated by ";". 
@@ -21,15 +21,15 @@ namespace Microsoft.Azure.EventHubs
     /// <example>
     /// Sample code:
     /// <code>
-    /// var connectionSettings = new EventHubsConnectionSettings(
+    /// var connectionStringBuiler = new EventHubsConnectionStringBuilder(
     ///     "EventHubsNamespaceName", 
     ///     "EventHubsEntityName", // Event Hub Name 
     ///     "SharedAccessSignatureKeyName", 
     ///     "SharedAccessSignatureKey");
-    ///  string connectionString = connectionSettings.ToString();
+    ///  string connectionString = connectionStringBuiler.ToString();
     /// </code>
     /// </example>
-    public class EventHubsConnectionSettings
+    public class EventHubsConnectionStringBuilder
     {
         static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(1);
         static readonly string EndpointScheme = "amqps";
@@ -38,6 +38,7 @@ namespace Microsoft.Azure.EventHubs
         static readonly string SharedAccessKeyNameConfigName = "SharedAccessKeyName";
         static readonly string SharedAccessKeyConfigName = "SharedAccessKey";
         static readonly string EntityPathConfigName = "EntityPath";
+        static readonly string OperationTimeoutName = "OperationTimeout";
         const char KeyValueSeparator = '=';
         const char KeyValuePairDelimiter = ';';
 
@@ -48,18 +49,17 @@ namespace Microsoft.Azure.EventHubs
         /// <param name="entityPath">Entity path. For eventHubs case specify eventHub name.</param>
         /// <param name="sharedAccessKeyName">Shared Access Key name</param>
         /// <param name="sharedAccessKey">Shared Access Key</param>
-        public EventHubsConnectionSettings(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
-            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout, RetryPolicy.Default)
+        public EventHubsConnectionStringBuilder(string namespaceName, string entityPath, string sharedAccessKeyName, string sharedAccessKey)
+            : this(namespaceName, entityPath, sharedAccessKeyName, sharedAccessKey, DefaultOperationTimeout)
         {
         }
 
-        EventHubsConnectionSettings(
+        EventHubsConnectionStringBuilder(
             string namespaceName,
             string entityPath,
             string sharedAccessKeyName,
             string sharedAccessKey,
-            TimeSpan operationTimeout,
-            RetryPolicy retryPolicy)
+            TimeSpan operationTimeout)
         {
             if (string.IsNullOrWhiteSpace(namespaceName) || string.IsNullOrWhiteSpace(entityPath))
             {
@@ -84,7 +84,6 @@ namespace Microsoft.Azure.EventHubs
             this.SasKey = sharedAccessKey;
             this.SasKeyName = sharedAccessKeyName;
             this.OperationTimeout = operationTimeout;
-            this.RetryPolicy = RetryPolicy.Default;
         }
 
         /// <summary>
@@ -92,15 +91,17 @@ namespace Microsoft.Azure.EventHubs
         /// Endpoint=sb://namespace_DNS_Name;EntityPath=EVENT_HUB_NAME;SharedAccessKeyName=SHARED_ACCESS_KEY_NAME;SharedAccessKey=SHARED_ACCESS_KEY
         /// </summary>
         /// <param name="connectionString">Event Hubs ConnectionString</param>
-        public EventHubsConnectionSettings(string connectionString)
+        public EventHubsConnectionStringBuilder(string connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw Fx.Exception.ArgumentNullOrWhiteSpace(nameof(connectionString));
             }
 
+            // Assign default values.
             this.OperationTimeout = DefaultOperationTimeout;
-            this.RetryPolicy = RetryPolicy.Default;
+
+            // Parse the connection string now and override default values if any provided.
             this.ParseConnectionString(connectionString);
         }
 
@@ -127,21 +128,15 @@ namespace Microsoft.Azure.EventHubs
         /// </summary>
         public TimeSpan OperationTimeout { get; set; }
 
-        /// <summary>
-        /// Get the retry policy instance that was created as part of this builder's creation.
-        /// </summary>
-        public RetryPolicy RetryPolicy { get; set; }
-
-        public EventHubsConnectionSettings Clone()
+        public EventHubsConnectionStringBuilder Clone()
         {
-            var clone = new EventHubsConnectionSettings(this.ToString());
+            var clone = new EventHubsConnectionStringBuilder(this.ToString());
             clone.OperationTimeout = this.OperationTimeout;
-            clone.RetryPolicy = this.RetryPolicy;
             return clone;
         }
 
         /// <summary>
-        /// Creates a TokenProvider given the credentials in this EventHubsConnectionSettings.
+        /// Creates a TokenProvider given the credentials in this EventHubsConnectionStringBuilder.
         /// </summary>
         /// <returns></returns>
         public TokenProvider CreateTokenProvider()
@@ -173,16 +168,15 @@ namespace Microsoft.Azure.EventHubs
 
             if (!string.IsNullOrWhiteSpace(this.SasKey))
             {
-                connectionStringBuilder.Append($"{SharedAccessKeyConfigName}{KeyValueSeparator}{this.SasKey}");
+                connectionStringBuilder.Append($"{SharedAccessKeyConfigName}{KeyValueSeparator}{this.SasKey}{KeyValuePairDelimiter}");
+            }
+
+            if (this.OperationTimeout != DefaultOperationTimeout)
+            {
+                connectionStringBuilder.Append($"{OperationTimeoutName}{KeyValueSeparator}{this.OperationTimeout}");
             }
 
             return connectionStringBuilder.ToString();
-        }
-
-        internal EventHubClient CreateEventHubClient()
-        {
-            // In the future to support other protocols add that logic here.
-            return new AmqpEventHubClient(this.Clone());
         }
 
         void ParseConnectionString(string connectionString)
@@ -215,6 +209,10 @@ namespace Microsoft.Azure.EventHubs
                 else if (key.Equals(SharedAccessKeyConfigName, StringComparison.OrdinalIgnoreCase))
                 {
                     this.SasKey = value;
+                }
+                else if (key.Equals(OperationTimeoutName, StringComparison.OrdinalIgnoreCase))
+                {
+                    this.OperationTimeout = TimeSpan.Parse(value);
                 }
                 else
                 {

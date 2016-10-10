@@ -56,7 +56,6 @@ namespace Microsoft.Azure.EventHubs
             this.StartTime = startTime;
             this.PrefetchCount = DefaultPrefetchCount;
             this.Epoch = epoch;
-            this.retryPolicy = eventHubClient.ConnectionSettings.RetryPolicy;
 
             EventHubsEventSource.Log.ClientCreated(this.ClientId, this.FormatTraceDetails());
         }
@@ -130,7 +129,7 @@ namespace Microsoft.Azure.EventHubs
         /// <returns>A Task that will yield a batch of <see cref="EventData"/> from the partition on which this receiver is created. Returns 'null' if no EventData is present.</returns>
         public Task<IEnumerable<EventData>> ReceiveAsync(int maxMessageCount)
         {
-            return this.ReceiveAsync(maxMessageCount, this.EventHubClient.ConnectionSettings.OperationTimeout);
+            return this.ReceiveAsync(maxMessageCount, this.EventHubClient.ConnectionStringBuilder.OperationTimeout);
         }
 
         /// <summary>

@@ -10,7 +10,7 @@ namespace Microsoft.Azure.EventHubs
 
     /// <summary>
     /// RetryPolicy implementation where the delay between retries will grow in a staggered exponential manner.
-    /// RetryPolicy can be set on the client operations using <see cref="EventHubsConnectionSettings"/>.
+    /// RetryPolicy can be set on the client using <see cref="EventHubClient"/>.
     /// RetryIntervals will be computed using a retryFactor which is a function of deltaBackOff (MaximumBackoff - MinimumBackoff) and MaximumRetryCount
     /// </summary>
     public sealed class RetryExponential : RetryPolicy

@@ -31,7 +31,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             long? epoch)
             : base(eventHubClient, consumerGroupName, partitionId, startOffset, offsetInclusive, startTime, epoch)
         {
-            string entityPath = eventHubClient.ConnectionSettings.EntityPath;
+            string entityPath = eventHubClient.ConnectionStringBuilder.EntityPath;
             this.Path = $"{entityPath}/ConsumerGroups/{consumerGroupName}/Partitions/{partitionId}";
             this.ReceiveLinkManager = new FaultTolerantAmqpObject<ReceivingAmqpLink>(this.CreateLinkAsync, this.CloseSession);
             this.receivePumpLock = new object();
@@ -76,7 +76,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
                             throw receiveLink.TerminalException;
                         }
 
-                        this.retryPolicy.ResetRetryCount(this.ClientId);
+                        this.EventHubClient.RetryPolicy.ResetRetryCount(this.ClientId);
 
                         if (hasMessages && amqpMessages != null)
                         {
@@ -103,8 +103,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 catch (Exception ex)
                 {
                     // Evaluate retry condition?
-                    this.retryPolicy.IncrementRetryCount(this.ClientId);
-                    TimeSpan? retryInterval = this.retryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
+                    this.EventHubClient.RetryPolicy.IncrementRetryCount(this.ClientId);
+                    TimeSpan? retryInterval = this.EventHubClient.RetryPolicy.GetNextRetryInterval(this.ClientId, ex, timeoutHelper.RemainingTime());
                     if (retryInterval != null)
                     {
                         await Task.Delay(retryInterval.Value);
@@ -158,15 +158,15 @@ namespace Microsoft.Azure.EventHubs.Amqp
         async Task<ReceivingAmqpLink> CreateLinkAsync(TimeSpan timeout)
         {
             var amqpEventHubClient = ((AmqpEventHubClient)this.EventHubClient);
-            var connectionSettings = this.EventHubClient.ConnectionSettings;
-            var timeoutHelper = new TimeoutHelper(connectionSettings.OperationTimeout);
+            var csb = this.EventHubClient.ConnectionStringBuilder;
+            var timeoutHelper = new TimeoutHelper(csb.OperationTimeout);
             AmqpConnection connection = await amqpEventHubClient.ConnectionManager.GetOrCreateAsync(timeoutHelper.RemainingTime());
 
             // Authenticate over CBS
             var cbsLink = connection.Extensions.Find<AmqpCbsLink>();
 
             ICbsTokenProvider cbsTokenProvider = amqpEventHubClient.CbsTokenProvider;
-            Uri address = new Uri(connectionSettings.Endpoint, this.Path);
+            Uri address = new Uri(csb.Endpoint, this.Path);
             string audience = address.AbsoluteUri;
             string resource = address.AbsoluteUri;
             var expiresAt = await cbsLink.SendTokenAsync(cbsTokenProvider, address, audience, resource, new[] { ClaimConstants.Listen }, timeoutHelper.RemainingTime());
@@ -212,8 +212,8 @@ namespace Microsoft.Azure.EventHubs.Amqp
                 await link.OpenAsync(timeoutHelper.RemainingTime());
                 var activeClientLink = new ActiveClientLink(
                     link,
-                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // audience
-                    this.EventHubClient.ConnectionSettings.Endpoint.AbsoluteUri, // endpointUri
+                    this.EventHubClient.ConnectionStringBuilder.Endpoint.AbsoluteUri, // audience
+                    this.EventHubClient.ConnectionStringBuilder.Endpoint.AbsoluteUri, // endpointUri
                     new string[] { ClaimConstants.Listen },
                     true,
                     expiresAt);

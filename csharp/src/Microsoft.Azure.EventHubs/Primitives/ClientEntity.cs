@@ -14,8 +14,6 @@ namespace Microsoft.Azure.EventHubs
     {
         static int nextId;
 
-        protected RetryPolicy retryPolicy;
-
         protected ClientEntity(string clientId)
         {
             this.ClientId = clientId;
@@ -26,6 +24,7 @@ namespace Microsoft.Azure.EventHubs
             get; private set;
         }
 
+        public RetryPolicy RetryPolicy { get; set; }
 
         public abstract Task CloseAsync();
 

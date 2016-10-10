@@ -61,7 +61,9 @@ namespace Microsoft.Azure.EventHubs.Amqp
                     cbsLink = new AmqpCbsLink(thisPtr.activeClientLink.Connection);
                 }
 
-                var validTo = await cbsLink.SendTokenAsync(thisPtr.eventHubClient.CbsTokenProvider, thisPtr.eventHubClient.ConnectionSettings.Endpoint,
+                var validTo = await cbsLink.SendTokenAsync(
+                    thisPtr.eventHubClient.CbsTokenProvider,
+                    thisPtr.eventHubClient.ConnectionStringBuilder.Endpoint,
                     thisPtr.activeClientLink.Audience, thisPtr.activeClientLink.EndpointUri,
                     thisPtr.activeClientLink.RequiredClaims,
                     ActiveClientLinkManager.SendTokenTimeout);
