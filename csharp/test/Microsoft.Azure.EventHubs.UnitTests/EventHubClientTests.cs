@@ -16,14 +16,19 @@
 
         public EventHubClientTests()
         {
-            this.connectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
+            var connectionString = Environment.GetEnvironmentVariable("EVENTHUBCONNECTIONSTRING");
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException("EVENTHUBCONNECTIONSTRING environment variable was not found!");
             }
 
-            this.EventHubClient = EventHubClient.Create(connectionString);
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
+            // Update operation timeout on ConnectionBuilderString.
+            var cbs = new EventHubsConnectionStringBuilder(connectionString);
+            cbs.OperationTimeout = TimeSpan.FromSeconds(15);
+            this.connectionString = cbs.ToString();
+
+            // Create default EH client.
+            this.EventHubClient = EventHubClient.CreateFromConnectionString(connectionString);
 
             // Discover partition ids.
             var eventHubInfo = this.EventHubClient.GetRuntimeInformationAsync().Result;
@@ -32,6 +37,33 @@
         }
 
         EventHubClient EventHubClient { get; }
+
+        [Fact]
+        void ConnectionStringBuilderTest()
+        {
+            WriteLine($"Original connection string: {this.connectionString}");
+
+            var csb = new EventHubsConnectionStringBuilder(this.connectionString);
+
+            // Try update settings and rebuild the connection string.
+            csb.Endpoint = new Uri("sb://newendpoint");
+            csb.EntityPath = "newentitypath";
+            csb.OperationTimeout = TimeSpan.FromSeconds(100);
+            csb.SasKeyName = "newsaskeyname";
+            csb.SasKey = "newsaskey";
+            var newConnectionString = csb.ToString();
+            WriteLine($"Connection string modified as : {newConnectionString}");
+
+            // Now try creating a new ConnectionStringBuilder from modified connection string.
+            var newCsb = new EventHubsConnectionStringBuilder(newConnectionString);
+
+            // Validate modified values on the new connection string builder.
+            Assert.Equal(new Uri("sb://newendpoint"), newCsb.Endpoint);
+            Assert.Equal("newentitypath", newCsb.EntityPath);
+            Assert.Equal(TimeSpan.FromSeconds(100), newCsb.OperationTimeout);
+            Assert.Equal("newsaskeyname", newCsb.SasKeyName);
+            Assert.Equal("newsaskey", newCsb.SasKey);
+        }
 
         [Fact]
         async Task CloseSenderClient()
@@ -87,6 +119,27 @@
             catch (ObjectDisposedException)
             {
                 WriteLine("Caught ObjectDisposedException as expected");
+            }
+        }
+
+        /// <summary>
+        /// EventHubClient.CreateFromConnectionString expects entity path in the provided connection string.
+        /// </summary>
+        [Fact]
+        void CreateClientWithoutEntityPathShouldFail()
+        {
+            // Remove entity path from connection string.
+            var csb = new EventHubsConnectionStringBuilder(this.connectionString);
+            csb.EntityPath = null;
+
+            try
+            {
+                EventHubClient.CreateFromConnectionString(csb.ToString());
+                throw new Exception("Entity path wasn't provided in the connection string and this new call was supposed to fail");
+            }
+            catch (ArgumentException)
+            {
+                WriteLine("Caught ArgumentException as expected.");
             }
         }
 
@@ -146,8 +199,6 @@
         async Task PartitionReceiverReceive()
         {
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync");
-            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "1";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -191,7 +242,6 @@
             }
             finally
             {
-                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
                 await Task.WhenAll(
                     partitionReceiver.CloseAsync(),
                     partitionSender.CloseAsync());
@@ -279,8 +329,6 @@
         {
             const int MaxBatchSize = 5;
             WriteLine("Receiving Events via PartitionReceiver.ReceiveAsync(BatchSize)");
-            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             const string partitionId = "0";
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
@@ -314,7 +362,6 @@
             }
             finally
             {
-                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
                 await Task.WhenAll(
                     partitionReceiver.CloseAsync(),
                     partitionSender.CloseAsync());
@@ -325,8 +372,6 @@
         async Task PartitionReceiverEpochReceive()
         {
             WriteLine("Testing EpochReceiver semantics");
-            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             var epochReceiver1 = this.EventHubClient.CreateEpochReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", PartitionReceiver.StartOfStream, 1);
             var epochReceiver2 = this.EventHubClient.CreateEpochReceiver(PartitionReceiver.DefaultConsumerGroupName, "1", PartitionReceiver.StartOfStream, 2);
             try
@@ -373,7 +418,6 @@
             {
                 await epochReceiver1.CloseAsync();
                 await epochReceiver2.CloseAsync();
-                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
             }
         }
 
@@ -381,8 +425,6 @@
         async Task PartitionReceiverSetReceiveHandler()
         {
             WriteLine("Receiving Events via PartitionReceiver.SetReceiveHandler()");
-            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
-            this.EventHubClient.ConnectionSettings.OperationTimeout = TimeSpan.FromSeconds(15);
             string partitionId = "1";
             PartitionReceiver partitionReceiver = this.EventHubClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, DateTime.UtcNow.AddMinutes(-10));
             PartitionSender partitionSender = this.EventHubClient.CreatePartitionSender(partitionId);
@@ -428,7 +470,6 @@
             }
             finally
             {
-                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
                 await partitionSender.CloseAsync();
                 await partitionReceiver.CloseAsync();
             }
@@ -548,7 +589,6 @@
         {
             var testValues = new[] { 10, 30, 120 };
 
-            TimeSpan originalTimeout = this.EventHubClient.ConnectionSettings.OperationTimeout;
             PartitionReceiver receiver = null;
 
             try
@@ -573,7 +613,6 @@
             }
             finally
             {
-                this.EventHubClient.ConnectionSettings.OperationTimeout = originalTimeout;
                 await receiver.CloseAsync();
             }
         }
@@ -599,9 +638,9 @@
         async Task SendReceiveNonexistentEntity()
         {
             // Rebuild connection string with a nonexistent entity.
-            var conSettings = new EventHubsConnectionSettings(this.connectionString);
+            var conSettings = new EventHubsConnectionStringBuilder(this.connectionString);
             var conString = this.connectionString.Replace(conSettings.EntityPath, Guid.NewGuid().ToString());
-            var ehClient = EventHubClient.Create(conString);
+            var ehClient = EventHubClient.CreateFromConnectionString(conString);
 
             // Try sending.
             try
