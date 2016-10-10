@@ -8,7 +8,6 @@ namespace Microsoft.Azure.EventHubs.Processor
 
     public sealed class EventProcessorHost
     {
-        readonly string eventHubConnectionString;
         readonly bool initializeLeaseManager;
 
         /// <summary>
@@ -23,16 +22,19 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// Azure Storage account specified by the storageConnectionString parameter is used by the built-in
         /// managers to record leases and checkpoints.
         /// </summary>
+        /// <param name="eventHubPath">The name of the EventHub.</param>
         /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
         /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
         /// <param name="storageConnectionString">Connection string to Azure Storage account used for leases and checkpointing.</param>
         /// <param name="leaseContainerName">Azure Storage container name for use by built-in lease and checkpoint manager.</param>
         public EventProcessorHost(
+            string eventHubPath,
             string consumerGroupName,
             string eventHubConnectionString,
             string storageConnectionString,
             string leaseContainerName)
             : this(EventProcessorHost.CreateHostName(null),
+                eventHubPath,
                 consumerGroupName,
                 eventHubConnectionString,
                 storageConnectionString,
@@ -46,24 +48,27 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <para>This overload of the constructor uses the default, built-in lease and checkpoint managers.</para>
         /// </summary>
         /// <param name="hostName">A name for this event processor host. See method notes.</param>
+        /// <param name="eventHubPath">The name of the EventHub.</param>
         /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
         /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
         /// <param name="storageConnectionString">Connection string to Azure Storage account used for leases and checkpointing.</param>
         /// <param name="leaseContainerName">Azure Storage container name for use by built-in lease and checkpoint manager.</param>
         public EventProcessorHost(
             string hostName,
+            string eventHubPath,
             string consumerGroupName,
             string eventHubConnectionString,
             string storageConnectionString,
             string leaseContainerName)
             : this(hostName,
+                eventHubPath,
                 consumerGroupName,
                 eventHubConnectionString,
                 new AzureStorageCheckpointLeaseManager(storageConnectionString, leaseContainerName))
         {
             this.initializeLeaseManager = true;
         }
-    
+
         /// <summary>
         /// Create a new host to process events from an Event Hub.
         /// 
@@ -73,12 +78,14 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// ones based on Azure Storage.</para>
         /// </summary>
         /// <param name="hostName">Name of the processor host. MUST BE UNIQUE. Strongly recommend including a Guid to ensure uniqueness.</param>
+        /// <param name="eventHubPath">The name of the EventHub.</param>
         /// <param name="consumerGroupName">The name of the consumer group within the Event Hub.</param>
         /// <param name="eventHubConnectionString">Connection string for the Event Hub to receive from.</param>
         /// <param name="checkpointManager">Object implementing ICheckpointManager which handles partition checkpointing.</param>
         /// <param name="leaseManager">Object implementing ILeaseManager which handles leases for partitions.</param>
         public EventProcessorHost(
              string hostName,
+             string eventHubPath,
              string consumerGroupName,
              string eventHubConnectionString,
              ICheckpointManager checkpointManager,
@@ -93,18 +100,33 @@ namespace Microsoft.Azure.EventHubs.Processor
                 throw new ArgumentNullException(checkpointManager == null ? nameof(checkpointManager) : nameof(leaseManager));
             }
 
-            // Entity path is expected in the connection string.
-            var connectionSettings = new EventHubsConnectionSettings(eventHubConnectionString);
-            if (string.IsNullOrEmpty(connectionSettings.EntityPath))
+            var csb = new EventHubsConnectionStringBuilder(eventHubConnectionString);
+            if (string.IsNullOrEmpty(eventHubPath))
             {
-                throw new ArgumentException(nameof(eventHubConnectionString),
-                    "Provided eventHubConnectionString is missing the EventHub entity path.");
+                // Entity path is expected in the connection string if not provided with eventHubPath parameter.
+                if (string.IsNullOrEmpty(csb.EntityPath))
+                {
+                    throw new ArgumentException(nameof(eventHubConnectionString),
+                        "Provide EventHub entity path either in eventHubPath parameter or in eventHubConnectionString.");
+                }
+            }
+            else
+            {
+                // Entity path should not conflict with connection string.
+                if (!string.IsNullOrEmpty(csb.EntityPath) &&
+                    string.Compare(csb.EntityPath, eventHubPath, StringComparison.OrdinalIgnoreCase) != 0)
+                {
+                    throw new ArgumentException(nameof(eventHubConnectionString),
+                        "Provided EventHub path in eventHubPath parameter conflicts with the path in provided EventHubs connection string.");
+                }
+
+                csb.EntityPath = eventHubPath;
             }
 
             this.HostName = hostName;
-            this.EventHubPath = connectionSettings.EntityPath;
+            this.EventHubPath = csb.EntityPath;
             this.ConsumerGroupName = consumerGroupName;
-            this.eventHubConnectionString = eventHubConnectionString;
+            this.EventHubConnectionString = csb.ToString();
             this.CheckpointManager = checkpointManager;
             this.LeaseManager = leaseManager;
             this.Id = $"EventProcessorHost({hostName.Substring(0, Math.Min(hostName.Length, 20))}...)";
@@ -116,32 +138,32 @@ namespace Microsoft.Azure.EventHubs.Processor
         // both lease manager and checkpoint manager.
         EventProcessorHost(
                 string hostName,
+                string eventHubPath,
                 string consumerGroupName,
                 string eventHubConnectionString,
                 AzureStorageCheckpointLeaseManager combinedManager)
-            : this(hostName, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager)
+            : this(hostName,
+                  eventHubPath,
+                  consumerGroupName,
+                  eventHubConnectionString,
+                  combinedManager,
+                  combinedManager)
         {
         }
         
         /// <summary>
-                 /// Returns processor host name.
-                 /// If the processor host name was automatically generated, this is the only way to get it.
-                 /// </summary>
-        public string HostName { get; }
-
-        /// <summary>
-        /// Returns the Event Hub connection string assembled by the processor host.
-        /// <para>The connection string is assembled from info provider by the caller to the constructor
-        /// using ConnectionStringBuilder, so it's not clear that there's any value to making this
-        /// string accessible.</para>
+        /// Returns processor host name.
+        /// If the processor host name was automatically generated, this is the only way to get it.
         /// </summary>
-        internal EventHubsConnectionSettings ConnectionSettings { get; private set; }
+        public string HostName { get; }
 
         public string EventHubPath { get; }
 
         public string ConsumerGroupName { get; }
 
         // All of these accessors are for internal use only.
+        internal string EventHubConnectionString { get; private set; }
+
         internal ICheckpointManager CheckpointManager { get; }
 
         internal EventProcessorOptions EventProcessorOptions { get; private set; }
@@ -188,7 +210,9 @@ namespace Microsoft.Azure.EventHubs.Processor
         /// <returns>A task to indicate EventProcessorHost instance is started.</returns>
         public Task RegisterEventProcessorFactoryAsync(IEventProcessorFactory factory)
         {
-            return RegisterEventProcessorFactoryAsync(factory, EventProcessorOptions.DefaultOptions);
+            var epo = EventProcessorOptions.DefaultOptions;
+            epo.ReceiveTimeout = TimeSpan.MinValue;
+            return RegisterEventProcessorFactoryAsync(factory, epo);
         }
 
         /// <summary>
@@ -210,8 +234,13 @@ namespace Microsoft.Azure.EventHubs.Processor
             ProcessorEventSource.Log.EventProcessorHostOpenStart(this.Id, factory.GetType().ToString());
             try
             {
-                this.ConnectionSettings = new EventHubsConnectionSettings(this.eventHubConnectionString);
-                this.ConnectionSettings.OperationTimeout = processorOptions.ReceiveTimeout;
+                // Override operation timeout by receive timeout?
+                if (processorOptions.ReceiveTimeout > TimeSpan.MinValue)
+                {
+                    var cbs = new EventHubsConnectionStringBuilder(this.EventHubConnectionString);
+                    cbs.OperationTimeout = processorOptions.ReceiveTimeout;
+                    this.EventHubConnectionString = cbs.ToString();
+                }
 
                 if (this.initializeLeaseManager)
                 {
