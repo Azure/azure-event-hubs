@@ -136,15 +136,6 @@ namespace Microsoft.Azure.EventHubs
         }
 
         /// <summary>
-        /// Creates a TokenProvider given the credentials in this EventHubsConnectionStringBuilder.
-        /// </summary>
-        /// <returns></returns>
-        public TokenProvider CreateTokenProvider()
-        {
-            return TokenProvider.CreateSharedAccessSignatureTokenProvider(this.SasKeyName, this.SasKey);
-        }
-
-        /// <summary>
         /// Returns an interoperable connection string that can be used to connect to Event Hubs Namespace
         /// </summary>
         /// <returns>the connection string</returns>

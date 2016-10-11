@@ -26,7 +26,7 @@ namespace Microsoft.Azure.EventHubs.Amqp
             this.ContainerId = Guid.NewGuid().ToString("N");
             this.AmqpVersion = new Version(1, 0, 0, 0);
             this.MaxFrameSize = AmqpConstants.DefaultMaxFrameSize;
-            this.TokenProvider = csb.CreateTokenProvider();
+            this.TokenProvider = TokenProvider.CreateSharedAccessSignatureTokenProvider(csb.SasKeyName, csb.SasKey);
             this.CbsTokenProvider = new TokenProviderAdapter(this);
             this.ConnectionManager = new FaultTolerantAmqpObject<AmqpConnection>(this.CreateConnectionAsync, this.CloseConnection);
         }
