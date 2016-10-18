@@ -21,13 +21,10 @@ if(IN_OPENWRT)
     INCLUDE_DIRECTORIES("$ENV{TOOLCHAIN_DIR}/usr/include" "$ENV{TARGET_LDFLAGS}" "$ENV{TARGET_CPPFLAGS}" "$ENV{TARGET_CFLAGS}")
 endif()
 
+add_subdirectory(azure-c-shared-utility)
 add_subdirectory(azure-uamqp-c)
 
 include_directories(${UAMQP_INC_FOLDER})
-
-if(NOT TARGET aziotsharedutil)
-    add_subdirectory(azure-c-shared-utility/c)
-endif()
 
 enable_testing()
 
@@ -134,63 +131,12 @@ function(windows_unittests_add_lib whatIsBuilding)
     target_link_libraries(${whatIsBuilding}_lib micromock_ctest ctest ${ARGN})
 endfunction()
 
-function(build_test_artifacts whatIsBuilding use_gballoc)
-    
-    #the first argument is what is building
-    #the second argument is whether the tests should be build with gballoc #defines or not
-    #the following arguments are a list of libraries to link with
-    
-    if(${use_gballoc})
-        add_definitions(-DGB_MEASURE_MEMORY_FOR_THIS -DGB_DEBUG_ALLOC)
-    else()	
-    endif()
-    
-    #setting #defines
-    if(WIN32)
-        add_definitions(-D_CRT_SECURE_NO_WARNINGS)		
-    else()
-    endif()
-    
-    #setting includes
-    set(sharedutil_include_directories ${MICROMOCK_INC_FOLDER} ${TESTRUNNERSWITCHER_INC_FOLDER} ${CTEST_INC_FOLDER} ${SAL_INC_FOLDER} ${SHARED_UTIL_INC_FOLDER} ${SHARED_UTIL_SRC_FOLDER})
-    if(WIN32)				
-    else()
-        include_directories(${sharedutil_include_directories})
-    endif()
-
-    #setting output type
-    if(WIN32)
-        #to disable running e2e or longhaul or unittests tests for windows, we build the the same thing as "static library" so it is not picked up by visual studio
-        if(
-            (("${whatIsBuilding}" MATCHES ".*e2e.*") AND NOT ${run_e2e_tests}) OR
-            (("${whatIsBuilding}" MATCHES ".*longhaul.*") AND NOT ${run_longhaul_tests}) OR
-            (("${whatIsBuilding}" MATCHES ".*unittests.*") AND ${skip_unittests})
-        )
-            windows_unittests_add_lib(${whatIsBuilding} ${ARGN})
-        else()
-            windows_unittests_add_exe(${whatIsBuilding} ${ARGN})
-            windows_unittests_add_dll(${whatIsBuilding} ${ARGN})
-        endif()
-    else()
-        if(
-            (("${whatIsBuilding}" MATCHES ".*e2e.*") AND NOT ${run_e2e_tests}) OR
-            (("${whatIsBuilding}" MATCHES ".*longhaul.*") AND NOT ${run_longhaul_tests}) OR
-            (("${whatIsBuilding}" MATCHES ".*unittests.*") AND ${skip_unittests})
-        )
-            windows_unittests_add_lib(${whatIsBuilding} ${ARGN})
-        else()
-            windows_unittests_add_exe(${whatIsBuilding} ${ARGN})
-        endif()
-    endif()
-    
-endfunction(build_test_artifacts)
-
 add_subdirectory(testtools)
 
-set(SHARED_UTIL_ADAPTER_FOLDER "${CMAKE_CURRENT_LIST_DIR}/azure-c-shared-utility/c/adapters")
+set(SHARED_UTIL_ADAPTER_FOLDER "${CMAKE_CURRENT_LIST_DIR}/azure-c-shared-utility/adapters")
 if(WIN32)
-    set(LOCK_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/lock_c11.c)
-    set(THREAD_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/threadapi_c11.c)
+    set(LOCK_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/lock_win32.c)
+    set(THREAD_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/threadapi_win32.c)
 else()
     set(LOCK_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/lock_pthreads.c)
     set(THREAD_C_FILE ${SHARED_UTIL_ADAPTER_FOLDER}/threadapi_pthreads.c)

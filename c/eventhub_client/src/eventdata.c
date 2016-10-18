@@ -5,13 +5,13 @@
 #ifdef _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
-#include "gballoc.h"
+#include "azure_c_shared_utility/gballoc.h"
 
 #include "eventdata.h"
-#include "iot_logging.h"
-#include "buffer_.h"
-#include "strings.h"
-#include "vector.h"
+#include "azure_c_shared_utility/xlogging.h"
+#include "azure_c_shared_utility/buffer_.h"
+#include "azure_c_shared_utility/strings.h"
+#include "azure_c_shared_utility/vector.h"
 
 DEFINE_ENUM_STRINGS(EVENTDATA_RESULT, EVENTDATA_ENUM_VALUES)
 
@@ -298,7 +298,7 @@ MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
     /* SRS_EVENTDATA_07_034: [if eventDataHandle is NULL then EventData_Properties shall return NULL.] */
     if (eventDataHandle == NULL)
     {
-        LogError("invalid arg (NULL) passed to EventData_Properties\r\n")
+        LogError("invalid arg (NULL) passed to EventData_Properties\r\n");
         result = NULL;
     }
     else

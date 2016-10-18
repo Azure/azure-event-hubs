@@ -4,7 +4,7 @@
 #ifndef EVENTHUBCLIENT_LL_H
 #define EVENTHUBCLIENT_LL_H
 
-#include "macro_utils.h"
+#include "azure_c_shared_utility/macro_utils.h"
 #include "eventdata.h"
 
 #ifdef __cplusplus

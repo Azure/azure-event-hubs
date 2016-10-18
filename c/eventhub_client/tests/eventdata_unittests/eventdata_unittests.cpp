@@ -11,12 +11,12 @@
 #include "micromockcharstararenullterminatedstrings.h"
 
 #include "eventdata.h"
-#include "buffer_.h"
-#include "strings.h"
-#include "lock.h"
-#include "vector.h"
-#include "crt_abstractions.h"
-#include "map.h"
+#include "azure_c_shared_utility/buffer_.h"
+#include "azure_c_shared_utility/strings.h"
+#include "azure_c_shared_utility/lock.h"
+#include "azure_c_shared_utility/vector.h"
+#include "azure_c_shared_utility/crt_abstractions.h"
+#include "azure_c_shared_utility/map.h"
 
 DEFINE_MICROMOCK_ENUM_TO_STRING(EVENTDATA_RESULT, EVENTDATA_RESULT_VALUES);
 
@@ -477,8 +477,7 @@ BEGIN_TEST_SUITE(eventdata_unittests)
 
 TEST_SUITE_INITIALIZE(TestClassInitialize)
 {
-    INITIALIZE_MEMORY_DEBUG(g_dllByDll);
-
+    TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
     g_testByTest = MicroMockCreateMutex();
     ASSERT_IS_NOT_NULL(g_testByTest);
 }
@@ -486,7 +485,7 @@ TEST_SUITE_INITIALIZE(TestClassInitialize)
 TEST_SUITE_CLEANUP(TestClassCleanup)
 {
     MicroMockDestroyMutex(g_testByTest);
-    DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
+    TEST_DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
 }
 
 TEST_FUNCTION_INITIALIZE(TestMethodInitialize)

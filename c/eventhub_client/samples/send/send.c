@@ -2,13 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "eventhubclient.h"
 #include "eventdata.h"
 #include "send.h"
-#include "threadapi.h"
-#include "crt_abstractions.h"
-#include "platform.h"
+#include "azure_c_shared_utility/threadapi.h"
+#include "azure_c_shared_utility/crt_abstractions.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/xlogging.h"
 
 static const char* connectionString = "Endpoint=sb://[namespace].servicebus.windows.net/;SharedAccessKeyName=[key name];SharedAccessKey=[key value]";
 static const char* eventHubPath = "[event hub name]";
@@ -24,8 +26,35 @@ static const char TEST_STRING_VALUE_2[] = "Property_String_Value_2";
 #define BUFFER_SIZE     128
 static size_t g_id = 1000;
 
+void custom_logging_function(LOG_CATEGORY log_category, const char* file, const char* func, const int line, unsigned int options, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    switch (log_category)
+    {
+        case LOG_INFO:
+            (void)printf("Custom Info: ");
+            break;
+        case LOG_ERROR:
+            (void)printf("Custom Error: File:%s Func:%s Line:%d ", file, func, line);
+            break;
+        default:
+            break;
+    }
+    (void)vprintf(format, args);
+    va_end(args);
+
+    if (options & LOG_LINE)
+    {
+        (void)printf("\r\n");
+    }
+}
+
 int Send_Sample(void)
 {
+    xlogging_set_log_function(custom_logging_function);
+
     int result;
     // Increment the id
     g_id++;

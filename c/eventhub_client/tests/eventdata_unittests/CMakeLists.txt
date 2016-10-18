@@ -12,9 +12,13 @@ ${theseTestsName}.cpp
 
 set(${theseTestsName}_c_files
 ../../src/eventdata.c
+${SHARED_UTIL_SRC_FOLDER}/xlogging.c
+${SHARED_UTIL_SRC_FOLDER}/consolelogger.c
 )
 
 set(${theseTestsName}_h_files
 )
 
 build_test_artifacts(${theseTestsName} ON)
+
+target_link_libraries(${theseTestsName}_dll testrunnerswitcher)

@@ -11,9 +11,11 @@
 #include "micromockcharstararenullterminatedstrings.h"
 
 #include "connection_string_parser.h"
-#include "string_tokenizer.h"
-#include "map.h"
-#include "lock.h"
+#include "azure_c_shared_utility/strings.h"
+#include "azure_c_shared_utility/map.h"
+#include "azure_c_shared_utility/string_tokenizer.h"
+#include "azure_c_shared_utility/xlogging.h"
+#include "azure_c_shared_utility/lock.h"
 
 #define GBALLOC_H
 
@@ -40,7 +42,7 @@ namespace BASEIMPLEMENTATION
     #undef Lock_Deinit
 };
 
-static const char TEST_CHAR[] = "a";
+static const char TEST_CONST_CHAR[] = "a";
 static STRING_HANDLE DUMMY_STRING_HANDLE = (STRING_HANDLE)0x4242;
 static MAP_HANDLE TEST_MAP_HANDLE = (MAP_HANDLE)0x4243;
 static STRING_HANDLE TEST_CONNECTION_STRING = (STRING_HANDLE)0x4244;
@@ -71,7 +73,7 @@ public:
     MOCK_STATIC_METHOD_1(, void, STRING_delete, STRING_HANDLE, handle)
     MOCK_VOID_METHOD_END()
     MOCK_STATIC_METHOD_1(, const char*, STRING_c_str, STRING_HANDLE, s)
-    MOCK_METHOD_END(const char*, TEST_CHAR)
+    MOCK_METHOD_END(const char*, TEST_CONST_CHAR)
     MOCK_STATIC_METHOD_0(, STRING_HANDLE, STRING_new)
     MOCK_METHOD_END(STRING_HANDLE, DUMMY_STRING_HANDLE);
 
@@ -79,7 +81,7 @@ public:
     MOCK_STATIC_METHOD_1(, STRING_TOKENIZER_HANDLE, STRING_TOKENIZER_create, STRING_HANDLE, handle);
     MOCK_METHOD_END(STRING_TOKENIZER_HANDLE, TEST_STRING_TOKENIZER_HANDLE)
     MOCK_STATIC_METHOD_3(, int, STRING_TOKENIZER_get_next_token, STRING_TOKENIZER_HANDLE, t, STRING_HANDLE, output, const char*, delimiters);
-    MOCK_METHOD_END(int, 0)
+    MOCK_METHOD_END(int, 0);
     MOCK_STATIC_METHOD_1(, void, STRING_TOKENIZER_destroy, STRING_TOKENIZER_HANDLE, t);
     MOCK_VOID_METHOD_END();
 };
@@ -102,8 +104,7 @@ BEGIN_TEST_SUITE(connectionstringparser_unittests)
 
 TEST_SUITE_INITIALIZE(TestClassInitialize)
 {
-    INITIALIZE_MEMORY_DEBUG(g_dllByDll);
-
+    TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
     g_testByTest = MicroMockCreateMutex();
     ASSERT_IS_NOT_NULL(g_testByTest);
 }
@@ -111,7 +112,7 @@ TEST_SUITE_INITIALIZE(TestClassInitialize)
 TEST_SUITE_CLEANUP(TestClassCleanup)
 {
     MicroMockDestroyMutex(g_testByTest);
-    DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
+    TEST_DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
 }
 
 TEST_FUNCTION_INITIALIZE(TestMethodInitialize)

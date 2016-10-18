@@ -29,26 +29,26 @@ IN THE SOFTWARE.
 #include "micromockcharstararenullterminatedstrings.h"
 
 #include "eventhubclient_ll.h"
-#include "strings.h"
+#include "azure_c_shared_utility/strings.h"
 #include "connection_string_parser.h"
-#include "xio.h"
-#include "connection.h"
-#include "session.h"
-#include "link.h"
-#include "messaging.h"
-#include "message.h"
-#include "message_sender.h"
-#include "sasl_mechanism.h"
-#include "sasl_plain.h"
-#include "saslclientio.h"
+#include "azure_c_shared_utility/xio.h"
+#include "azure_uamqp_c/connection.h"
+#include "azure_uamqp_c/session.h"
+#include "azure_uamqp_c/link.h"
+#include "azure_uamqp_c/messaging.h"
+#include "azure_uamqp_c/message.h"
+#include "azure_uamqp_c/message_sender.h"
+#include "azure_uamqp_c/sasl_mechanism.h"
+#include "azure_uamqp_c/sasl_plain.h"
+#include "azure_uamqp_c/saslclientio.h"
 #include "version.h"
-#include "lock.h"
-#include "amqp_definitions.h"
-#include "amqpvalue.h"
-#include "platform.h"
-#include "doublylinkedlist.h"
-#include "tlsio.h"
-#include "map.h"
+#include "azure_c_shared_utility/lock.h"
+#include "azure_uamqp_c/amqp_definitions.h"
+#include "azure_uamqp_c/amqpvalue.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/doublylinkedlist.h"
+#include "azure_c_shared_utility/tlsio.h"
+#include "azure_c_shared_utility/map.h"
 
 DEFINE_MICROMOCK_ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES);
 
@@ -235,7 +235,7 @@ TYPED_MOCK_CLASS(CEventHubClientLLMocks, CGlobalMock)
 {
 public:
     /* xio mocks */
-    MOCK_STATIC_METHOD_3(, XIO_HANDLE, xio_create, const IO_INTERFACE_DESCRIPTION*, io_interface_description, const void*, io_create_parameters, LOGGER_LOG, logger_log)
+    MOCK_STATIC_METHOD_2(, XIO_HANDLE, xio_create, const IO_INTERFACE_DESCRIPTION*, io_interface_description, const void*, io_create_parameters)
         if (saved_tlsio_parameters == NULL)
         {
             saved_tlsio_parameters = (TLSIO_CONFIG*)malloc(sizeof(TLSIO_CONFIG));
@@ -298,7 +298,7 @@ public:
     MOCK_METHOD_END(int, 0);
 
     /* messagesender mocks */
-    MOCK_STATIC_METHOD_4(, MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context, LOGGER_LOG, logger_log);
+    MOCK_STATIC_METHOD_3(, MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context);
         saved_on_message_sender_state_changed = on_message_sender_state_changed;
         saved_message_sender_context = context;
     MOCK_METHOD_END(MESSAGE_SENDER_HANDLE, TEST_MESSAGE_SENDER_HANDLE);
@@ -487,7 +487,7 @@ public:
     MOCK_VOID_METHOD_END()
 };
 
-DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , XIO_HANDLE, xio_create, const IO_INTERFACE_DESCRIPTION*, io_interface_description, const void*, io_create_parameters, LOGGER_LOG, logger_log);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , XIO_HANDLE, xio_create, const IO_INTERFACE_DESCRIPTION*, io_interface_description, const void*, io_create_parameters);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, xio_destroy, XIO_HANDLE, xio);
 
 DECLARE_GLOBAL_MOCK_METHOD_5(CEventHubClientLLMocks, , CONNECTION_HANDLE, connection_create, XIO_HANDLE, xio, const char*, hostname, const char*, container_id, ON_NEW_ENDPOINT, on_new_endpoint, void*, callback_context);
@@ -512,7 +512,7 @@ DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_applicat
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_add_body_amqp_data, MESSAGE_HANDLE, message, BINARY_DATA, binary_data);
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, message_set_message_format, MESSAGE_HANDLE, message, uint32_t, message_format);
 
-DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context, LOGGER_LOG, logger_log);
+DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , MESSAGE_SENDER_HANDLE, messagesender_create, LINK_HANDLE, link, ON_MESSAGE_SENDER_STATE_CHANGED, on_message_sender_state_changed, void*, context);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, messagesender_destroy, MESSAGE_SENDER_HANDLE, message_sender);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , int, messagesender_open, MESSAGE_SENDER_HANDLE, message_sender);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , int, messagesender_close, MESSAGE_SENDER_HANDLE, message_sender);
@@ -582,7 +582,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
     TEST_SUITE_INITIALIZE(TestClassInitialize)
     {
-        INITIALIZE_MEMORY_DEBUG(g_dllByDll);
+        TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
         g_testByTest = MicroMockCreateMutex();
         ASSERT_IS_NOT_NULL(g_testByTest);
     }
@@ -590,8 +590,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
     TEST_SUITE_CLEANUP(TestClassCleanup)
     {
         MicroMockDestroyMutex(g_testByTest);
-
-        DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
+        TEST_DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
     }
 
     TEST_FUNCTION_INITIALIZE(TestMethodInitialize)
@@ -688,11 +687,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL((*mocks), saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL((*mocks), platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL((*mocks), xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL((*mocks), xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL((*mocks), saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL((*mocks), xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL((*mocks), xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL((*mocks), connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -703,7 +702,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL((*mocks), link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
         STRICT_EXPECTED_CALL((*mocks), link_set_snd_settle_mode(TEST_LINK_HANDLE, sender_settle_mode_unsettled));
         STRICT_EXPECTED_CALL((*mocks), link_set_max_message_size(TEST_LINK_HANDLE, 256 * 1024));
-        STRICT_EXPECTED_CALL((*mocks), messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, NULL))
+        STRICT_EXPECTED_CALL((*mocks), messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreArgument(2).IgnoreArgument(3);
         STRICT_EXPECTED_CALL((*mocks), amqpvalue_destroy(TEST_SOURCE_AMQP_VALUE));
         STRICT_EXPECTED_CALL((*mocks), amqpvalue_destroy(TEST_TARGET_AMQP_VALUE));
@@ -1829,11 +1828,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, "Host2", "eh_client_connection", NULL, NULL));
@@ -1844,7 +1843,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, link_set_snd_settle_mode(TEST_LINK_HANDLE, sender_settle_mode_unsettled));
         STRICT_EXPECTED_CALL(mocks, link_set_max_message_size(TEST_LINK_HANDLE, 256 * 1024));
-        STRICT_EXPECTED_CALL(mocks, messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, NULL))
+        STRICT_EXPECTED_CALL(mocks, messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreArgument(2).IgnoreArgument(3);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_SOURCE_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_TARGET_AMQP_VALUE));
@@ -2085,7 +2084,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn((XIO_HANDLE)NULL);
         STRICT_EXPECTED_CALL(mocks, saslmechanism_destroy(TEST_SASL_MECHANISM_HANDLE));
@@ -2121,7 +2120,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description())
@@ -2160,11 +2159,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn((XIO_HANDLE)NULL);
         STRICT_EXPECTED_CALL(mocks, xio_destroy(TEST_TLSIO_HANDLE));
@@ -2201,11 +2200,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL))
@@ -2245,11 +2244,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2291,11 +2290,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2339,11 +2338,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2388,11 +2387,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2440,11 +2439,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2495,11 +2494,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2552,11 +2551,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2610,11 +2609,11 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, saslmechanism_create(TEST_SASLPLAIN_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2);
         STRICT_EXPECTED_CALL(mocks, platform_get_default_tlsio());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_TLSIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_TLSIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, saslclientio_get_interface_description());
-        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL, NULL))
+        STRICT_EXPECTED_CALL(mocks, xio_create(TEST_SASLCLIENTIO_INTERFACE_DESCRIPTION, NULL))
             .IgnoreArgument(2)
             .SetReturn(TEST_SASLCLIENTIO_HANDLE);
         STRICT_EXPECTED_CALL(mocks, connection_create(TEST_SASLCLIENTIO_HANDLE, TEST_HOSTNAME, "eh_client_connection", NULL, NULL));
@@ -2627,7 +2626,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, link_create(TEST_SESSION_HANDLE, "sender-link", role_sender, TEST_SOURCE_AMQP_VALUE, TEST_TARGET_AMQP_VALUE));
         STRICT_EXPECTED_CALL(mocks, link_set_snd_settle_mode(TEST_LINK_HANDLE, sender_settle_mode_unsettled));
         STRICT_EXPECTED_CALL(mocks, link_set_max_message_size(TEST_LINK_HANDLE, 256 * 1024));
-        STRICT_EXPECTED_CALL(mocks, messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, NULL))
+        STRICT_EXPECTED_CALL(mocks, messagesender_create(TEST_LINK_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreArgument(2).IgnoreArgument(3)
             .SetReturn((MESSAGE_SENDER_HANDLE)NULL);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(TEST_SOURCE_AMQP_VALUE));

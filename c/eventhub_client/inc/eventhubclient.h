@@ -13,7 +13,7 @@ extern "C"
 #endif
 
 #include "eventhubclient_ll.h"
-#include "macro_utils.h"
+#include "azure_c_shared_utility/macro_utils.h"
 #include "eventdata.h"
 
 typedef void* EVENTHUBCLIENT_HANDLE;

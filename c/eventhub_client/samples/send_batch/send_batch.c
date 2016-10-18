@@ -7,9 +7,9 @@
 #include "eventhubclient.h"
 #include "eventdata.h"
 #include "send_batch.h"
-#include "threadapi.h"
-#include "platform.h"
-#include "crt_abstractions.h"
+#include "azure_c_shared_utility/threadapi.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/crt_abstractions.h"
 
 static const char* connectionString = "Endpoint=sb://[namespace].servicebus.windows.net/;SharedAccessKeyName=[key name];SharedAccessKey=[key value]";
 static const char* eventHubPath = "[event hub name]";

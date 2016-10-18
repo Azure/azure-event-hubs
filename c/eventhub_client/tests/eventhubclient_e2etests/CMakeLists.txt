@@ -19,7 +19,7 @@ set(${theseTestsName}_h_files
 
 include_directories(${EVENTHUB_TEST_INC_FOLDER})
 
-build_test_artifacts(${theseTestsName} ON)
+build_test_artifacts(${theseTestsName} OFF "tests/e2eTests")
 
 if(WIN32)
 	if(TARGET ${theseTestsName}_dll)
@@ -33,7 +33,7 @@ if(WIN32)
 	if(TARGET ${theseTestsName}_exe)
 		target_link_libraries(${theseTestsName}_exe
 			eventhub_client
-                        eventhub_test
+            eventhub_test
 			aziotsharedutil
 		)
 	endif()
@@ -41,7 +41,7 @@ else()
 	if(TARGET ${theseTestsName}_exe)
 		target_link_libraries(${theseTestsName}_exe
 			eventhub_client
-                        eventhub_test
+            eventhub_test
 			aziotsharedutil
 		)
 		target_link_libraries(${theseTestsName}_exe pthread)

@@ -4,8 +4,8 @@
 #ifndef EVENTDATA_H
 #define EVENTDATA_H
 
-#include "macro_utils.h"
-#include "map.h" 
+#include "azure_c_shared_utility/macro_utils.h"
+#include "azure_c_shared_utility/map.h" 
 
 #ifdef __cplusplus
 #include <cstddef>

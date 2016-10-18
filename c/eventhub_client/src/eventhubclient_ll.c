@@ -5,30 +5,29 @@
 #ifdef _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
-#include "gballoc.h"
+#include "azure_c_shared_utility/gballoc.h"
 
 #include <string.h>
 #include "eventhubclient_ll.h"
-#include "iot_logging.h"
-#include "map.h"
+#include "azure_c_shared_utility/xlogging.h"
+#include "azure_c_shared_utility/map.h"
 #include "connection_string_parser.h"
-#include "strings.h"
+#include "azure_c_shared_utility/strings.h"
 #include "version.h"
-#include "crt_abstractions.h"
-#include "connection.h"
-#include "session.h"
-#include "link.h"
-#include "xio.h"
-#include "message.h"
-#include "messaging.h"
-#include "message_sender.h"
-#include "saslclientio.h"
-#include "sasl_plain.h"
-#include "tlsio.h"
-#include "platform.h"
-#include "doublylinkedlist.h"
+#include "azure_c_shared_utility/crt_abstractions.h"
+#include "azure_uamqp_c/connection.h"
+#include "azure_uamqp_c/session.h"
+#include "azure_uamqp_c/link.h"
+#include "azure_c_shared_utility/xio.h"
+#include "azure_uamqp_c/message.h"
+#include "azure_uamqp_c/messaging.h"
+#include "azure_uamqp_c/message_sender.h"
+#include "azure_uamqp_c/saslclientio.h"
+#include "azure_uamqp_c/sasl_plain.h"
+#include "azure_c_shared_utility/tlsio.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/doublylinkedlist.h"
 
-#define LOG_ERROR LogError("result = %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, result));
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES)
 
 #define AMQP_MAX_MESSAGE_SIZE           (256*1024)
@@ -277,7 +276,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             else
                             {
                                 /* Codes_SRS_EVENTHUBCLIENT_LL_03_030: [A TLS IO shall be created by calling xio_create.] */
-                                if ((eventhub_client_ll->tls_io = xio_create(tlsio_interface, &tls_io_config, NULL)) == NULL)
+                                if ((eventhub_client_ll->tls_io = xio_create(tlsio_interface, &tls_io_config)) == NULL)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_003: [If xio_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                     result = __LINE__;
@@ -305,7 +304,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                         SASLCLIENTIO_CONFIG sasl_io_config = { eventhub_client_ll->tls_io, eventhub_client_ll->sasl_mechanism_handle };
 
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_012: [A SASL client IO shall be created by calling xio_create.] */
-                                        if ((eventhub_client_ll->sasl_io = xio_create(saslclientio_interface, &sasl_io_config, NULL)) == NULL)
+                                        if ((eventhub_client_ll->sasl_io = xio_create(saslclientio_interface, &sasl_io_config)) == NULL)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_018: [If xio_create fails creating the SASL client IO then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
@@ -371,7 +370,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                                 LogError("link_set_max_message_size failed.\r\n");
                                             }
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_036: [A message sender shall be created by calling messagesender_create and passing as arguments the link handle, a state changed callback, a context and NULL for the logging function.] */
-                                            else if ((eventhub_client_ll->message_sender = messagesender_create(eventhub_client_ll->link, on_message_sender_state_changed, eventhub_client_ll, NULL)) == NULL)
+                                            else if ((eventhub_client_ll->message_sender = messagesender_create(eventhub_client_ll->link, on_message_sender_state_changed, eventhub_client_ll)) == NULL)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_037: [If creating the message sender fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                                                 result = __LINE__;
@@ -607,7 +606,7 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
     /* Codes_SRS_EVENTHUBCLIENT_LL_03_010: [If the eventhub_client_ll is NULL, EventHubClient_LL_Destroy shall not do anything.] */
     if (eventhub_client_ll != NULL)
     {
-		PDLIST_ENTRY unsend;
+        PDLIST_ENTRY unsend;
 
         /* Codes_SRS_EVENTHUBCLIENT_LL_03_009: [EventHubClient_LL_Destroy shall terminate the usage of this EventHubClient_LL specified by the eventHubLLHandle and cleanup all associated resources.] */
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_042: [The message sender shall be freed by calling messagesender_destroy.] */

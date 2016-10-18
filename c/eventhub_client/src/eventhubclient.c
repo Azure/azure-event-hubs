@@ -5,23 +5,22 @@
 #ifdef _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
-#include <gballoc.h>
+#include "azure_c_shared_utility/gballoc.h"
 
 #include <eventhubclient.h>
-#include <iot_logging.h>
-#include <version.h>
-#include <threadapi.h>
-#include <condition.h>
-#include <crt_abstractions.h>
-#include <lock.h>
+#include "azure_c_shared_utility/xlogging.h"
+#include "version.h"
+#include "azure_c_shared_utility/threadapi.h"
+#include "azure_c_shared_utility/condition.h"
+#include "azure_c_shared_utility/crt_abstractions.h"
+#include "azure_c_shared_utility/lock.h"
 #include <signal.h>
-
 
 #define EVENTHUB_SEND_SLEEP_TIME		1 // One Millisecond
 #define THREAD_CONTINUE					0
 #define THREAD_END						1
 #define CALLBACK_WAITING				0
-#define CALLBACK_NOTIFIED				1
+#define CALLBACK_NOTIFIED				1 
 
 #define LOG_ERROR(x) LogError("result = %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, x));
 
@@ -88,7 +87,7 @@ EVENTHUB_CALLBACK_STRUCT * EventHubClient_InitUserContext(void)
 
 void EventHub_DestroyUserContext(EVENTHUB_CALLBACK_STRUCT * eventhubUserContext)
 {
-	Unlock(eventhubUserContext->completionLock);
+    Unlock(eventhubUserContext->completionLock);
     Lock_Deinit(eventhubUserContext->completionLock);
     Condition_Deinit(eventhubUserContext->completionCondition);
     free(eventhubUserContext);
