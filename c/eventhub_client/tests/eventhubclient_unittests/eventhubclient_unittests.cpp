@@ -625,7 +625,7 @@ TEST_FUNCTION(EventHubClient_Send_EventhubClient_LL_SendAsync_Fails)
     EXPECTED_CALL(ehMocks, gballoc_malloc(0));
     EXPECTED_CALL(ehMocks, gballoc_free(0));
     EXPECTED_CALL(ehMocks, Condition_Init());
-    EXPECTED_CALL(ehMocks, Condition_Post(IGNORED_PTR_ARG));
+    //EXPECTED_CALL(ehMocks, Condition_Post(IGNORED_PTR_ARG));
     //EXPECTED_CALL(ehMocks, Condition_Wait(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
     EXPECTED_CALL(ehMocks, Condition_Deinit(IGNORED_PTR_ARG));
     EXPECTED_CALL(ehMocks, Lock_Init());
@@ -633,6 +633,7 @@ TEST_FUNCTION(EventHubClient_Send_EventhubClient_LL_SendAsync_Fails)
     EXPECTED_CALL(ehMocks, Lock(IGNORED_PTR_ARG));
     EXPECTED_CALL(ehMocks, Unlock(IGNORED_PTR_ARG));
 
+    g_confirmationCall = false;
 
     // act
     EVENTHUBCLIENT_RESULT result = EventHubClient_Send(eventHubHandle, TEST_EVENTDATA_HANDLE);
@@ -1156,13 +1157,15 @@ TEST_FUNCTION(EventHubClient_SendBatch_LowerLayerSendBatch_Fail)
     EXPECTED_CALL(ehMocks, gballoc_malloc(IGNORE));
     EXPECTED_CALL(ehMocks, gballoc_free(IGNORE));
     EXPECTED_CALL(ehMocks, Condition_Init());
-    EXPECTED_CALL(ehMocks, Condition_Post(IGNORED_PTR_ARG));
+    //EXPECTED_CALL(ehMocks, Condition_Post(IGNORED_PTR_ARG));
     //EXPECTED_CALL(ehMocks, Condition_Wait(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
     EXPECTED_CALL(ehMocks, Condition_Deinit(IGNORED_PTR_ARG));
     EXPECTED_CALL(ehMocks, Lock_Init());
     EXPECTED_CALL(ehMocks, Lock_Deinit(IGNORED_PTR_ARG));
     EXPECTED_CALL(ehMocks, Lock(IGNORED_PTR_ARG));
     EXPECTED_CALL(ehMocks, Unlock(IGNORED_PTR_ARG));
+
+    g_confirmationCall = false;
 
     // act
     EVENTHUBCLIENT_RESULT result = EventHubClient_SendBatch(eventHubHandle, eventhandleList, EVENT_HANDLE_COUNT);
