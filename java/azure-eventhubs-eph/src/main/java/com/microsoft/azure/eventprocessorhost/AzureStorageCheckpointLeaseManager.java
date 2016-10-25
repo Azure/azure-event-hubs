@@ -13,6 +13,7 @@ import java.util.concurrent.*;
 import java.util.logging.Level;
 
 import com.google.gson.Gson;
+import com.microsoft.azure.servicebus.IllegalEntityException;
 import com.microsoft.azure.storage.AccessCondition;
 import com.microsoft.azure.storage.CloudStorageAccount;
 import com.microsoft.azure.storage.StorageErrorCodeStrings;
@@ -31,7 +32,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 {
     private EventProcessorHost host;
     private final String storageConnectionString;
-    private String storageContainerName = null;
+    private String storageContainerName;
+    private String storageBlobPrefix;
     
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
@@ -46,13 +48,31 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 
     AzureStorageCheckpointLeaseManager(String storageConnectionString)
     {
-        this.storageConnectionString = storageConnectionString;
+        this(storageConnectionString, null);
     }
-
+    
     AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName)
     {
+    	this(storageConnectionString, storageContainerName, "");
+    }
+
+    AzureStorageCheckpointLeaseManager(String storageConnectionString, String storageContainerName, String storageBlobPrefix)
+    {
+    	if ((storageConnectionString == null) || storageConnectionString.trim().isEmpty())
+		{
+    		throw new IllegalArgumentException("Provide valid Azure Storage connection string when using Azure Storage");
+		}
         this.storageConnectionString = storageConnectionString;
+        
+        if ((storageContainerName != null) && storageContainerName.trim().isEmpty())
+        {
+        	throw new IllegalArgumentException("Azure Storage container name must be a valid container name or null to use the default");
+        }
         this.storageContainerName = storageContainerName;
+        
+        // Convert all-whitespace prefix to empty string. Convert null prefix to empty string.
+        // Then the rest of the code only has one case to worry about.
+        this.storageBlobPrefix = (storageBlobPrefix != null) ? storageBlobPrefix.trim() : "";
     }
 
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
@@ -73,7 +93,9 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         
         this.eventHubContainer = this.storageClient.getContainerReference(this.storageContainerName);
         
-        this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.host.getConsumerGroupName());
+        // storageBlobPrefix is either empty or a real user-supplied string. Either way we can just
+        // stick it on the front and get the desired result. 
+        this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.storageBlobPrefix + this.host.getConsumerGroupName());
         
         this.gson = new Gson();
 
@@ -282,7 +304,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public Iterable<Future<Lease>> getAllLeases()
+    public Iterable<Future<Lease>> getAllLeases() throws IllegalEntityException
     {
         ArrayList<Future<Lease>> leaseFutures = new ArrayList<Future<Lease>>();
         Iterable<String> partitionIds = this.host.getPartitionManager().getPartitionIds(); 
@@ -307,7 +329,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
     		returnLease = new AzureBlobLease(partitionId, leaseBlob);
     		this.host.logWithHostAndPartition(Level.INFO, partitionId,
-    				"CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName());
+    				"CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
+    				"storageBlobPrefix: " + this.storageBlobPrefix);
     		uploadLease(returnLease, leaseBlob, AccessCondition.generateIfNoneMatchCondition("*"), "created");
     	}
     	catch (StorageException se)
@@ -326,7 +349,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     			System.out.println("errorCode " + extendedErrorInfo.getErrorCode());
     			System.out.println("errorString " + extendedErrorInfo.getErrorMessage());
     			this.host.logWithHostAndPartition(Level.SEVERE, partitionId,
-    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName(),
+    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
+    				"storageBlobPrefix: " + this.storageBlobPrefix,
     				se);
     			throw se;
     		}
