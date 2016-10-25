@@ -427,68 +427,6 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
     return result;
 }
 
-static int add_partition_key_to_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE event_data)
-{
-    int result;
-    const char* currPartKey = EventData_GetPartitionKey(event_data);
-    if (currPartKey != NULL)
-    {
-        AMQP_VALUE partition_map;
-        AMQP_VALUE partition_name;
-        AMQP_VALUE partition_value;
-
-        if ((partition_map = amqpvalue_create_map()) == NULL)
-        {
-            LogError("tony talking alot 1");
-            result = __LINE__;
-        }
-        else if ( (partition_name = amqpvalue_create_symbol(PARTITION_KEY_NAME) ) == NULL)
-        {
-            LogError("tony talking alot 2");
-            amqpvalue_destroy(partition_map);
-            result = __LINE__;
-        }
-        else if ((partition_value = amqpvalue_create_string(currPartKey)) == NULL)
-        {
-            LogError("tony talking alot 3");
-            amqpvalue_destroy(partition_name);
-            amqpvalue_destroy(partition_map);
-            result = __LINE__;
-        }
-        else if (amqpvalue_set_map_value(partition_map, partition_name, partition_value) != 0)
-        {
-            LogError("amqpvalue_set_map_value failed Because tony said so");
-            amqpvalue_destroy(partition_value);
-            amqpvalue_destroy(partition_name);
-            amqpvalue_destroy(partition_map);
-            result = __LINE__;
-        }
-        else
-        {
-            AMQP_VALUE partition_annotation = amqpvalue_create_message_annotations(partition_map);
-            if (partition_annotation != NULL)
-            {
-                if (message_set_message_annotations(message, partition_annotation) == 0)
-                {
-                    result = 0;
-                }
-                else
-                {
-                    result = __LINE__;
-                }
-            }
-            amqpvalue_destroy(partition_value);
-            amqpvalue_destroy(partition_name);
-            amqpvalue_destroy(partition_map);
-        }
-    }
-    else
-    {
-        result = 0;
-    }
-    return result;
-}
-
 static void on_message_send_complete(const void* context, MESSAGE_SEND_RESULT send_result)
 {
     PDLIST_ENTRY currentListEntry = (PDLIST_ENTRY)context;
