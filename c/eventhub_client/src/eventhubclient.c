@@ -22,7 +22,7 @@
 #define CALLBACK_WAITING				0
 #define CALLBACK_NOTIFIED				1 
 
-#define LOG_ERROR(x) LogError("result = %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, x));
+#define LOG_ERROR(x) LogError("result = %s", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, x));
 
 typedef struct EVENTHUBCLIENT_STRUCT_TAG
 {
@@ -237,7 +237,68 @@ EVENTHUBCLIENT_HANDLE EventHubClient_CreateFromConnectionString(const char* conn
         }
     }
     /* Codes_SRS_EVENTHUBCLIENT_03_005: [Upon Success EventHubClient_CreateFromConnectionString shall return the EVENTHUBCLIENT_HANDLE.] */
-    return (EVENTHUBCLIENT_LL_HANDLE)result;
+    return (EVENTHUBCLIENT_HANDLE)result;
+}
+
+EVENTHUBCLIENT_RESULT EventHubClient_SetStateChangeCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb, void* userContextCallback)
+{
+    EVENTHUBCLIENT_RESULT result;
+    if (eventHubHandle == NULL)
+    {
+        result = EVENTHUBCLIENT_INVALID_ARG;
+        LOG_ERROR(result);
+    }
+    else
+    {
+        EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
+        if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
+        {
+            result = EventHubClient_LL_SetStateChangeCallback(eventhubClientInfo->eventhubclientLLHandle, state_change_cb, userContextCallback);
+            (void)Unlock(eventhubClientInfo->lockInfo);
+        }
+        else
+        {
+            result = EVENTHUBCLIENT_ERROR;
+        }
+    }
+    return result;
+}
+
+EVENTHUBCLIENT_RESULT EventHubClient_SetErrorCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb, void* userContextCallback)
+{
+    EVENTHUBCLIENT_RESULT result;
+    if (eventHubHandle == NULL)
+    {
+        result = EVENTHUBCLIENT_INVALID_ARG;
+        LOG_ERROR(result);
+    }
+    else
+    {
+        EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
+        if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
+        {
+            result = EventHubClient_LL_SetErrorCallback(eventhubClientInfo->eventhubclientLLHandle, on_error_cb, userContextCallback);
+            (void)Unlock(eventhubClientInfo->lockInfo);
+        }
+        else
+        {
+            result = EVENTHUBCLIENT_ERROR;
+        }
+    }
+    return result;
+}
+
+void EventHubClient_SetLogTrace(EVENTHUBCLIENT_HANDLE eventHubHandle, bool log_trace_on)
+{
+    if (eventHubHandle != NULL)
+    {
+        EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
+        if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
+        {
+            EventHubClient_LL_SetLogTrace(eventhubClientInfo->eventhubclientLLHandle, log_trace_on);
+            (void)Unlock(eventhubClientInfo->lockInfo);
+        }
+    }
 }
 
 EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE eventDataHandle)

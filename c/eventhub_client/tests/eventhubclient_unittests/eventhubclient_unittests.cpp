@@ -136,19 +136,19 @@ public:
         free(threadHandle);
     MOCK_METHOD_END(THREADAPI_RESULT, THREADAPI_OK)
 
-        MOCK_STATIC_METHOD_2(, EVENTHUBCLIENT_LL_HANDLE, EventHubClient_LL_CreateFromConnectionString, const char*, connectionString, const char*, eventHubPath)
+    MOCK_STATIC_METHOD_2(, EVENTHUBCLIENT_LL_HANDLE, EventHubClient_LL_CreateFromConnectionString, const char*, connectionString, const char*, eventHubPath)
         EVENTHUBCLIENT_LL_HANDLE resultHandle;
-    if (connectionString == NULL || eventHubPath == NULL)
-    {
-        resultHandle = NULL;
-    }
-    else
-    {
-        resultHandle = TEST_EVENTCLIENT_LL_HANDLE;
-    }
+        if (connectionString == NULL || eventHubPath == NULL)
+        {
+            resultHandle = NULL;
+        }
+        else
+        {
+            resultHandle = TEST_EVENTCLIENT_LL_HANDLE;
+        }
     MOCK_METHOD_END(EVENTHUBCLIENT_LL_HANDLE, resultHandle)
 
-        MOCK_STATIC_METHOD_5(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendBatchAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE*, eventDataList, size_t, count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback)
+    MOCK_STATIC_METHOD_5(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendBatchAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE*, eventDataList, size_t, count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback)
         if (g_confirmationCall)
         {
             g_ConfirmationCallback = telemetryConfirmationCallback;
@@ -157,7 +157,7 @@ public:
         }
     MOCK_METHOD_END(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK)
 
-        MOCK_STATIC_METHOD_4(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE, eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback)
+    MOCK_STATIC_METHOD_4(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE, eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback)
         if (g_confirmationCall)
         {
             g_ConfirmationCallback = telemetryConfirmationCallback;
@@ -166,19 +166,28 @@ public:
         }
     MOCK_METHOD_END(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK)
 
-        MOCK_STATIC_METHOD_1(, void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle)
+    MOCK_STATIC_METHOD_1(, void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle)
         if (g_ConfirmationCallback)
         {
             g_ConfirmationCallback(g_callbackConfirmationResult, g_userContextCallback);
         }
     MOCK_VOID_METHOD_END()
 
-        MOCK_STATIC_METHOD_1(, void, EventHubClient_LL_Destroy, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle)
-        MOCK_VOID_METHOD_END()
+    MOCK_STATIC_METHOD_3(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetStateChangeCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK, failure_cb, void*, userContextCallback)
+    MOCK_METHOD_END(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK)
 
-        /* EventData Mocks */
-        MOCK_STATIC_METHOD_2(, EVENTDATA_HANDLE, EventData_CreateWithNewMemory, const unsigned char*, data, size_t, length)
-        MOCK_METHOD_END(EVENTDATA_HANDLE, (EVENTDATA_HANDLE)malloc(1))
+    MOCK_STATIC_METHOD_3(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetErrorCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK, failure_cb, void*, userContextCallback)
+    MOCK_METHOD_END(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK)
+
+    MOCK_STATIC_METHOD_2(, void, EventHubClient_LL_SetLogTrace, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, bool, log_trace_on)
+    MOCK_VOID_METHOD_END()
+
+    MOCK_STATIC_METHOD_1(, void, EventHubClient_LL_Destroy, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle)
+    MOCK_VOID_METHOD_END()
+
+    /* EventData Mocks */
+    MOCK_STATIC_METHOD_2(, EVENTDATA_HANDLE, EventData_CreateWithNewMemory, const unsigned char*, data, size_t, length)
+    MOCK_METHOD_END(EVENTDATA_HANDLE, (EVENTDATA_HANDLE)malloc(1))
 
         MOCK_STATIC_METHOD_3(, EVENTDATA_RESULT, EventData_GetData, EVENTDATA_HANDLE, eventDataHandle, const unsigned char**, data, size_t*, dataLength)
     {
@@ -345,6 +354,11 @@ DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , EVENTHUBCLIENT_LL_HANDLE, E
 DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE, eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback);
 DECLARE_GLOBAL_MOCK_METHOD_5(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendBatchAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE*, eventDataList, size_t, count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, telemetryConfirmationCallback, void*, userContextCallback);
 
+DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetStateChangeCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK, failure_cb, void*, userContextCallback);
+DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetErrorCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK, failure_cb, void*, userContextCallback);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , void, EventHubClient_LL_SetLogTrace, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, bool, log_trace_on);
+
+
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void, EventHubClient_LL_Destroy, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
 
@@ -419,6 +433,13 @@ TEST_FUNCTION_CLEANUP(TestMethodCleanup)
     {
         ASSERT_FAIL("failure in test framework at ReleaseMutex");
     }
+}
+static void eventhub_state_change_callback(EVENTHUBCLIENT_STATE eventhub_state, void* userContextCallback)
+{
+}
+
+static void eventhub_error_callback(EVENTHUBCLIENT_ERROR_RESULT eventhub_failure, void* userContextCallback)
+{
 }
 
 /*** EventHubClient_CreateFromConnectionString ***/
@@ -1216,6 +1237,118 @@ TEST_FUNCTION(EventHubClient_SendBatch_Confirmation_Result_Fail)
     ehMocks.AssertActualAndExpectedCalls();
 
     // cleanup
+    EventHubClient_Destroy(eventHubHandle);
+}
+
+TEST_FUNCTION(EventHubClient_SetStateChangeCallback_eventhubclient_NULL_fail)
+{
+    // arrange
+    CEventHubClientMocks ehMocks;
+    ehMocks.ResetAllCalls();
+
+    // act
+    EVENTHUBCLIENT_RESULT result = EventHubClient_SetStateChangeCallback(NULL, eventhub_state_change_callback, NULL);
+
+    // assert
+    ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG, result);
+    ehMocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+}
+
+TEST_FUNCTION(EventHubClient_SetStateChangeCallback_Succeeds)
+{
+    // arrange
+    CEventHubClientMocks ehMocks;
+    EVENTHUBCLIENT_HANDLE eventHubHandle = EventHubClient_CreateFromConnectionString(CONNECTION_STRING, EVENTHUB_PATH);
+    ehMocks.ResetAllCalls();
+
+    EXPECTED_CALL(ehMocks, Lock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(ehMocks, Unlock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(ehMocks, EventHubClient_LL_SetStateChangeCallback(IGNORED_PTR_ARG, eventhub_state_change_callback, IGNORED_PTR_ARG));
+
+    // act
+    EVENTHUBCLIENT_RESULT result = EventHubClient_SetStateChangeCallback(eventHubHandle, eventhub_state_change_callback, NULL);
+
+    // assert
+    ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK, result);
+    ehMocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+    EventHubClient_Destroy(eventHubHandle);
+}
+
+TEST_FUNCTION(EventHubClient_SetErrorCallback_eventhubclient_NULL_fail)
+{
+    // arrange
+    CEventHubClientMocks ehMocks;
+    ehMocks.ResetAllCalls();
+
+    // act
+    EVENTHUBCLIENT_RESULT result = EventHubClient_SetErrorCallback(NULL, eventhub_error_callback, NULL);
+
+    // assert
+    ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG, result);
+    ehMocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+}
+
+TEST_FUNCTION(EventHubClient_SetErrorCallback_Succeeds)
+{
+    // arrange
+    CEventHubClientMocks ehMocks;
+    EVENTHUBCLIENT_HANDLE eventHubHandle = EventHubClient_CreateFromConnectionString(CONNECTION_STRING, EVENTHUB_PATH);
+    ehMocks.ResetAllCalls();
+
+    EXPECTED_CALL(ehMocks, Lock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(ehMocks, Unlock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(ehMocks, EventHubClient_LL_SetErrorCallback(IGNORED_PTR_ARG, eventhub_error_callback, IGNORED_PTR_ARG));
+
+    // act
+    EVENTHUBCLIENT_RESULT result = EventHubClient_SetErrorCallback(eventHubHandle, eventhub_error_callback, NULL);
+
+    // assert
+    ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK, result);
+    ehMocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+    EventHubClient_Destroy(eventHubHandle);
+}
+
+TEST_FUNCTION(EventHubClient_SetLogTrace_EventHubClient_NULL_fails)
+{
+    // arrange
+    CEventHubClientMocks mocks;
+
+    // act
+    EventHubClient_SetLogTrace(NULL, false);
+
+    //assert
+    mocks.AssertActualAndExpectedCalls();
+
+    //cleanup
+}
+
+TEST_FUNCTION(EventHubClient_SetLogTrace_succeed)
+{
+    // arrange
+    CEventHubClientMocks mocks;
+
+    EVENTHUBCLIENT_HANDLE eventHubHandle = EventHubClient_CreateFromConnectionString(CONNECTION_STRING, EVENTHUB_PATH);
+    mocks.ResetAllCalls();
+
+    EXPECTED_CALL(mocks, Lock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, Unlock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, EventHubClient_LL_SetLogTrace(IGNORED_PTR_ARG, true));
+
+    // act
+    EventHubClient_SetLogTrace(eventHubHandle, true);
+
+    //assert
+    mocks.AssertActualAndExpectedCalls();
+
+    //cleanup
     EventHubClient_Destroy(eventHubHandle);
 }
 

@@ -2,7 +2,7 @@
  
 ##Overview
 
-The EventHubClient_LL (LL stands for Lower Layer) is module used for communication with an existing Event Hub. The EventHubClient Lower Layer module makes use of uAMQP for AMQP communication with the Event Hub. This library is developed to provide similar usage to that provided via the EventHubClient Class in .Net. This library also doesn’t use Thread or Lock, allowing it to be used in embedded applications that are limited as resources. 
+The EventHubClient_LL (LL stands for Lower Layer) is module used for communication with an existing Event Hub. The EventHubClient Lower Layer module makes use of uAMQP for AMQP communication with the Event Hub. This library is developed to provide similar usage to that provided via the EventHubClient Class in .Net. This library also doesn't use Thread or Lock, allowing it to be used in embedded applications that are limited as resources. 
 
 ##References
 
@@ -33,13 +33,31 @@ DEFINE_ENUM(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES);
 
 DEFINE_ENUM(EVENTHUBCLIENT_CONFIRMATION_RESULT, EVENTHUBCLIENT_CONFIRMATION_RESULT_VALUES);
 
+#define EVENTHUBCLIENT_STATE_VALUES                 \
+    EVENTHUBCLIENT_CONN_AUTHENTICATED,              \
+    EVENTHUBCLIENT_CONN_UNAUTHENTICATED             \
+
+DEFINE_ENUM(EVENTHUBCLIENT_STATE, EVENTHUBCLIENT_STATE_VALUES);
+
+#define EVENTHUBCLIENT_FAILURE_RESULT_VALUES       \
+    EVENTHUBCLIENT_SOCKET_SEND_FAILURE             \
+
+DEFINE_ENUM(EVENTHUBCLIENT_FAILURE_RESULT, EVENTHUBCLIENT_FAILURE_RESULT_VALUES);
+
 typedef struct EVENTHUBCLIENT_LL_TAG* EVENTHUBCLIENT_LL_HANDLE;
 typedef void(*EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK)(EVENTHUBCLIENT_CONFIRMATION_RESULT result, void* userContextCallback);
+
+typedef void(*EVENTHUB_CLIENT_STATECHANGE_CALLBACK)(EVENTHUBCLIENT_STATE eventhub_state, void* userContextCallback);
+typedef void(*EVENTHUB_CLIENT_FAILURE_CALLBACK)(EVENTHUBCLIENT_FAILURE_RESULT eventhub_failure, void* userContextCallback);
 
 extern EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char* connectionString, const char* eventHubPath);
 
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTDATA_HANDLE eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTDATA_HANDLE* eventDataList, size_t count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
+
+extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetStateChangeCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb);
+extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetErrorCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_FAILURE_CALLBACK failure_cb);
+extern void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, bool log_trace_on);
 
 extern void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
 
@@ -119,17 +137,17 @@ extern void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHa
 **SRS_EVENTHUBCLIENT_LL_01_016: \[**The underlying_io members shall be set to the previously created TLS IO.**\]**
 **SRS_EVENTHUBCLIENT_LL_01_017: \[**The sasl_mechanism shall be set to the previously created SASL PLAIN mechanism.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_018: \[**If xio_create fails creating the SASL client IO then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.**\]** 
-**SRS_EVENTHUBCLIENT_LL_01_019: \[**An AMQP connection shall be created by calling connection_create and passing as arguments the SASL client IO handle, eventhub hostname, “eh_client_connection” as container name and NULL for the new session handler and context.**\]** 
+**SRS_EVENTHUBCLIENT_LL_01_019: \[**An AMQP connection shall be created by calling connection_create and passing as arguments the SASL client IO handle, eventhub hostname, "eh_client_connection" as container name and NULL for the new session handler and context.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_020: \[**If connection_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_028: \[**An AMQP session shall be created by calling session_create and passing as arguments the connection handle, and NULL for the new link handler and context.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_029: \[**If session_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_030: \[**The outgoing window for the session shall be set to 10 by calling session_set_outgoing_window.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_031: \[**If setting the outgoing window fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_021: \[**A source AMQP value shall be created by calling messaging_create_source.**\]**
-**SRS_EVENTHUBCLIENT_LL_01_022: \[**The source address shall be “ingress”.**\]** **SRS_EVENTHUBCLIENT_LL_01_023: \[**A target AMQP value shall be created by calling messaging_create_target.**\]**
-**SRS_EVENTHUBCLIENT_LL_01_024: \[**The target address shall be “amqps://” {eventhub hostname} / {eventhub name}.**\]** 
+**SRS_EVENTHUBCLIENT_LL_01_022: \[**The source address shall be "ingress".**\]** **SRS_EVENTHUBCLIENT_LL_01_023: \[**A target AMQP value shall be created by calling messaging_create_target.**\]**
+**SRS_EVENTHUBCLIENT_LL_01_024: \[**The target address shall be "amqps://" {eventhub hostname} / {eventhub name}.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_025: \[**If creating the source or target values fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.**\]** 
-**SRS_EVENTHUBCLIENT_LL_01_026: \[**An AMQP link shall be created by calling link_create and passing as arguments the session handle, “sender-link” as link name, role_sender and the previously created source and target values.**\]** 
+**SRS_EVENTHUBCLIENT_LL_01_026: \[**An AMQP link shall be created by calling link_create and passing as arguments the session handle, "sender-link" as link name, role_sender and the previously created source and target values.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_027: \[**If creating the link fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_032: \[**The link sender settle mode shall be set to unsettled by calling link_set_snd_settle_mode.**\]**
 **SRS_EVENTHUBCLIENT_LL_01_033: \[**If link_set_snd_settle_mode fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.**\]** 
@@ -192,3 +210,35 @@ extern void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLH
 **SRS_EVENTHUBCLIENT_LL_01_046: \[**The SASL client IO shall be freed by calling xio_destroy.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_047: \[**The TLS IO shall be freed by calling xio_destroy.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_048: \[**The SASL plain mechanism shall be freed by calling saslmechanism_destroy.**\]** 
+
+
+###EventHubClient_LL_Set_StateChange_Callback
+
+```c
+extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetStateChangeCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb);
+```
+
+**SRS_EVENTHUBCLIENT_LL_07_016: [** If eventHubClientLLHandle is NULL EventHubClient_LL_Set_StateChange_Callback shall return EVENTHUBCLIENT_INVALID_ARG. **]**
+**SRS_EVENTHUBCLIENT_LL_07_017: [** If state_change_cb is non-NULL then EventHubClient_LL_Set_StateChange_Callback shall call state_change_cb when a state changes is encountered. **]**  
+**SRS_EVENTHUBCLIENT_LL_07_018: [** If state_change_cb is NULL EventHubClient_LL_Set_StateChange_Callback shall no longer call state_change_cb on state changes. **]**  
+**SRS_EVENTHUBCLIENT_LL_07_019: [** If EventHubClient_LL_Set_StateChange_Callback succeeds it shall return EVENTHUBCLIENT_OK. **]**
+
+###EventHubClient_LL_Set_Failure_Callback
+
+```c
+extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetErrorCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_FAILURE_CALLBACK on_error_cb);
+```
+
+**SRS_EVENTHUBCLIENT_LL_07_020: [** If eventHubClientLLHandle is NULL EventHubClient_LL_SetErrorCallback shall return EVENTHUBCLIENT_INVALID_ARG. **]**
+**SRS_EVENTHUBCLIENT_LL_07_021: [** If failure_cb is non-NULL EventHubClient_LL_SetErrorCallback shall execute the on_error_cb on failures with a EVENTHUBCLIENT_FAILURE_RESULT. **]**
+**SRS_EVENTHUBCLIENT_LL_07_022: [** If failure_cb is NULL EventHubClient_LL_SetErrorCallback shall no longer call on_error_cb on failure. **]**
+**SRS_EVENTHUBCLIENT_LL_07_023: [** If EventHubClient_LL_SetErrorCallback succeeds it shall return EVENTHUBCLIENT_OK. **]**
+
+###EventHubClient_LL_SetLogTrace
+
+```c
+extern void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, bool log_trace_on);
+```
+
+**SRS_EVENTHUBCLIENT_LL_07_024: [** If eventHubClientLLHandle is non-NULL EventHubClient_LL_SetLogTrace shall call the uAmqp trace function with the log_trace_on. **]**
+**SRS_EVENTHUBCLIENT_LL_07_025: [** If eventHubClientLLHandle is NULL EventHubClient_LL_SetLogTrace shall do nothing. **]**

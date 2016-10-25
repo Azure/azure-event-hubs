@@ -27,6 +27,7 @@
 #include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/doublylinkedlist.h"
+#include "azure_c_shared_utility/macro_utils.h"
 
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES)
 
@@ -76,6 +77,11 @@ typedef struct EVENTHUBCLIENT_LL_TAG
     XIO_HANDLE tls_io;
     MESSAGE_SENDER_STATE message_sender_state;
     MESSAGE_SENDER_HANDLE message_sender;
+    EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb;
+    void* statuschange_callback_context;
+    EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb;
+    void* error_callback_context;
+    int trace_on;
 } EVENTHUBCLIENT_LL;
 
 static const char ENDPOINT_SUBSTRING[] = "Endpoint=sb://";
@@ -94,7 +100,7 @@ static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
         if (eventDataList[index] == NULL)
         {
             result = __LINE__;
-            LogError("handle index %d NULL result = %s\r\n", (int)index, ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG));
+            LogError("handle index %d NULL result = %s", (int)index, ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG));
             break;
         }
         else
@@ -110,7 +116,7 @@ static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
                 if ((currPartKey == NULL && partitionKey != NULL) || (currPartKey != NULL && partitionKey == NULL))
                 {
                     result = __LINE__;
-                    LogError("All event data in a SendBatch operation must have the same partition key result = %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_PARTITION_KEY_MISMATCH));
+                    LogError("All event data in a SendBatch operation must have the same partition key result = %s", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_PARTITION_KEY_MISMATCH));
                     break;
                 }
                 else
@@ -121,7 +127,7 @@ static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
                         {
                             /*Codes_SRS_EVENTHUBCLIENT_07_045: [If all of the eventDataHandle objects contain differing partitionKey values then EventHubClient_SendBatch shall fail and return EVENTHUBCLIENT_PARTITION_KEY_MISMATCH.]*/
                             result = __LINE__;
-                            LogError("All event data in a SendBatch operation must have the same partition key result = %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_PARTITION_KEY_MISMATCH));
+                            LogError("All event data in a SendBatch operation must have the same partition key result = %s", ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_PARTITION_KEY_MISMATCH));
                             break;
                         }
                     }
@@ -179,17 +185,28 @@ static void on_message_sender_state_changed(const void* context, MESSAGE_SENDER_
     (void)previous_state;
     eventhub_client_ll->message_sender_state = new_state;
 
-    /* Codes_SRS_EVENTHUBCLIENT_LL_01_060: [When on_messagesender_state_changed is called with MESSAGE_SENDER_STATE_ERROR, the uAMQP stack shall be brough down so that it can be created again if needed in dowork:] */
-    if (new_state == MESSAGE_SENDER_STATE_ERROR)
+    if (new_state != previous_state)
     {
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_072: [The message sender shall be destroyed by calling messagesender_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_073: [The link shall be destroyed by calling link_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_074: [The session shall be destroyed by calling session_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_075: [The connection shall be destroyed by calling connection_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_076: [The SASL IO shall be destroyed by calling xio_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_077: [The TLS IO shall be destroyed by calling xio_destroy.] */
-        /* Codes_SRS_EVENTHUBCLIENT_LL_01_078: [The SASL mechanism shall be destroyed by calling saslmechanism_destroy.] */
-        destroy_uamqp_stack(eventhub_client_ll);
+        if (eventhub_client_ll->state_change_cb)
+        {
+            if (new_state == MESSAGE_SENDER_STATE_OPEN)
+            {
+                eventhub_client_ll->state_change_cb(EVENTHUBCLIENT_CONN_AUTHENTICATED, eventhub_client_ll->statuschange_callback_context);
+            }
+            else if (new_state == MESSAGE_SENDER_STATE_CLOSING || (new_state == MESSAGE_SENDER_STATE_ERROR) )
+            {
+                eventhub_client_ll->state_change_cb(EVENTHUBCLIENT_CONN_UNAUTHENTICATED, eventhub_client_ll->statuschange_callback_context);
+            }
+        }
+
+        /* Codes_SRS_EVENTHUBCLIENT_LL_01_060: [When on_messagesender_state_changed is called with MESSAGE_SENDER_STATE_ERROR, the uAMQP stack shall be brough down so that it can be created again if needed in dowork:] */
+        if (new_state == MESSAGE_SENDER_STATE_ERROR)
+        {
+            if (eventhub_client_ll->on_error_cb != NULL)
+            {
+                eventhub_client_ll->on_error_cb(EVENTHUBCLIENT_SOCKET_SEND_FAILURE, eventhub_client_ll->error_callback_context);
+            }
+        }
     }
 }
 
@@ -202,7 +219,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
     {
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
         result = __LINE__;
-        LogError("Couldn't assemble target address\r\n");
+        LogError("Couldn't assemble target address");
     }
     else
     {
@@ -211,7 +228,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         {
             /* Codes_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
             result = __LINE__;
-            LogError("cannot get the previously constructed target address.\r\n");
+            LogError("cannot get the previously constructed target address.");
         }
         else
         {
@@ -221,7 +238,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
             {
                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
                 result = __LINE__;
-                LogError("Cannot get key name.\r\n");
+                LogError("Cannot get key name.");
             }
             else
             {
@@ -230,7 +247,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                 {
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_080: [If any other error happens while bringing up the uAMQP stack, EventHubClient_LL_DoWork shall not attempt to open the message_sender and return without sending any messages.] */
                     result = __LINE__;
-                    LogError("Cannot get key.\r\n");
+                    LogError("Cannot get key.");
                 }
                 else
                 {
@@ -240,7 +257,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_006: [If saslplain_get_interface fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                         result = __LINE__;
-                        LogError("Cannot obtain SASL PLAIN interface.\r\n");
+                        LogError("Cannot obtain SASL PLAIN interface.");
                     }
                     else
                     {
@@ -258,7 +275,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                         {
                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_011: [If sasl_mechanism_create fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                             result = __LINE__;
-                            LogError("saslmechanism_create failed.\r\n");
+                            LogError("saslmechanism_create failed.");
                         }
                         else
                         {
@@ -271,7 +288,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             {
                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_001: [If platform_get_default_tlsio_interface fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages. ] */
                                 result = __LINE__;
-                                LogError("Could not obtain default TLS IO.\r\n");
+                                LogError("Could not obtain default TLS IO.");
                             }
                             else
                             {
@@ -280,7 +297,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_003: [If xio_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                     result = __LINE__;
-                                    LogError("TLS IO creation failed.\r\n");
+                                    LogError("TLS IO creation failed.");
                                 }
                                 else
                                 {
@@ -290,7 +307,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                     {
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_014: [If saslclientio_get_interface_description fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                         result = __LINE__;
-                                        LogError("TLS IO creation failed.\r\n");
+                                        LogError("TLS IO creation failed.");
                                     }
                                     else
                                     {
@@ -308,28 +325,28 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_018: [If xio_create fails creating the SASL client IO then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
-                                            LogError("SASL client IO creation failed.\r\n");
+                                            LogError("SASL client IO creation failed.");
                                         }
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_019: [An AMQP connection shall be created by calling connection_create and passing as arguments the SASL client IO handle, eventhub hostname, "eh_client_connection" as container name and NULL for the new session handler and context.] */
                                         else if ((eventhub_client_ll->connection = connection_create(eventhub_client_ll->sasl_io, host_name_temp, "eh_client_connection", NULL, NULL)) == NULL)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_020: [If connection_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
-                                            LogError("connection_create failed.\r\n");
+                                            LogError("connection_create failed.");
                                         }
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_028: [An AMQP session shall be created by calling session_create and passing as arguments the connection handle, and NULL for the new link handler and context.] */
                                         else if ((eventhub_client_ll->session = session_create(eventhub_client_ll->connection, NULL, NULL)) == NULL)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_029: [If session_create fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
-                                            LogError("session_create failed.\r\n");
+                                            LogError("session_create failed.");
                                         }
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_030: [The outgoing window for the session shall be set to 10 by calling session_set_outgoing_window.] */
                                         else if (session_set_outgoing_window(eventhub_client_ll->session, 10) != 0)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_031: [If setting the outgoing window fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
-                                            LogError("session_set_outgoing_window failed.\r\n");
+                                            LogError("session_set_outgoing_window failed.");
                                         }
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_021: [A source AMQP value shall be created by calling messaging_create_source.] */
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_022: [The source address shall be "ingress".] */
@@ -337,7 +354,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_025: [If creating the source or target values fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                             result = __LINE__;
-                                            LogError("messaging_create_source failed.\r\n");
+                                            LogError("messaging_create_source failed.");
                                         }
                                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_023: [A target AMQP value shall be created by calling messaging_create_target.] */
                                         else
@@ -346,38 +363,39 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_025: [If creating the source or target values fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                                 result = __LINE__;
-                                                LogError("messaging_create_target failed.\r\n");
+                                                LogError("messaging_create_target failed.");
                                             }
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_026: [An AMQP link shall be created by calling link_create and passing as arguments the session handle, "sender-link" as link name, role_sender and the previously created source and target values.] */
                                             else if ((eventhub_client_ll->link = link_create(eventhub_client_ll->session, "sender-link", role_sender, source, target)) == NULL)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_027: [If creating the link fails then EventHubClient_LL_DoWork shall shall not proceed with sending any messages.] */
                                                 result = __LINE__;
-                                                LogError("link_create failed.\r\n");
+                                                LogError("link_create failed.");
                                             }
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_032: [The link sender settle mode shall be set to unsettled by calling link_set_snd_settle_mode.] */
                                             else if (link_set_snd_settle_mode(eventhub_client_ll->link, sender_settle_mode_unsettled) != 0)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_033: [If link_set_snd_settle_mode fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                                                 result = __LINE__;
-                                                LogError("link_set_snd_settle_mode failed.\r\n");
+                                                LogError("link_set_snd_settle_mode failed.");
                                             }
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_034: [The message size shall be set to 256K by calling link_set_max_message_size.] */
                                             else if (link_set_max_message_size(eventhub_client_ll->link, AMQP_MAX_MESSAGE_SIZE) != 0)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_035: [If link_set_max_message_size fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                                                 result = __LINE__;
-                                                LogError("link_set_max_message_size failed.\r\n");
+                                                LogError("link_set_max_message_size failed.");
                                             }
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_036: [A message sender shall be created by calling messagesender_create and passing as arguments the link handle, a state changed callback, a context and NULL for the logging function.] */
                                             else if ((eventhub_client_ll->message_sender = messagesender_create(eventhub_client_ll->link, on_message_sender_state_changed, eventhub_client_ll)) == NULL)
                                             {
                                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_037: [If creating the message sender fails then EventHubClient_LL_DoWork shall not proceed with sending any messages.] */
                                                 result = __LINE__;
-                                                LogError("messagesender_create failed.\r\n");
+                                                LogError("messagesender_create failed.");
                                             }
                                             else
                                             {
+                                                connection_set_trace(eventhub_client_ll->connection, eventhub_client_ll->trace_on == 1 ? true : false);
                                                 result = 0;
                                             }
                                         }
@@ -406,6 +424,68 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         destroy_uamqp_stack(eventhub_client_ll);
     }
 
+    return result;
+}
+
+static int add_partition_key_to_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE event_data)
+{
+    int result;
+    const char* currPartKey = EventData_GetPartitionKey(event_data);
+    if (currPartKey != NULL)
+    {
+        AMQP_VALUE partition_map;
+        AMQP_VALUE partition_name;
+        AMQP_VALUE partition_value;
+
+        if ((partition_map = amqpvalue_create_map()) == NULL)
+        {
+            LogError("tony talking alot 1");
+            result = __LINE__;
+        }
+        else if ( (partition_name = amqpvalue_create_symbol(PARTITION_KEY_NAME) ) == NULL)
+        {
+            LogError("tony talking alot 2");
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if ((partition_value = amqpvalue_create_string(currPartKey)) == NULL)
+        {
+            LogError("tony talking alot 3");
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if (amqpvalue_set_map_value(partition_map, partition_name, partition_value) != 0)
+        {
+            LogError("amqpvalue_set_map_value failed Because tony said so");
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else
+        {
+            AMQP_VALUE partition_annotation = amqpvalue_create_message_annotations(partition_map);
+            if (partition_annotation != NULL)
+            {
+                if (message_set_message_annotations(message, partition_annotation) == 0)
+                {
+                    result = 0;
+                }
+                else
+                {
+                    result = __LINE__;
+                }
+            }
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+        }
+    }
+    else
+    {
+        result = 0;
+    }
     return result;
 }
 
@@ -447,17 +527,17 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
 
     /* Codes_SRS_EVENTHUBCLIENT_LL_05_001: [EventHubClient_LL_CreateFromConnectionString shall obtain the version string by a call to EventHubClient_GetVersionString.] */
     /* Codes_SRS_EVENTHUBCLIENT_LL_05_002: [EventHubClient_LL_CreateFromConnectionString shall print the version string to standard output.] */
-    LogInfo("Event Hubs Client SDK for C, version %s\r\n", EventHubClient_GetVersionString());
+    LogInfo("Event Hubs Client SDK for C, version %s", EventHubClient_GetVersionString());
 
     /* Codes_SRS_EVENTHUBCLIENT_LL_03_003: [EventHubClient_LL_CreateFromConnectionString shall return a NULL value if connectionString or eventHubPath is NULL.] */
     if (connectionString == NULL || eventHubPath == NULL)
     {
-        LogError("Invalid arguments. connectionString=%p, eventHubPath=%p\r\n", connectionString, eventHubPath);
+        LogError("Invalid arguments. connectionString=%p, eventHubPath=%p", connectionString, eventHubPath);
         eventhub_client_ll = NULL;
     }
     else if ((connection_string = STRING_construct(connectionString)) == NULL)
     {
-        LogError("Error creating connection string handle.\r\n");
+        LogError("Error creating connection string handle.");
         eventhub_client_ll = NULL;
     }
     else
@@ -468,7 +548,7 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
         if ((connection_string_values_map = connectionstringparser_parse(connection_string)) == NULL)
         {
             /* Codes_SRS_EVENTHUBCLIENT_LL_01_066: [If connection_string_parser_parse fails then EventHubClient_LL_CreateFromConnectionString shall fail and return NULL.] */
-            LogError("Error parsing connection string.\r\n");
+            LogError("Error parsing connection string.");
             eventhub_client_ll = NULL;
         }
         else
@@ -477,7 +557,7 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
             /* Codes_SRS_EVENTHUBCLIENT_LL_03_016: [EventHubClient_LL_CreateFromConnectionString shall return a non-NULL handle value upon success.] */
             if ((eventhub_client_ll = malloc(sizeof(EVENTHUBCLIENT_LL))) == NULL)
             {
-                LogError("Memory Allocation Failed for eventhub_client_ll.\r\n");
+                LogError("Memory Allocation Failed for eventhub_client_ll.");
             }
             else
             {
@@ -499,6 +579,11 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                 eventhub_client_ll->session = NULL;
                 eventhub_client_ll->link = NULL;
                 eventhub_client_ll->message_sender_state = MESSAGE_SENDER_STATE_IDLE;
+                eventhub_client_ll->trace_on = 0;
+                eventhub_client_ll->state_change_cb = NULL;
+                eventhub_client_ll->statuschange_callback_context = NULL;
+                eventhub_client_ll->on_error_cb = NULL;
+                eventhub_client_ll->error_callback_context = NULL;
 
                 /* Codes_SRS_EVENTHUBCLIENT_LL_03_017: [EventHubClient_ll expects a service bus connection string in one of the following formats:
                 Endpoint=sb://[namespace].servicebus.windows.net/;SharedAccessKeyName=[key name];SharedAccessKey=[key value]
@@ -508,7 +593,7 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                 {
                     /* Codes_SRS_EVENTHUBCLIENT_LL_03_018: [EventHubClient_LL_CreateFromConnectionString shall return NULL if the connectionString format is invalid.] */
                     error = true;
-                    LogError("Couldn't find endpoint in connection string\r\n");
+                    LogError("Couldn't find endpoint in connection string");
                 }
                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_067: [The endpoint shall be looked up in the resulting map and used to construct the host name to be used for connecting by removing the sb://.] */
                 else
@@ -525,40 +610,40 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_018: [EventHubClient_LL_CreateFromConnectionString shall return NULL if the connectionString format is invalid.] */
                         error = true;
-                        LogError("Couldn't create host name string\r\n");
+                        LogError("Couldn't create host name string");
                     }
                     else if ((eventhub_client_ll->host_name = STRING_construct_n(endpoint + SB_STRING_LENGTH, hostname_length - SB_STRING_LENGTH)) == NULL)
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_004: [For all other errors, EventHubClient_LL_CreateFromConnectionString shall return NULL.] */
                         error = true;
-                        LogError("Couldn't create host name string\r\n");
+                        LogError("Couldn't create host name string");
                     }
                     else if (((value = Map_GetValueFromKey(connection_string_values_map, "SharedAccessKeyName")) == NULL) ||
                         (strlen(value) == 0))
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_018: [EventHubClient_LL_CreateFromConnectionString shall return NULL if the connectionString format is invalid.] */
                         error = true;
-                        LogError("Couldn't find key name in connection string\r\n");
+                        LogError("Couldn't find key name in connection string");
                     }
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_068: [The key name and key shall be looked up in the resulting map and they should be stored as is for later use in connecting.] */
                     else if ((eventhub_client_ll->keyName = STRING_construct(value)) == NULL)
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_004: [For all other errors, EventHubClient_LL_CreateFromConnectionString shall return NULL.] */
                         error = true;
-                        LogError("Couldn't create key name string\r\n");
+                        LogError("Couldn't create key name string");
                     }
                     else if (((value = Map_GetValueFromKey(connection_string_values_map, "SharedAccessKey")) == NULL) ||
                         (strlen(value) == 0))
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_018: [EventHubClient_LL_CreateFromConnectionString shall return NULL if the connectionString format is invalid.] */
                         error = true;
-                        LogError("Couldn't find key in connection string\r\n");
+                        LogError("Couldn't find key in connection string");
                     }
                     else if ((eventhub_client_ll->keyValue = STRING_construct(value)) == NULL)
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_004: [For all other errors, EventHubClient_LL_CreateFromConnectionString shall return NULL.] */
                         error = true;
-                        LogError("Couldn't create key string\r\n");
+                        LogError("Couldn't create key string");
                     }
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_024: [The target address shall be "amqps://" {eventhub hostname} / {eventhub name}.] */
                     else if (((eventhub_client_ll->target_address = STRING_construct("amqps://")) == NULL) ||
@@ -568,7 +653,7 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_03_004: [For all other errors, EventHubClient_LL_CreateFromConnectionString shall return NULL.] */
                         error = true;
-                        LogError("Couldn't assemble target address\r\n");
+                        LogError("Couldn't assemble target address");
                     }
                 }
 
@@ -646,6 +731,51 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         }
 
         free(eventhub_client_ll);
+    }
+}
+
+EVENTHUBCLIENT_RESULT EventHubClient_LL_SetStateChangeCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb, void* userContextCallback)
+{
+    EVENTHUBCLIENT_RESULT result;
+    if (eventHubClientLLHandle == NULL)
+    {
+        LogError("Invalid Argument eventHubClientLLHandle was specified");
+        result = EVENTHUBCLIENT_INVALID_ARG;
+    }
+    else
+    {
+        EVENTHUBCLIENT_LL* ehClientLLData = (EVENTHUBCLIENT_LL*)eventHubClientLLHandle;
+        ehClientLLData->state_change_cb = state_change_cb;
+        ehClientLLData->statuschange_callback_context = userContextCallback;
+        result = EVENTHUBCLIENT_OK;
+    }
+    return result;
+}
+
+EVENTHUBCLIENT_RESULT EventHubClient_LL_SetErrorCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb, void* userContextCallback)
+{
+    EVENTHUBCLIENT_RESULT result;
+    if (eventHubClientLLHandle == NULL)
+    {
+        LogError("Invalid Argument eventHubClientLLHandle was specified");
+        result = EVENTHUBCLIENT_INVALID_ARG;
+    }
+    else
+    {
+        EVENTHUBCLIENT_LL* ehClientLLData = (EVENTHUBCLIENT_LL*)eventHubClientLLHandle;
+        ehClientLLData->on_error_cb = on_error_cb;
+        ehClientLLData->error_callback_context = userContextCallback;
+        result = EVENTHUBCLIENT_OK;
+    }
+    return result;
+}
+
+void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, bool log_trace_on)
+{
+    if (eventHubClientLLHandle != NULL)
+    {
+        EVENTHUBCLIENT_LL* ehClientLLData = (EVENTHUBCLIENT_LL*)eventHubClientLLHandle;
+        ehClientLLData->trace_on = log_trace_on ? 1 : 0;
     }
 }
 
@@ -804,13 +934,13 @@ static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE*
     if ((properties_map = EventData_Properties(event_data_handle)) == NULL)
     {
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-        LogError("Cannot get the properties map.\r\n");
+        LogError("Cannot get the properties map.");
         result = __LINE__;
     }
     else if (Map_GetInternals(properties_map, &property_keys, &property_values, &property_count) != MAP_OK)
     {
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-        LogError("Cannot get the properties map.\r\n");
+        LogError("Cannot get the properties map.");
         result = __LINE__;
     }
     else
@@ -828,7 +958,7 @@ static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE*
             if (*uamqp_properties_map == NULL)
             {
                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                LogError("Cannot build uAMQP properties map.\r\n");
+                LogError("Cannot build uAMQP properties map.");
                 result = __LINE__;
             }
             else
@@ -868,7 +998,7 @@ static int create_properties_map(EVENTDATA_HANDLE event_data_handle, AMQP_VALUE*
                 {
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                    LogError("Could not fill all properties in the uAMQP properties map.\r\n");
+                    LogError("Could not fill all properties in the uAMQP properties map.");
                     amqpvalue_destroy(*uamqp_properties_map);
                     result = __LINE__;
                 }
@@ -894,7 +1024,7 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
     if (message_set_message_format(message, 0x80013700) != 0)
     {
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_083: [If message_set_message_format fails, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-        LogError("Failed setting the message format to MS message format.\r\n");
+        LogError("Failed setting the message format to MS message format.");
         result = __LINE__;
     }
     else
@@ -1050,7 +1180,11 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_079: [EventHubClient_LL_DoWork shall bring up the uAMQP stack if it has not already brought up:] */
         if ((eventhub_client_ll->message_sender == NULL) && (initialize_uamqp_stack(eventhub_client_ll) != 0))
         {
-            LogError("Error initializing uamqp stack.\r\n");
+            LogError("Error initializing uamqp stack.");
+        }
+        else if (eventhub_client_ll->message_sender_state == MESSAGE_SENDER_STATE_ERROR)
+        {
+            destroy_uamqp_stack(eventhub_client_ll);
         }
         else
         {
@@ -1058,7 +1192,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
             if ((eventhub_client_ll->message_sender_state == MESSAGE_SENDER_STATE_IDLE) && (messagesender_open(eventhub_client_ll->message_sender) != 0))
             {
                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_039: [If messagesender_open fails, no further actions shall be carried out.] */
-                LogError("Error opening message sender.\r\n");
+                LogError("Error opening message sender.");
             }
             else
             {
@@ -1079,7 +1213,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                         if (message == NULL)
                         {
                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_070: [If creating the message fails, then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                            LogError("Error creating the uAMQP message.\r\n");
+                            LogError("Error creating the uAMQP message.");
                             is_error = true;
                         }
                         else
@@ -1094,15 +1228,20 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 if (EventData_GetData(currentEvent->eventDataList[0], &body.bytes, &body.length) != EVENTDATA_OK)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_052: [If EventData_GetData fails then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                    LogError("Error getting event data.\r\n");
+                                    LogError("Error getting event data.");
                                     is_error = true;
                                 }
                                 else if (message_add_body_amqp_data(message, body) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_071: [If message_add_body_amqp_data fails then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                    LogError("Cannot get the properties map.\r\n");
+                                    LogError("Cannot get the properties map.");
                                     is_error = true;
                                 }
+                                /*else if (add_partition_key_to_message(message, currentEvent->eventDataList[0]) != 0)
+                                {
+                                    LogError("Cannot get the properties map.");
+                                    is_error = true;
+                                }*/
                                 else if (create_properties_map(currentEvent->eventDataList[0], &properties_map) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
@@ -1115,7 +1254,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                         if (message_set_application_properties(message, properties_map) != 0)
                                         {
                                             /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                            LogError("Could not set message application properties on the message.\r\n");
+                                            LogError("Could not set message application properties on the message.");
                                             is_error = true;
                                         }
 
@@ -1128,7 +1267,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 if (create_batch_message(message, currentEvent->eventDataList, currentEvent->eventCount) != 0)
                                 {
                                     is_error = true;
-                                    LogError("Failed creating batch message.\r\n");
+                                    LogError("Failed creating batch message.");
                                 }
                             }
 
@@ -1141,7 +1280,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_053: [If messagesender_send failed then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                     is_error = true;
-                                    LogError("messagesender_send failed.\r\n");
+                                    LogError("messagesender_send failed.");
                                 }
                             }
 

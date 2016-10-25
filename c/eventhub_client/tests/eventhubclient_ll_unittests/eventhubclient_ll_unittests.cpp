@@ -260,6 +260,8 @@ public:
     MOCK_VOID_METHOD_END();
     MOCK_STATIC_METHOD_1(, void, connection_dowork, CONNECTION_HANDLE, connection)
     MOCK_VOID_METHOD_END();
+    MOCK_STATIC_METHOD_2(, void, connection_set_trace, CONNECTION_HANDLE, connection, bool, traceOn)
+    MOCK_VOID_METHOD_END();
 
     /* session mocks */
     MOCK_STATIC_METHOD_3(, SESSION_HANDLE, session_create, CONNECTION_HANDLE, connection, ON_LINK_ATTACHED, on_link_attached, void*, callback_context)
@@ -493,6 +495,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, xio_destroy, XIO_HA
 DECLARE_GLOBAL_MOCK_METHOD_5(CEventHubClientLLMocks, , CONNECTION_HANDLE, connection_create, XIO_HANDLE, xio, const char*, hostname, const char*, container_id, ON_NEW_ENDPOINT, on_new_endpoint, void*, callback_context);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, connection_destroy, CONNECTION_HANDLE, connection);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, connection_dowork, CONNECTION_HANDLE, connection);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , void, connection_set_trace, CONNECTION_HANDLE, connection, bool, traceOn);
 
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientLLMocks, , SESSION_HANDLE, session_create, CONNECTION_HANDLE, connection, ON_LINK_ATTACHED, on_link_attached, void*, callback_context);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, session_destroy, SESSION_HANDLE, session);
@@ -642,6 +645,16 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         {
             ASSERT_FAIL("failure in test framework at ReleaseMutex");
         }
+    }
+
+    static void eventhub_state_change_callback(EVENTHUBCLIENT_STATE eventhub_state, void* userContextCallback)
+    {
+        //printf("eventhub_state_change_callback %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_STATE, eventhub_state) );
+    }
+
+    static void eventhub_error_callback(EVENTHUBCLIENT_ERROR_RESULT eventhub_failure, void* userContextCallback)
+    {
+        //printf("eventhub_error_callback %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_ERROR_RESULT, eventhub_failure) );
     }
 
     static void setup_createfromconnectionstring_success(CEventHubClientLLMocks* mocks)
@@ -1695,12 +1708,21 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_ERROR, MESSAGE_SENDER_STATE_OPEN);
         mocks.ResetAllCalls();
 
+        STRICT_EXPECTED_CALL(mocks, messagesender_destroy(TEST_MESSAGE_SENDER_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, link_destroy(TEST_LINK_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, session_destroy(TEST_SESSION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, connection_destroy(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, xio_destroy(DUMMY_IO_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, xio_destroy(DUMMY_IO_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, saslmechanism_destroy(TEST_SASL_MECHANISM_HANDLE));
+
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_TARGET_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+
 
         // act
         EventHubClient_LL_Destroy(eventHubHandle);
@@ -1763,6 +1785,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         setup_messenger_initialize_success(&mocks);
         STRICT_EXPECTED_CALL(mocks, messagesender_open(TEST_MESSAGE_SENDER_HANDLE));
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, connection_set_trace(TEST_CONNECTION_HANDLE, false));
 
         // act
         EventHubClient_LL_DoWork(eventHubHandle);
@@ -1850,6 +1873,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, messagesender_open(TEST_MESSAGE_SENDER_HANDLE));
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, connection_set_trace(TEST_CONNECTION_HANDLE, false));
 
         // act
         EventHubClient_LL_DoWork(eventHubHandle);
@@ -2685,6 +2709,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, messagesender_open(TEST_MESSAGE_SENDER_HANDLE))
             .SetReturn(1);
+        STRICT_EXPECTED_CALL(mocks, connection_set_trace(IGNORED_PTR_ARG, false))
+            .IgnoreArgument(1);
 
         // act
         EventHubClient_LL_DoWork(eventHubHandle);
@@ -3668,14 +3694,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
     /* on_messagesender_state_changed */
 
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_060: [When on_messagesender_state_changed is called with MESSAGE_SENDER_STATE_ERROR, the uAMQP stack shall be brough down so that it can be created again if needed in dowork:] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_072: [The message sender shall be destroyed by calling messagesender_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_073: [The link shall be destroyed by calling link_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_074: [The session shall be destroyed by calling session_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_075: [The connection shall be destroyed by calling connection_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_076: [The SASL IO shall be destroyed by calling xio_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_077: [The TLS IO shall be destroyed by calling xio_destroy.] */
-    /* Tests_SRS_EVENTHUBCLIENT_LL_01_078: [The SASL mechanism shall be destroyed by calling saslmechanism_destroy.] */
+    /* Tests_SRS_EVENTHUBCLIENT_LL_01_060: [When on_messagesender_state_changed is called with MESSAGE_SENDER_STATE_ERROR] */
     TEST_FUNCTION(when_the_messagesender_state_changes_to_ERROR_then_the_uAMQP_stack_is_brought_down)
     {
         // arrange
@@ -3686,14 +3705,6 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_DoWork(eventHubHandle);
         saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_OPEN, MESSAGE_SENDER_STATE_IDLE);
         mocks.ResetAllCalls();
-
-        STRICT_EXPECTED_CALL(mocks, messagesender_destroy(TEST_MESSAGE_SENDER_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, link_destroy(TEST_LINK_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, session_destroy(TEST_SESSION_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, connection_destroy(TEST_CONNECTION_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, xio_destroy(TEST_SASLCLIENTIO_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, xio_destroy(TEST_TLSIO_HANDLE));
-        STRICT_EXPECTED_CALL(mocks, saslmechanism_destroy(TEST_SASL_MECHANISM_HANDLE));
 
         // act
         saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_ERROR, MESSAGE_SENDER_STATE_OPEN);
@@ -5413,6 +5424,109 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         //assert
         ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_ERROR, result);
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetStateChangeCallback_EventHubClient_NULL_fails)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        // act
+        EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SetStateChangeCallback(NULL, eventhub_state_change_callback, NULL);
+
+        //assert
+        ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG, result);
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetStateChangeCallback_succeed)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        mocks.ResetAllCalls();
+
+        // act
+        EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SetStateChangeCallback(eventHubHandle, eventhub_state_change_callback, NULL);
+
+        //assert
+        ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK, result);
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetErrorCallback_EventHubClient_NULL_fails)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        // act
+        EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SetErrorCallback(NULL, eventhub_error_callback, NULL);
+
+        //assert
+        ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_INVALID_ARG, result);
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetErrorCallback_succeed)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        mocks.ResetAllCalls();
+
+        // act
+        EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SetErrorCallback(eventHubHandle, eventhub_error_callback, NULL);
+
+        //assert
+        ASSERT_ARE_EQUAL(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK, result);
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetLogTrace_EventHubClient_NULL_fails)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        // act
+        EventHubClient_LL_SetLogTrace(NULL, false);
+
+        //assert
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+    }
+
+    TEST_FUNCTION(EventHubClient_LL_SetLogTrace_succeed)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        mocks.ResetAllCalls();
+
+        // act
+        EventHubClient_LL_SetLogTrace(eventHubHandle, true);
+
+        //assert
         mocks.AssertActualAndExpectedCalls();
 
         //cleanup

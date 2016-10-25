@@ -21,6 +21,9 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_Send(EVENTHUBCLIENT_HANDLE eventHubH
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendAsync(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE eventDataHandle, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK notificatoinCallback, void* userContextCallback);
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatch(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataHandle, size_t count);
 extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatchAsync(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTDATA_HANDLE *eventDataHandle, size_t count, EVENTDATA_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncCallback, void* userContextCallback);
+extern EVENTHUBCLIENT_RESULT EventHubClient_SetStateChangeCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb, void* userContextCallback);
+extern EVENTHUBCLIENT_RESULT EventHubClient_SetFailureCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_ERROR_CALLBACK failure_cb, void* userContextCallback);
+extern void EventHubClient_SetLogTrace(EVENTHUBCLIENT_HANDLE eventHubHandle, bool log_trace_on);
 extern void EventHubClient_Destroy(EVENTHUBCLIENT_HANDLE eventHubHandle);
 ```
 
@@ -120,6 +123,36 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_SendBatchAsync(EVENTHUBCLIENT_HANDLE
 **SRS_EVENTHUBCLIENT_07_040: \[**EventHubClient_SendBatchAsync shall return EVENTHUBCLIENT_INVALID_ARG if eventHubHandle or eventDataHandle is NULL or count is zero.**\]** 
 **SRS_EVENTHUBCLIENT_07_041: \[**EventHubClient_SendBatchAsync shall call into Execute_LowerLayerSendBatchAsync and return EVENTHUBCLIENT_ERROR on a nonzero return value.**\]** 
 **SRS_EVENTHUBCLIENT_07_042: \[**On Success EventHubClient_SendBatchAsync shall return EVENTHUBCLIENT_OK.**\]** 
+
+###EventHubClient_SetStateChangeCallback
+
+```c
+extern EVENTHUBCLIENT_RESULT EventHubClient_SetStateChangeCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb, void* userContextCallback);
+```
+
+**SRS_EVENTHUBCLIENT_07_043: [** If eventHubHandle is NULL EventHubClient_Set_StateChangeCallback shall return EVENTHUBCLIENT_INVALID_ARG. **]**
+**SRS_EVENTHUBCLIENT_07_044: [** If state_change_cb is non-NULL then EventHubClient_Set_StateChange_Callback shall call state_change_cb when a state changes is encountered. **]**
+**SRS_EVENTHUBCLIENT_07_045: [** If state_change_cb is NULL EventHubClient_Set_StateChange_Callback shall no longer call state_change_cb on state changes. **]**
+**SRS_EVENTHUBCLIENT_07_055: [** If EventHubClient_Set_StateChange_Callback succeeds it shall return EVENTHUBCLIENT_OK. **]**
+
+###EventHubClient_SetErrorCallback
+
+```c
+extern EVENTHUBCLIENT_RESULT EventHubClient_SetErrorCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb, void* userContextCallback);
+```
+
+**SRS_EVENTHUBCLIENT_07_056: [** If eventHubHandle is NULL EventHubClient_SetErrorCallback shall return EVENTHUBCLIENT_INVALID_ARG. **]**
+**SRS_EVENTHUBCLIENT_07_057: [** If error_cb is non-NULL EventHubClient_SetErrorCallback shall execute the error_cb on failures with a EVENTHUBCLIENT_FAILURE_RESULT. **]**
+**SRS_EVENTHUBCLIENT_07_058: [** If error_cb is NULL EventHubClient_SetErrorCallback shall no longer call error_cb on failure. **]**
+**SRS_EVENTHUBCLIENT_07_059: [** If EventHubClient_SetErrorCallback succeeds it shall return EVENTHUBCLIENT_OK. **]**
+
+###EventHubClient_SetLogTrace
+```c
+extern void EventHubClient_SetLogTrace(EVENTHUBCLIENT_HANDLE eventHubHandle, bool log_trace_on);
+```
+
+**SRS_EVENTHUBCLIENT_07_060: [** If eventHubClientLLHandle is non-NULL EventHubClient_SetLogTrace shall call the uAmqp trace function with the log_trace_on. **]**
+**SRS_EVENTHUBCLIENT_07_061: [** If eventHubClientLLHandle is NULL EventHubClient_SetLogTrace shall do nothing. **]**
 
 ###EventHubClient_Destroy
 ```c

@@ -26,6 +26,9 @@ static const char TEST_STRING_VALUE_2[] = "Property_String_Value_2";
 #define BUFFER_SIZE     128
 static size_t g_id = 1000;
 
+DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_STATE, EVENTHUBCLIENT_STATE_VALUES);
+DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_ERROR_RESULT, EVENTHUBCLIENT_ERROR_RESULT_VALUES);
+
 void custom_logging_function(LOG_CATEGORY log_category, const char* file, const char* func, const int line, unsigned int options, const char* format, ...)
 {
     va_list args;
@@ -51,6 +54,16 @@ void custom_logging_function(LOG_CATEGORY log_category, const char* file, const 
     }
 }
 
+void eventhub_state_change_callback(EVENTHUBCLIENT_STATE eventhub_state, void* userContextCallback)
+{
+    printf("eventhub_state_change_callback %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_STATE, eventhub_state) );
+}
+
+void eventhub_error_callback(EVENTHUBCLIENT_ERROR_RESULT eventhub_failure, void* userContextCallback)
+{
+    printf("eventhub_error_callback %s\r\n", ENUM_TO_STRING(EVENTHUBCLIENT_ERROR_RESULT, eventhub_failure) );
+}
+
 int Send_Sample(void)
 {
     xlogging_set_log_function(custom_logging_function);
@@ -71,18 +84,22 @@ int Send_Sample(void)
     }
     else
     {
-        EVENTDATA_HANDLE eventDataHandle = EventData_CreateWithNewMemory((const unsigned char*)msgContent, msgLength);
-        if (eventDataHandle == NULL)
+        EVENTHUBCLIENT_HANDLE eventHubClientHandle = EventHubClient_CreateFromConnectionString(connectionString, eventHubPath);
+        if (eventHubClientHandle == NULL)
         {
-            (void)printf("ERROR: eventDataHandle is NULL!\r\n");
+            (void)printf("ERROR: EventHubClient_CreateFromConnectionString returned NULL!\r\n");
             result = 1;
         }
         else
         {
-            EVENTHUBCLIENT_HANDLE eventHubClientHandle = EventHubClient_CreateFromConnectionString(connectionString, eventHubPath);
-            if (eventHubClientHandle == NULL)
+            EventHubClient_SetStateChangeCallback(eventHubClientHandle, eventhub_state_change_callback, NULL);
+            EventHubClient_SetErrorCallback(eventHubClientHandle, eventhub_error_callback, NULL);
+            EventHubClient_SetLogTrace(eventHubClientHandle, true);
+
+            EVENTDATA_HANDLE eventDataHandle = EventData_CreateWithNewMemory((const unsigned char*)msgContent, msgLength);
+            if (eventDataHandle == NULL)
             {
-                (void)printf("ERROR: EventHubClient_CreateFromConnectionString returned NULL!\r\n");
+                (void)printf("ERROR: eventDataHandle is NULL!\r\n");
                 result = 1;
             }
             else
@@ -115,13 +132,15 @@ int Send_Sample(void)
                         result = 0;
                     }
                 }
-                EventHubClient_Destroy(eventHubClientHandle);
+                EventData_Destroy(eventDataHandle);
             }
-            EventData_Destroy(eventDataHandle);
+            EventHubClient_Destroy(eventHubClientHandle);
         }
 
         platform_deinit();
     }
 
+    (void)printf("Press any key to continue.");
+    (void)getchar();
     return result; 
 }
