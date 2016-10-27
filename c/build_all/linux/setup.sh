@@ -12,7 +12,7 @@ repo_name_from_uri()
 }
 
 scriptdir=$(cd "$(dirname "$0")" && pwd)
-deps="curl libcurl4-openssl-dev uuid-dev uuid g++ make cmake git"
+deps="curl libcurl4-openssl-dev libssl-dev uuid-dev uuid g++ make cmake git"
 repo="https://github.com/Azure/azure-event-hubs.git"
 repo_name=$(repo_name_from_uri $repo)
 cred=~/cred.$$

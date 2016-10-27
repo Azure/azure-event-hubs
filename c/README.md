@@ -28,9 +28,11 @@ git submodule update --init --recursive
 The build requires [CMake 2.8.11 or better](https://cmake.org/) and a CMake supported C/C++ compiler and linker
 on the target platform. CMake will create all required files for building the library with the chosen tool chain.
  
-1.  Create a folder named "build" underneath the "c" directory
+1.  Create a directory named "build" underneath the "c" directory and cd to "build".
 2.  Run ```cmake ..```
 3.  Build. The build process will vary by platform; for Linux the default is "make". 
+
+Linux users please note that there are dependent packages that would need to be obtained prior to building this library. Please review and tailor the c/build_all/linux/setup.sh to suit your environment.
 
 ## Samples
 
