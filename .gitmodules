@@ -4,3 +4,6 @@
 [submodule "c/azure-uamqp-c"]
 	path = c/azure-uamqp-c
 	url = https://github.com/Azure/azure-uamqp-c.git
+[submodule "java"]
+	path = java
+	url = https://github.com/azure/azure-event-hubs-java.git
