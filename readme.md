@@ -1,6 +1,6 @@
 ﻿#Microsoft Azure Event Hubs Clients
 
-> Please note that the Java client has been moved to its own repository: (https://github.com/azure/azure-event-hubs-dotnet)
+> Please note that the Java client has been moved to its own repository: (https://github.com/azure/azure-event-hubs-java)
 
 This repository contains two open-source, client-side libraries for Event Hubs written in [Node.js](./node) and [C (C99)](./c).
 
