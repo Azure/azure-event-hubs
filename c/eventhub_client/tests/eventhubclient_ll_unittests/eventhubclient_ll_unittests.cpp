@@ -1681,6 +1681,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_destroy(TICK_COUNT_HANDLE_TEST));
 
         // act
         EventHubClient_LL_Destroy(eventHubHandle);
@@ -1763,7 +1764,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
-
+        STRICT_EXPECTED_CALL(mocks, tickcounter_destroy(TICK_COUNT_HANDLE_TEST));
 
         // act
         EventHubClient_LL_Destroy(eventHubHandle);
