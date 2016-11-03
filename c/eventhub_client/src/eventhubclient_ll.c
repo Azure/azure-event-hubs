@@ -89,6 +89,69 @@ static const size_t ENDPOINT_SUBSTRING_LENGTH = sizeof(ENDPOINT_SUBSTRING) / siz
 
 static const char* PARTITION_KEY_NAME = "x-opt-partition-key";
 
+static int add_partition_key_to_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE event_data)
+{
+    int result;
+    const char* currPartKey = EventData_GetPartitionKey(event_data);
+    if (currPartKey != NULL)
+    {
+        AMQP_VALUE partition_map;
+        AMQP_VALUE partition_name;
+        AMQP_VALUE partition_value;
+
+        if ((partition_map = amqpvalue_create_map()) == NULL)
+        {
+            LogError("Failure creating amqp map");
+            result = __LINE__;
+        }
+        else if ( (partition_name = amqpvalue_create_symbol(PARTITION_KEY_NAME) ) == NULL)
+        {
+            LogError("Failure creating amqp symbol");
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if ((partition_value = amqpvalue_create_string(currPartKey)) == NULL)
+        {
+            LogError("Failure creating amqp string");
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if (amqpvalue_set_map_value(partition_map, partition_name, partition_value) != 0)
+        {
+            LogError("amqpvalue_set_map_value failed");
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else
+        {
+            AMQP_VALUE partition_annotation = amqpvalue_create_message_annotations(partition_map);
+            if (partition_annotation != NULL)
+            {
+                if (message_set_message_annotations(message, partition_annotation) == 0)
+                {
+                    result = 0;
+                }
+                else
+                {
+                    LogError("amqpvalue_create_message_annotations failed");
+                    result = __LINE__;
+                }
+            }
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+        }
+    }
+    else
+    {
+        result = 0;
+    }
+    return result;
+}
+
 static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
 {
     int result = 0;
@@ -445,7 +508,10 @@ static void on_message_send_complete(const void* context, MESSAGE_SEND_RESULT se
         callback_confirmation_result = EVENTHUBCLIENT_CONFIRMATION_ERROR;
     }
 
-    currentEvent->callback(callback_confirmation_result, currentEvent->context);
+    if (currentEvent->callback)
+    {
+        currentEvent->callback(callback_confirmation_result, currentEvent->context);
+    }
 
     for (index = 0; index < currentEvent->eventCount; index++)
     {
@@ -1172,14 +1238,14 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 else if (message_add_body_amqp_data(message, body) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_071: [If message_add_body_amqp_data fails then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                    LogError("Cannot get the properties map.");
+                                    LogError("Cannot get the message_add_body_amqp_data.");
                                     is_error = true;
                                 }
-                                /*else if (add_partition_key_to_message(message, currentEvent->eventDataList[0]) != 0)
+                                else if (add_partition_key_to_message(message, currentEvent->eventDataList[0]) != 0)
                                 {
-                                    LogError("Cannot get the properties map.");
+                                    LogError("Cannot add partition key.");
                                     is_error = true;
-                                }*/
+                                }
                                 else if (create_properties_map(currentEvent->eventDataList[0], &properties_map) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
