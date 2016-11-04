@@ -2793,6 +2793,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
         STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
             .IgnoreArgument(2);
+        STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
 
         // act
         EventHubClient_LL_DoWork(eventHubHandle);
@@ -3305,6 +3306,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(PARTITION_STRING_VALUE));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(PARTITION_NAME));
         STRICT_EXPECTED_CALL(mocks, amqpvalue_destroy(PARTITION_MAP));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EventHubClient_LL_DoWork(eventHubHandle);
