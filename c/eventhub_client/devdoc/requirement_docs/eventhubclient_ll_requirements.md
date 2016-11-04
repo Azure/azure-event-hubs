@@ -58,6 +58,7 @@ extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetStateChangeCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb);
 extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetErrorCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_FAILURE_CALLBACK failure_cb);
 extern void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, bool log_trace_on);
+extern void EventHubClient_LL_SetMessageTimeout(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, size_t timeout_value);
 
 extern void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
 
@@ -175,6 +176,7 @@ For each message that is pending:
 **SRS_EVENTHUBCLIENT_LL_01_069: \[**The AMQP message shall be given to uAMQP by calling messagesender_send, while passing as arguments the message sender handle, the message handle, a callback function and its context.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_053: \[**If messagesender_send failed then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.**\]** 
 **SRS_EVENTHUBCLIENT_LL_01_064: \[**EventHubClient_LL_DoWork shall call connection_dowork while passing as argument the connection handle obtained in EventHubClient_LL_Create.**\]** 
+**SRS_EVENTHUBCLIENT_LL_07_028: [**If the message idle time is greater than the msg_timeout, EventHubClient_LL_DoWork shall call callback with EVENTHUBCLIENT_CONFIRMATION_TIMEOUT.**]**  
 
 ###on_messagesender_state_changed
 
@@ -242,3 +244,12 @@ extern void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClien
 
 **SRS_EVENTHUBCLIENT_LL_07_024: [** If eventHubClientLLHandle is non-NULL EventHubClient_LL_SetLogTrace shall call the uAmqp trace function with the log_trace_on. **]**
 **SRS_EVENTHUBCLIENT_LL_07_025: [** If eventHubClientLLHandle is NULL EventHubClient_LL_SetLogTrace shall do nothing. **]**
+
+###EventHubClient_LL_SetMessageTimeout
+
+```c
+extern void EventHubClient_LL_SetMessageTimeout(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, size_t timeout_value);
+```
+
+**SRS_EVENTHUBCLIENT_LL_07_026: [** If eventHubClientLLHandle is NULL EventHubClient_LL_SetMessageTimeout shall do nothing. **]**  
+**SRS_EVENTHUBCLIENT_LL_07_027: [** EventHubClient_LL_SetMessageTimeout shall save the timeout_value. **]**  

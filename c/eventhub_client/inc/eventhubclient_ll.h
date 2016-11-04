@@ -5,6 +5,7 @@
 #define EVENTHUBCLIENT_LL_H
 
 #include "azure_c_shared_utility/macro_utils.h"
+#include "azure_c_shared_utility/umock_c_prod.h"
 #include "eventdata.h"
 
 #ifdef __cplusplus
@@ -32,7 +33,8 @@ DEFINE_ENUM(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES);
     EVENTHUBCLIENT_CONFIRMATION_DESTROY,              \
     EVENTHUBCLIENT_CONFIRMATION_EXCEED_MAX_SIZE,      \
     EVENTHUBCLIENT_CONFIRMATION_UNKNOWN,              \
-    EVENTHUBCLIENT_CONFIRMATION_ERROR                 \
+    EVENTHUBCLIENT_CONFIRMATION_ERROR,                \
+    EVENTHUBCLIENT_CONFIRMATION_TIMEOUT               \
 
 DEFINE_ENUM(EVENTHUBCLIENT_CONFIRMATION_RESULT, EVENTHUBCLIENT_CONFIRMATION_RESULT_VALUES);
 
@@ -52,19 +54,23 @@ typedef void(*EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK)(EVENTHUBCLIENT_CO
 
 typedef void(*EVENTHUB_CLIENT_STATECHANGE_CALLBACK)(EVENTHUBCLIENT_STATE eventhub_state, void* userContextCallback);
 typedef void(*EVENTHUB_CLIENT_ERROR_CALLBACK)(EVENTHUBCLIENT_ERROR_RESULT eventhub_failure, void* userContextCallback);
+typedef void(*EVENTHUB_CLIENT_TIMEOUT_CALLBACK)(EVENTDATA_HANDLE eventDataHandle, void* userContextCallback);
 
-extern EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char* connectionString, const char* eventHubPath);
+MOCKABLE_FUNCTION(, EVENTHUBCLIENT_LL_HANDLE, EventHubClient_LL_CreateFromConnectionString, const char*, connectionString, const char*, eventHubPath);
 
-extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTDATA_HANDLE eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
-extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTDATA_HANDLE* eventDataList, size_t count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK sendAsyncConfirmationCallback, void* userContextCallback);
+MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE, eventDataHandle, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, sendAsyncConfirmationCallback, void*, userContextCallback);
+MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SendBatchAsync, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTDATA_HANDLE*, eventDataList, size_t, count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, sendAsyncConfirmationCallback, void*, userContextCallback);
 
-extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetStateChangeCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK state_change_cb, void* userContextCallback);
-extern EVENTHUBCLIENT_RESULT EventHubClient_LL_SetErrorCallback(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK failure_cb, void* userContextCallback);
-extern void EventHubClient_LL_SetLogTrace(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, bool log_trace_on);
+MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetStateChangeCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK, state_change_cb, void*, userContextCallback);
+MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetErrorCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK, failure_cb, void*, userContextCallback);
 
-extern void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
+MOCKABLE_FUNCTION(, void, EventHubClient_LL_SetMessageTimeout, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, size_t, timeout_value);
 
-extern void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle);
+MOCKABLE_FUNCTION(, void, EventHubClient_LL_SetLogTrace, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, bool, log_trace_on);
+
+MOCKABLE_FUNCTION(, void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
+
+MOCKABLE_FUNCTION(, void, EventHubClient_LL_Destroy, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
 
 #ifdef __cplusplus
 }

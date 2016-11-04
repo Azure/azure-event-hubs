@@ -49,6 +49,7 @@ IN THE SOFTWARE.
 #include "azure_c_shared_utility/doublylinkedlist.h"
 #include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/map.h"
+#include "azure_c_shared_utility/tickcounter.h"
 
 DEFINE_MICROMOCK_ENUM_TO_STRING(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES);
 
@@ -81,6 +82,7 @@ namespace BASEIMPLEMENTATION
 
 static MICROMOCK_MUTEX_HANDLE g_testByTest;
 EVENTHUBCLIENT_CONFIRMATION_RESULT g_confirmationResult;
+static uint64_t g_tickcounter_value = 1000;
 
 #define TEST_CONNSTR_HANDLE         (STRING_HANDLE)0x46
 #define DUMMY_STRING_HANDLE         (STRING_HANDLE)0x47
@@ -183,6 +185,7 @@ static const SASL_MECHANISM_INTERFACE_DESCRIPTION* TEST_SASLPLAIN_INTERFACE_DESC
 static const IO_INTERFACE_DESCRIPTION* TEST_TLSIO_INTERFACE_DESCRIPTION = (const IO_INTERFACE_DESCRIPTION*)0x4253;
 static const AMQP_VALUE TEST_MAP_AMQP_VALUE = (AMQP_VALUE)0x4254;
 static const AMQP_VALUE TEST_STRING_AMQP_VALUE = (AMQP_VALUE)0x4255;
+static TICK_COUNTER_HANDLE TICK_COUNT_HANDLE_TEST = (TICK_COUNTER_HANDLE)0x4256;
 
 static SASL_PLAIN_CONFIG* saved_sasl_mechanism_create_parameters;
 static TLSIO_CONFIG* saved_tlsio_parameters;
@@ -498,6 +501,16 @@ public:
 
     MOCK_STATIC_METHOD_2(, void, sendAsyncConfirmationCallback, EVENTHUBCLIENT_CONFIRMATION_RESULT, result2, void*, userContextCallback)
     MOCK_VOID_METHOD_END()
+
+    MOCK_STATIC_METHOD_0(, TICK_COUNTER_HANDLE, tickcounter_create)
+    MOCK_METHOD_END(TICK_COUNTER_HANDLE, TICK_COUNT_HANDLE_TEST)
+
+    MOCK_STATIC_METHOD_1(, void, tickcounter_destroy, TICK_COUNTER_HANDLE, tick_counter);
+    MOCK_VOID_METHOD_END()
+        
+    MOCK_STATIC_METHOD_2(, int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, uint64_t*, current_ms);
+        *current_ms = g_tickcounter_value;
+    MOCK_METHOD_END(int, 0)
 };
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , XIO_HANDLE, xio_create, const IO_INTERFACE_DESCRIPTION*, io_interface_description, const void*, io_create_parameters);
@@ -591,6 +604,10 @@ DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , STRING_HANDLE, STRING_new
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , void, sendAsyncConfirmationCallback, EVENTHUBCLIENT_CONFIRMATION_RESULT, result2, void*, userContextCallback);
 
 DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MAP_RESULT, Map_GetInternals, MAP_HANDLE, handle, const char*const**, keys, const char*const**, values, size_t*, count);
+
+DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , TICK_COUNTER_HANDLE, tickcounter_create)
+DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, tickcounter_destroy, TICK_COUNTER_HANDLE, tick_counter);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, uint64_t*, current_ms);
 
 // ** End of Mocks **
 static MICROMOCK_GLOBAL_SEMAPHORE_HANDLE g_dllByDll;
@@ -698,6 +715,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL((*mocks), DList_InitializeListHead(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL((*mocks), Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL((*mocks), STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL((*mocks), tickcounter_create());
     }
 
     static void setup_messenger_initialize_success(CEventHubClientLLMocks* mocks)
@@ -809,6 +827,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, DList_InitializeListHead(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, "AnotherOne");
@@ -958,6 +977,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -989,6 +1009,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1022,6 +1043,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1058,6 +1080,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1096,6 +1119,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1137,6 +1161,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1180,6 +1205,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1224,6 +1250,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1269,6 +1296,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1295,6 +1323,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1321,6 +1350,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1363,6 +1393,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1403,6 +1434,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEYNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1434,6 +1466,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, Map_Destroy(TEST_CONNSTR_MAP_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_CONNSTR_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_create());
 
         // act
         EVENTHUBCLIENT_LL_HANDLE result = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
@@ -1515,6 +1548,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .ExpectedTimesExactly(2);
         STRICT_EXPECTED_CALL(mocks, EventData_Clone(dataEventHandle));
         EXPECTED_CALL(mocks, DList_InsertTailList(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendAsync(eventHubHandle, dataEventHandle, sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -1567,6 +1602,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
             .SetReturn((void*)NULL);
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendAsync(eventHubHandle, dataEventHandle, sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -1596,6 +1633,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .SetReturn((EVENTDATA_HANDLE)NULL);
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG))
             .ExpectedTimesExactly(2);
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendAsync(eventHubHandle, dataEventHandle, sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -1656,6 +1695,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_destroy(TICK_COUNT_HANDLE_TEST));
 
         // act
         EventHubClient_LL_Destroy(eventHubHandle);
@@ -1687,6 +1727,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_KEY_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
+
+        STRICT_EXPECTED_CALL(mocks, tickcounter_destroy(TICK_COUNT_HANDLE_TEST));
 
         /* 1st item */
         STRICT_EXPECTED_CALL(mocks, sendAsyncConfirmationCallback(EVENTHUBCLIENT_CONFIRMATION_DESTROY, (void*)0x4242));
@@ -1736,7 +1778,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, STRING_delete(TEST_HOSTNAME_STRING_HANDLE));
         STRICT_EXPECTED_CALL(mocks, DList_RemoveHeadList(saved_pending_list));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
-
+        STRICT_EXPECTED_CALL(mocks, tickcounter_destroy(TICK_COUNT_HANDLE_TEST));
 
         // act
         EventHubClient_LL_Destroy(eventHubHandle);
@@ -2710,6 +2752,58 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EventHubClient_LL_Destroy(eventHubHandle);
     }
 
+    /* Tests_SRS_EVENTHUBCLIENT_LL_07_028: [If the message idle time is greater than the msg_timeout, EventHubClient_LL_DoWork shall call callback with EVENTHUBCLIENT_CONFIRMATION_TIMEOUT.] */
+    TEST_FUNCTION(EventHubClient_LL_DoWork_when_message_timeout)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        EventHubClient_LL_SetMessageTimeout(eventHubHandle, 2);
+        setup_messenger_initialize_success(&mocks);
+        EventHubClient_LL_DoWork(eventHubHandle);
+        saved_on_message_sender_state_changed(saved_message_sender_context, MESSAGE_SENDER_STATE_OPEN, MESSAGE_SENDER_STATE_IDLE);
+        (void)EventHubClient_LL_SendAsync(eventHubHandle, TEST_EVENTDATA_HANDLE, sendAsyncConfirmationCallback, (void*)0x4242);
+        mocks.ResetAllCalls();
+
+        unsigned char test_data[] = { 0x42 };
+        unsigned char* buffer = test_data;
+        size_t length = sizeof(test_data);
+        BINARY_DATA binary_data = { test_data, length };
+
+        g_tickcounter_value += (2000*2);
+        STRICT_EXPECTED_CALL(mocks, message_create());
+        STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_1, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &buffer, sizeof(buffer))
+            .CopyOutArgumentBuffer(3, &length, sizeof(length));
+        STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
+        STRICT_EXPECTED_CALL(mocks, EventData_Properties(TEST_CLONED_EVENTDATA_HANDLE_1));
+        STRICT_EXPECTED_CALL(mocks, Map_GetInternals(TEST_MAP_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .CopyOutArgumentBuffer(2, &no_property_keys_ptr, sizeof(no_property_keys_ptr))
+            .CopyOutArgumentBuffer(3, &no_property_values_ptr, sizeof(no_property_values_ptr))
+            .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
+
+        STRICT_EXPECTED_CALL(mocks, sendAsyncConfirmationCallback(EVENTHUBCLIENT_CONFIRMATION_TIMEOUT, (void*)0x4242));
+        STRICT_EXPECTED_CALL(mocks, EventData_Destroy(TEST_CLONED_EVENTDATA_HANDLE_1));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        EXPECTED_CALL(mocks, DList_RemoveEntryList(IGNORED_PTR_ARG));
+
+        STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
+
+        // act
+        EventHubClient_LL_DoWork(eventHubHandle);
+
+        // assert
+        mocks.AssertActualAndExpectedCalls();
+
+        // cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
     /* Tests_SRS_EVENTHUBCLIENT_LL_01_039: [If messagesender_open fails, no further actions shall be carried out.] */
     TEST_FUNCTION(when_messagesender_open_fails_then_EventHubClient_LL_DoWork_does_not_do_anything_else)
     {
@@ -2771,6 +2865,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .IgnoreArgument(3).IgnoreArgument(4);
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);		
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
 
         // act
@@ -2840,6 +2936,10 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
 
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);		
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_2));
 
@@ -2977,6 +3077,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
 
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);		
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
 
         // act
@@ -3073,6 +3175,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
 
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);		
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_2));
 
         // act
@@ -3137,6 +3241,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, messagesender_send(TEST_MESSAGE_SENDER_HANDLE, TEST_MESSAGE_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreArgument(3).IgnoreArgument(4);
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
@@ -3477,6 +3583,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, messagesender_send(TEST_MESSAGE_SENDER_HANDLE, TEST_MESSAGE_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreArgument(3).IgnoreArgument(4);
         STRICT_EXPECTED_CALL(mocks, message_destroy(TEST_MESSAGE_HANDLE));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         STRICT_EXPECTED_CALL(mocks, connection_dowork(TEST_CONNECTION_HANDLE));
         STRICT_EXPECTED_CALL(mocks, EventData_GetPartitionKey(TEST_CLONED_EVENTDATA_HANDLE_1));
@@ -4070,6 +4178,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         BINARY_DATA binary_data = { encoded_data_1, data_encoded_size };
         STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         //2nd event
         STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_2, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
@@ -4734,6 +4844,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         BINARY_DATA binary_data = { combined_encoded_data, data_encoded_size + properties_encoded_size };
         STRICT_EXPECTED_CALL(mocks, message_add_body_amqp_data(TEST_MESSAGE_HANDLE, binary_data));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         //2nd event
         STRICT_EXPECTED_CALL(mocks, EventData_GetData(TEST_CLONED_EVENTDATA_HANDLE_2, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
@@ -5561,6 +5673,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, EventData_Clone(TEST_EVENTDATA_HANDLE_2))
             .SetReturn(TEST_CLONED_EVENTDATA_HANDLE_2);
         EXPECTED_CALL(mocks, DList_InsertTailList(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendBatchAsync(eventHubHandle, batch, sizeof(batch) / sizeof(batch[0]), sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -5646,6 +5760,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
             .SetReturn((void*)NULL);
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendBatchAsync(eventHubHandle, batch, sizeof(batch) / sizeof(batch[0]), sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -5678,6 +5794,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .SetReturn((EVENTDATA_HANDLE)NULL);
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendBatchAsync(eventHubHandle, batch, sizeof(batch) / sizeof(batch[0]), sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -5713,6 +5831,8 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, EventData_Destroy(TEST_CLONED_EVENTDATA_HANDLE_1));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
         EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(mocks, tickcounter_get_current_ms(TICK_COUNT_HANDLE_TEST, IGNORED_PTR_ARG))
+            .IgnoreArgument(2);
 
         // act
         EVENTHUBCLIENT_RESULT result = EventHubClient_LL_SendBatchAsync(eventHubHandle, batch, sizeof(batch) / sizeof(batch[0]), sendAsyncConfirmationCallback, &g_confirmationResult);
@@ -5820,6 +5940,41 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
 
         // act
         EventHubClient_LL_SetLogTrace(eventHubHandle, true);
+
+        //assert
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+        EventHubClient_LL_Destroy(eventHubHandle);
+    }
+
+    /* Tests_SRS_EVENTHUBCLIENT_LL_07_026: [ If eventHubClientLLHandle is NULL EventHubClient_LL_SetMessageTimeout shall do nothing. ] */
+    TEST_FUNCTION(EventHubClient_LL_SetMessageTimeout_EventHubClient_NULL_fails)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        // act
+        EventHubClient_LL_SetMessageTimeout(NULL, 1000);
+
+        //assert
+        mocks.AssertActualAndExpectedCalls();
+
+        //cleanup
+    }
+
+    /* Tests_SRS_EVENTHUBCLIENT_LL_07_027: [ EventHubClient_LL_SetMessageTimeout shall save the timeout_value. ] */
+    TEST_FUNCTION(EventHubClient_LL_SetMessageTimeout_succeed)
+    {
+        // arrange
+        CEventHubClientLLMocks mocks;
+
+        setup_createfromconnectionstring_success(&mocks);
+        EVENTHUBCLIENT_LL_HANDLE eventHubHandle = EventHubClient_LL_CreateFromConnectionString(CONNECTION_STRING, TEST_EVENTHUB_PATH);
+        mocks.ResetAllCalls();
+
+        // act
+        EventHubClient_LL_SetMessageTimeout(eventHubHandle, 1000);
 
         //assert
         mocks.AssertActualAndExpectedCalls();
