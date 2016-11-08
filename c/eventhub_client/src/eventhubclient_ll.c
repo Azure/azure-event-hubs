@@ -28,6 +28,7 @@
 #include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/doublylinkedlist.h"
 #include "azure_c_shared_utility/macro_utils.h"
+#include "azure_c_shared_utility/tickcounter.h"
 
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_RESULT_VALUES)
 
@@ -59,6 +60,7 @@ typedef struct EVENTHUB_EVENT_LIST_TAG
     void* context;
     EVENTHUB_EVENT_STATUS currentStatus;
     DLIST_ENTRY entry;
+    uint64_t idle_timer;
 } EVENTHUB_EVENT_LIST, *PEVENTHUB_EVENT_LIST;
 
 typedef struct EVENTHUBCLIENT_LL_TAG
@@ -82,12 +84,77 @@ typedef struct EVENTHUBCLIENT_LL_TAG
     EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb;
     void* error_callback_context;
     int trace_on;
+    uint64_t msg_timeout;
+    TICK_COUNTER_HANDLE counter;
 } EVENTHUBCLIENT_LL;
 
 static const char ENDPOINT_SUBSTRING[] = "Endpoint=sb://";
 static const size_t ENDPOINT_SUBSTRING_LENGTH = sizeof(ENDPOINT_SUBSTRING) / sizeof(ENDPOINT_SUBSTRING[0]) - 1;
 
 static const char* PARTITION_KEY_NAME = "x-opt-partition-key";
+
+static int add_partition_key_to_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE event_data)
+{
+    int result;
+    const char* currPartKey = EventData_GetPartitionKey(event_data);
+    if (currPartKey != NULL)
+    {
+        AMQP_VALUE partition_map;
+        AMQP_VALUE partition_name;
+        AMQP_VALUE partition_value;
+
+        if ((partition_map = amqpvalue_create_map()) == NULL)
+        {
+            LogError("Failure creating amqp map");
+            result = __LINE__;
+        }
+        else if ( (partition_name = amqpvalue_create_symbol(PARTITION_KEY_NAME) ) == NULL)
+        {
+            LogError("Failure creating amqp symbol");
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if ((partition_value = amqpvalue_create_string(currPartKey)) == NULL)
+        {
+            LogError("Failure creating amqp string");
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else if (amqpvalue_set_map_value(partition_map, partition_name, partition_value) != 0)
+        {
+            LogError("amqpvalue_set_map_value failed");
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+            result = __LINE__;
+        }
+        else
+        {
+            AMQP_VALUE partition_annotation = amqpvalue_create_message_annotations(partition_map);
+            if (partition_annotation != NULL)
+            {
+                if (message_set_message_annotations(message, partition_annotation) == 0)
+                {
+                    result = 0;
+                }
+                else
+                {
+                    LogError("amqpvalue_create_message_annotations failed");
+                    result = __LINE__;
+                }
+            }
+            amqpvalue_destroy(partition_value);
+            amqpvalue_destroy(partition_name);
+            amqpvalue_destroy(partition_map);
+        }
+    }
+    else
+    {
+        result = 0;
+    }
+    return result;
+}
 
 static int ValidateEventDataList(EVENTDATA_HANDLE *eventDataList, size_t count)
 {
@@ -445,7 +512,10 @@ static void on_message_send_complete(const void* context, MESSAGE_SEND_RESULT se
         callback_confirmation_result = EVENTHUBCLIENT_CONFIRMATION_ERROR;
     }
 
-    currentEvent->callback(callback_confirmation_result, currentEvent->context);
+    if (currentEvent->callback)
+    {
+        currentEvent->callback(callback_confirmation_result, currentEvent->context);
+    }
 
     for (index = 0; index < currentEvent->eventCount; index++)
     {
@@ -522,6 +592,7 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                 eventhub_client_ll->statuschange_callback_context = NULL;
                 eventhub_client_ll->on_error_cb = NULL;
                 eventhub_client_ll->error_callback_context = NULL;
+                eventhub_client_ll->msg_timeout = 0;
 
                 /* Codes_SRS_EVENTHUBCLIENT_LL_03_017: [EventHubClient_ll expects a service bus connection string in one of the following formats:
                 Endpoint=sb://[namespace].servicebus.windows.net/;SharedAccessKeyName=[key name];SharedAccessKey=[key value]
@@ -532,6 +603,11 @@ EVENTHUBCLIENT_LL_HANDLE EventHubClient_LL_CreateFromConnectionString(const char
                     /* Codes_SRS_EVENTHUBCLIENT_LL_03_018: [EventHubClient_LL_CreateFromConnectionString shall return NULL if the connectionString format is invalid.] */
                     error = true;
                     LogError("Couldn't find endpoint in connection string");
+                }
+                else if ( (eventhub_client_ll->counter = tickcounter_create() ) == NULL)
+                {
+                    error = true;
+                    LogError("failure creating tick counter handle.");
                 }
                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_067: [The endpoint shall be looked up in the resulting map and used to construct the host name to be used for connecting by removing the sb://.] */
                 else
@@ -647,6 +723,8 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         STRING_delete(eventhub_client_ll->keyName);
         STRING_delete(eventhub_client_ll->keyValue);
 
+        tickcounter_destroy(eventhub_client_ll->counter);
+
         /* Codes_SRS_EVENTHUBCLIENT_LL_04_017: [EventHubClient_LL_Destroy shall complete all the event notifications callbacks that are in the outgoingdestroy the outgoingEvents with the result EVENTHUBCLIENT_CONFIRMATION_DESTROY.] */
         /* Codes_SRS_EVENTHUBCLIENT_LL_01_041: [All pending message data shall be freed.] */
         while ((unsend = DList_RemoveHeadList(&(eventhub_client_ll->outgoingEvents))) != &(eventhub_client_ll->outgoingEvents))
@@ -669,6 +747,21 @@ void EventHubClient_LL_Destroy(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
         }
 
         free(eventhub_client_ll);
+    }
+}
+
+void EventHubClient_LL_SetMessageTimeout(EVENTHUBCLIENT_LL_HANDLE eventHubClientLLHandle, size_t timeout_value)
+{
+    /* Codes_SRS_EVENTHUBCLIENT_LL_07_026: [ If eventHubClientLLHandle is NULL EventHubClient_LL_SetMessageTimeout shall do nothing. ] */
+    if (eventHubClientLLHandle == NULL)
+    {
+        LogError("Invalid Argument eventHubClientLLHandle was specified");
+    }
+    else
+    {
+        /* Codes_SRS_EVENTHUBCLIENT_LL_07_027: [ EventHubClient_LL_SetMessageTimeout shall save the timeout_value. ] */
+        EVENTHUBCLIENT_LL* ehClientLLData = (EVENTHUBCLIENT_LL*)eventHubClientLLHandle;
+        ehClientLLData->msg_timeout = (uint64_t)timeout_value;
     }
 }
 
@@ -741,6 +834,8 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendAsync(EVENTHUBCLIENT_LL_HANDLE event
             newEntry->currentStatus = WAITING_TO_BE_SENT;
             newEntry->eventCount = 1;
             newEntry->eventDataList = malloc(sizeof(EVENTDATA_HANDLE));
+            (void)tickcounter_get_current_ms(eventhub_client_ll->counter, &newEntry->idle_timer);
+
             if (newEntry->eventDataList == NULL)
             {
                 result = EVENTHUBCLIENT_ERROR;
@@ -806,6 +901,8 @@ EVENTHUBCLIENT_RESULT EventHubClient_LL_SendBatchAsync(EVENTHUBCLIENT_LL_HANDLE 
             {
                 newEntry->currentStatus = WAITING_TO_BE_SENT;
                 newEntry->eventCount = count;
+                (void)tickcounter_get_current_ms(eventhub_client_ll->counter, &newEntry->idle_timer);
+
                 newEntry->eventDataList = malloc(sizeof(EVENTDATA_HANDLE)*count);
                 if (newEntry->eventDataList == NULL)
                 {
@@ -1144,6 +1241,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
 
                     if (currentEvent->currentStatus == WAITING_TO_BE_SENT)
                     {
+                        bool has_timeout = false;
                         bool is_error = false;
 
                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_049: [If the message has not yet been given to uAMQP then a new message shall be created by calling message_create.] */
@@ -1172,14 +1270,14 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                                 else if (message_add_body_amqp_data(message, body) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_071: [If message_add_body_amqp_data fails then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
-                                    LogError("Cannot get the properties map.");
+                                    LogError("Cannot get the message_add_body_amqp_data.");
                                     is_error = true;
                                 }
-                                /*else if (add_partition_key_to_message(message, currentEvent->eventDataList[0]) != 0)
+                                else if (add_partition_key_to_message(message, currentEvent->eventDataList[0]) != 0)
                                 {
-                                    LogError("Cannot get the properties map.");
+                                    LogError("Cannot add partition key.");
                                     is_error = true;
-                                }*/
+                                }
                                 else if (create_properties_map(currentEvent->eventDataList[0], &properties_map) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_059: [If any error is encountered while creating the application properties the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
@@ -1213,8 +1311,14 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             {
                                 currentEvent->currentStatus = WAITING_FOR_ACK;
 
+                                uint64_t current_time;
+                                (void)tickcounter_get_current_ms(eventhub_client_ll->counter, &current_time);
+                                if (eventhub_client_ll->msg_timeout > 0 && ((current_time-currentEvent->idle_timer)/1000) > eventhub_client_ll->msg_timeout)
+                                {
+                                    has_timeout = true;
+                                }
                                 /* Codes_SRS_EVENTHUBCLIENT_LL_01_069: [The AMQP message shall be given to uAMQP by calling messagesender_send, while passing as arguments the message sender handle, the message handle, a callback function and its context.] */
-                                if (messagesender_send(eventhub_client_ll->message_sender, message, on_message_send_complete, currentListEntry) != 0)
+                                else if (messagesender_send(eventhub_client_ll->message_sender, message, on_message_send_complete, currentListEntry) != 0)
                                 {
                                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_053: [If messagesender_send failed then the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
                                     is_error = true;
@@ -1225,7 +1329,22 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             message_destroy(message);
                         }
 
-                        if (is_error)
+                        if (has_timeout)
+                        {
+                            size_t index;
+
+                            /* Codes_SRS_EVENTHUBCLIENT_LL_07_028: [If the message idle time is greater than the msg_timeout, EventHubClient_LL_DoWork shall call callback with EVENTHUBCLIENT_CONFIRMATION_TIMEOUT.] */
+                            currentEvent->callback(EVENTHUBCLIENT_CONFIRMATION_TIMEOUT, currentEvent->context);
+                            for (index = 0; index < currentEvent->eventCount; index++)
+                            {
+                                EventData_Destroy(currentEvent->eventDataList[index]);
+                            }
+
+                            DList_RemoveEntryList(currentListEntry);
+                            free(currentEvent->eventDataList);
+                            free(currentEvent);
+                        }
+                        else if (is_error)
                         {
                             size_t index;
 

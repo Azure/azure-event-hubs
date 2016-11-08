@@ -166,6 +166,9 @@ public:
         }
     MOCK_METHOD_END(EVENTHUBCLIENT_RESULT, EVENTHUBCLIENT_OK)
 
+    MOCK_STATIC_METHOD_2(, void, EventHubClient_LL_SetMessageTimeout, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, size_t, timeout_millisec)
+    MOCK_VOID_METHOD_END()
+
     MOCK_STATIC_METHOD_1(, void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle)
         if (g_ConfirmationCallback)
         {
@@ -245,45 +248,44 @@ public:
 
     MOCK_STATIC_METHOD_1(, void, gballoc_free, void*, ptr)
         BASEIMPLEMENTATION::gballoc_free(ptr);
-    MOCK_VOID_METHOD_END();
+    MOCK_VOID_METHOD_END()
 
     MOCK_STATIC_METHOD_0(, LOCK_HANDLE, Lock_Init)
         LOCK_HANDLE handle;
-    if (g_lockInitFail)
-    {
-        handle = NULL;
-    }
-    else
-    {
-        LOCK_TEST_STRUCT* lockTest = (LOCK_TEST_STRUCT*)malloc(sizeof(LOCK_TEST_STRUCT));
-        handle = lockTest;
-    }
+        if (g_lockInitFail)
+        {
+            handle = NULL;
+        }
+        else
+        {
+            LOCK_TEST_STRUCT* lockTest = (LOCK_TEST_STRUCT*)malloc(sizeof(LOCK_TEST_STRUCT));
+            handle = lockTest;
+        }
     MOCK_METHOD_END(LOCK_HANDLE, handle);
 
     MOCK_STATIC_METHOD_1(, LOCK_RESULT, Lock, LOCK_HANDLE, handle)
         LOCK_RESULT lockResult;
-
-    g_currentlock_call++;
-    if (g_whenShalllock_fail > 0)
-    {
-        if (g_currentlock_call == g_whenShalllock_fail)
+        g_currentlock_call++;
+        if (g_whenShalllock_fail > 0)
         {
-            lockResult = LOCK_ERROR;
+            if (g_currentlock_call == g_whenShalllock_fail)
+            {
+                lockResult = LOCK_ERROR;
+            }
+            else
+            {
+                lockResult = LOCK_OK;
+            }
         }
         else
         {
             lockResult = LOCK_OK;
         }
-    }
-    else
-    {
-        lockResult = LOCK_OK;
-    }
-    if (lockResult == LOCK_OK && handle != NULL)
-    {
-        LOCK_TEST_STRUCT* lockTest = (LOCK_TEST_STRUCT*)handle;
-        lockTest->dummy = (char*)malloc(1);
-    }
+        if (lockResult == LOCK_OK && handle != NULL)
+        {
+            LOCK_TEST_STRUCT* lockTest = (LOCK_TEST_STRUCT*)handle;
+            lockTest->dummy = (char*)malloc(1);
+        }
     MOCK_METHOD_END(LOCK_RESULT, lockResult);
     MOCK_STATIC_METHOD_1(, LOCK_RESULT, Unlock, LOCK_HANDLE, handle)
         if (handle != NULL)
@@ -300,41 +302,40 @@ public:
 
     MOCK_STATIC_METHOD_0(, COND_HANDLE, Condition_Init)
         COND_HANDLE chandle;
-    if (g_condInitFail)
-    {
-        chandle = NULL;
-    }
-    else
-    {
-        COND_TEST_STRUCT* condTest = (COND_TEST_STRUCT*)malloc(sizeof(COND_TEST_STRUCT));
-        chandle = condTest;
-    }
+        if (g_condInitFail)
+        {
+            chandle = NULL;
+        }
+        else
+        {
+            COND_TEST_STRUCT* condTest = (COND_TEST_STRUCT*)malloc(sizeof(COND_TEST_STRUCT));
+            chandle = condTest;
+        }
     MOCK_METHOD_END(COND_HANDLE, chandle);
 
     MOCK_STATIC_METHOD_1(, COND_RESULT, Condition_Post, COND_HANDLE, handle)
         COND_RESULT condResult;
-
-    g_currentcond_call++;
-    if (g_whenShallcond_fail > 0)
-    {
-        if (g_currentcond_call == g_whenShallcond_fail)
+        g_currentcond_call++;
+        if (g_whenShallcond_fail > 0)
         {
-            condResult = COND_ERROR;
+            if (g_currentcond_call == g_whenShallcond_fail)
+            {
+                condResult = COND_ERROR;
+            }
+            else
+            {
+                condResult = COND_OK;
+            }
         }
         else
         {
             condResult = COND_OK;
         }
-    }
-    else
-    {
-        condResult = COND_OK;
-    }
-    if (condResult == COND_OK && handle != NULL)
-    {
-        COND_TEST_STRUCT* condTest = (COND_TEST_STRUCT*)handle;
-        condTest->dummy = (char*)malloc(1);
-    }
+        if (condResult == COND_OK && handle != NULL)
+        {
+            COND_TEST_STRUCT* condTest = (COND_TEST_STRUCT*)handle;
+            condTest->dummy = (char*)malloc(1);
+        }
     MOCK_METHOD_END(COND_RESULT, condResult);
 
     MOCK_STATIC_METHOD_3(, COND_RESULT, Condition_Wait, COND_HANDLE, handle, LOCK_HANDLE, lock, int, timeout)
@@ -357,13 +358,12 @@ DECLARE_GLOBAL_MOCK_METHOD_5(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, Even
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetStateChangeCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK, failure_cb, void*, userContextCallback);
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , EVENTHUBCLIENT_RESULT, EventHubClient_LL_SetErrorCallback, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, EVENTHUB_CLIENT_ERROR_CALLBACK, failure_cb, void*, userContextCallback);
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , void, EventHubClient_LL_SetLogTrace, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, bool, log_trace_on);
-
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , void, EventHubClient_LL_SetMessageTimeout, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle, size_t, timeout_millisec);
 
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void, EventHubClient_LL_DoWork, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void, EventHubClient_LL_Destroy, EVENTHUBCLIENT_LL_HANDLE, eventHubClientLLHandle);
 
 DECLARE_GLOBAL_MOCK_METHOD_3(CEventHubClientMocks, , THREADAPI_RESULT, ThreadAPI_Create, THREAD_HANDLE*, threadHandle, THREAD_START_FUNC, func, void*, arg);
-
 DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientMocks, , THREADAPI_RESULT, ThreadAPI_Join, THREAD_HANDLE, threadHandle, int*, res);
 
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientMocks, , void*, gballoc_malloc, size_t, size);
@@ -1344,6 +1344,42 @@ TEST_FUNCTION(EventHubClient_SetLogTrace_succeed)
 
     // act
     EventHubClient_SetLogTrace(eventHubHandle, true);
+
+    //assert
+    mocks.AssertActualAndExpectedCalls();
+
+    //cleanup
+    EventHubClient_Destroy(eventHubHandle);
+}
+
+TEST_FUNCTION(EventHubClient_SetMessageTimeout_EventHubClient_NULL_fails)
+{
+    // arrange
+    CEventHubClientMocks mocks;
+
+    // act
+    EventHubClient_SetMessageTimeout(NULL, 10000);
+
+    //assert
+    mocks.AssertActualAndExpectedCalls();
+
+    //cleanup
+}
+
+TEST_FUNCTION(EventHubClient_SetMessageTimeout_succeed)
+{
+    // arrange
+    CEventHubClientMocks mocks;
+
+    EVENTHUBCLIENT_HANDLE eventHubHandle = EventHubClient_CreateFromConnectionString(CONNECTION_STRING, EVENTHUB_PATH);
+    mocks.ResetAllCalls();
+
+    EXPECTED_CALL(mocks, Lock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, Unlock(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, EventHubClient_LL_SetMessageTimeout(IGNORED_PTR_ARG, 10000));
+
+    // act
+    EventHubClient_SetMessageTimeout(eventHubHandle, 10000);
 
     //assert
     mocks.AssertActualAndExpectedCalls();

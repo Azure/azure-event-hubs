@@ -264,6 +264,23 @@ EVENTHUBCLIENT_RESULT EventHubClient_SetStateChangeCallback(EVENTHUBCLIENT_HANDL
     return result;
 }
 
+void EventHubClient_SetMessageTimeout(EVENTHUBCLIENT_HANDLE eventHubHandle, size_t timeout_value)
+{
+    if (eventHubHandle == NULL)
+    {
+        LogError("Invalid Argument eventHubClientLLHandle was specified");
+    }
+    else
+    {
+        EVENTHUBCLIENT_STRUCT* eventhubClientInfo = (EVENTHUBCLIENT_STRUCT*)eventHubHandle;
+        if (Lock(eventhubClientInfo->lockInfo) == LOCK_OK)
+        {
+            EventHubClient_LL_SetMessageTimeout(eventhubClientInfo->eventhubclientLLHandle, timeout_value);
+            (void)Unlock(eventhubClientInfo->lockInfo);
+        }
+    }
+}
+
 EVENTHUBCLIENT_RESULT EventHubClient_SetErrorCallback(EVENTHUBCLIENT_HANDLE eventHubHandle, EVENTHUB_CLIENT_ERROR_CALLBACK on_error_cb, void* userContextCallback)
 {
     EVENTHUBCLIENT_RESULT result;

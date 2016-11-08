@@ -27,6 +27,7 @@ MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_SendBatch, EVENTHUBCLI
 MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_SendBatchAsync, EVENTHUBCLIENT_HANDLE, eventHubHandle, EVENTDATA_HANDLE, *eventDataList, size_t, count, EVENTHUB_CLIENT_SENDASYNC_CONFIRMATION_CALLBACK, sendAsycCallback, void*, userContextCallback);
 MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_SetStateChangeCallback, EVENTHUBCLIENT_HANDLE, eventHubHandle, EVENTHUB_CLIENT_STATECHANGE_CALLBACK, state_change_cb, void*, userContextCallback);
 MOCKABLE_FUNCTION(, EVENTHUBCLIENT_RESULT, EventHubClient_SetErrorCallback, EVENTHUBCLIENT_HANDLE, eventHubHandle, EVENTHUB_CLIENT_ERROR_CALLBACK, on_error_cb, void*, userContextCallback);
+MOCKABLE_FUNCTION(, void, EventHubClient_SetMessageTimeout, EVENTHUBCLIENT_HANDLE, eventHubHandle, size_t, timeout_value);
 MOCKABLE_FUNCTION(, void, EventHubClient_SetLogTrace, EVENTHUBCLIENT_HANDLE, eventHubHandle, bool, log_trace_on);
 MOCKABLE_FUNCTION(, void, EventHubClient_Destroy, EVENTHUBCLIENT_HANDLE, eventHubHandle);
 
