@@ -38,10 +38,10 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
     const char*,  connectionString,
     const char*,  eventHubPath,
     const char*,  consumerGroup,
-    unsigned int, partitionId
+    const char*,  partitionId
 );
 
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Close_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
+MOCKABLE_FUNCTION(, void, EventHubReceiver_Destroy_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
 
 MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTimestampAsync_LL,
 	EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle, 
@@ -62,6 +62,11 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
     unsigned int, waitTimeoutInMs
 );
 
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveEndAsync_LL,
+					EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,
+					EVENTHUBRECEIVER_ASYNC_END_CALLBACK, onEventReceiveEndCallback,
+					void*, onEventReceiveEndUserContext);
+
 MOCKABLE_FUNCTION(, void, EventHubReceiver_LL_DoWork, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle);
 
 MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Set_ConnectionTracing_LL,
@@ -75,9 +80,10 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
     const char*,  connectionString,
     const char*,  eventHubPath,
     const char*,  consumerGroup,
-    unsigned int, partitionId
+    const char*,  partitionId
 );
 ```
+**SRS_EVENTHUBRECEIVER_LL_29_111: \[**`EventHubReceiver_Create_LL` shall return NULL if any parameter connectionString, eventHubPath, consumerGroup and partitionId is NULL.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_101: \[**`EventHubReceiver_Create_LL` shall obtain the version string by a call to EVENTHUBRECEIVER_GetVersionString.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_102: \[**`EventHubReceiver_Create_LL` shall print the version string to standard output.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_103: \[**`EventHubReceiver_Create_LL` shall expect a service bus connection string in one of the following formats:
@@ -90,29 +96,17 @@ Endpoint=sb://[namespace].servicebus.windows.net;SharedAccessKeyName=[keyname];S
 **SRS_EVENTHUBRECEIVER_LL_29_107: \[**The key name and key shall be looked up in the resulting map and they should be stored as is for later use in connecting.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_108: \[**Initialize receiver host address using the supplied connection string parameters host name, domain suffix, event hub name. **\]**
 **SRS_EVENTHUBRECEIVER_LL_29_109: \[**Initialize receiver partition target address using consumer group and partition id data with format {eventHubName}/ConsumerGroups/{consumerGroup}/Partitions/{partitionID}.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_110: \[**`EventHubReceiver_Create_LL` shall return NULL if the consumerGroup is NULL.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_111: \[**`EventHubReceiver_Create_LL` shall return NULL if the partitionKey is NULL.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_112: \[**`EventHubReceiver_Create_LL` shall return a non-NULL handle value upon success.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_113: \[**`EventHubReceiver_Create_LL` shall return a NULL value if connectionString or eventHubPath is NULL.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_114: \[**`EventHubReceiver_Create_LL` shall allocate a new event hub receiver LL instance, initialize it with the user supplied data and change state to OPEN.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_115: \[**For all other errors, `EventHubReceiver_Create_LL` shall return NULL.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_116: \[**Initialize connection tracing to false by default.**\]**
 
-### EventHubReceiver_Close_LL
+### EventHubReceiver_Destroy_LL
 ```c
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Close_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Destroy_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
 ```
-**SRS_EVENTHUBRECEIVER_LL_29_201: \[**`EventHubReceiver_Close_LL` shall terminate the usage of the EVENTHUBRECEIVER_LL_STRUCT and cleanup all associated resources.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_202: \[**The host name, consumer group buffers allocated in `EventHubReceiver_Create_LL` shall be freed.**\]**  
-**SRS_EVENTHUBRECEIVER_LL_29_203: \[**All pending message data not reported to the calling client shall be freed.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_204: \[**The link shall be freed by calling link_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_205: \[**The session shall be freed by calling session_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_206: \[**The connection shall be freed by calling connection_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_207: \[**The SASL client IO shall be freed by calling xio_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_208: \[**The TLS IO shall be freed by calling xio_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_209: \[**The SASL plain mechanism shall be freed by calling saslmechanism_destroy.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_210: \[**The filter shall be freed by STRING_delete.**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_211: \[**Upon Success, EventHubReceiver_Close shall return EVENTHUBRECEIVER_OK.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_201: \[**`EventHubReceiver_Destroy_LL` shall tear down connection with the event hub by calling EventHubReceiver_ReceiveEndAsync_LL.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_202: \[**`EventHubReceiver_Destroy_LL` shall terminate the usage of the EVENTHUBRECEIVER_LL_STRUCT and cleanup all associated resources.**\]**
 
 ### EventHubReceiver_ReceiveFromStartTimestampAsync_LL
 ```c
@@ -178,16 +172,16 @@ MOCKABLE_FUNCTION(, void, EventHubReceiver_LL_DoWork, EVENTHUBRECEIVER_LL_HANDLE
 
 **SRS_EVENTHUBRECEIVER_LL_29_520: \[**A TLS IO shall be created by calling xio_create using TLS port 5671 and host name obtained from SRS_EVENTHUBRECEIVER_LL_29_108**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_521: \[**The interface passed to xio_create shall be obtained by calling platform_get_default_tlsio.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_522: \[**If xio_create fails then a log message will be logged and and the function returns immediately..**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_522: \[**If xio_create fails then a log message will be logged and the function returns immediately..**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_523: \[**A SASL IO shall be created by calling xio_create using TLS IO interface created in SRS_EVENTHUBRECEIVER_LL_29_520 and the SASL plain mechanism created earlier.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_524: \[**If xio_create fails then a log message will be logged and and the function returns immediately..**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_524: \[**If xio_create fails then a log message will be logged and the function returns immediately..**\]** 
 
 **SRS_EVENTHUBRECEIVER_LL_29_530: \[**An AMQP connection shall be created by calling connection_create and passing as arguments the SASL client IO handle created in SRS_EVENTHUBRECEIVER_LL_29_508, hostname, connection name and NULL for the new session handler end point and context.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_531: \[**If connection_create fails then a log message will be logged and the function returns immediately.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_532: \[**Connection tracing shall be called with the current value of the tracing flag**\]**
 
 **SRS_EVENTHUBRECEIVER_LL_29_540: \[**An AMQP session shall be created by calling session_create and passing as arguments the connection handle, and NULL for the new link handler and context.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_541: \[**If session_create fails then a log message will be logged and and the function returns immediately.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_541: \[**If session_create fails then a log message will be logged and the function returns immediately.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_542: \[**Configure the session incoming window by calling session_set_incoming_window and set value to INTMAX.**\]**
 
 **SRS_EVENTHUBRECEIVER_LL_29_550: \[**An AMQP link for the to be created message receiver shall be created by calling link_create with role as role_receiver**\]**
@@ -195,7 +189,7 @@ MOCKABLE_FUNCTION(, void, EventHubReceiver_LL_DoWork, EVENTHUBRECEIVER_LL_HANDLE
 **SRS_EVENTHUBRECEIVER_LL_29_552: \[**The message receiver link source's filter shall be initialized using the filter created earlier.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_553: \[**The message receiver link source's address shall be initialized using the partition target address created earlier.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_554: \[**The message receiver link target shall be created using messaging_create_target with address obtained from the partition target address created earlier.**\]**
-**SRS_EVENTHUBRECEIVER_LL_29_555: \[**If link_create fails then a log message will be logged and and the function returns immediately.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_555: \[**If link_create fails then a log message will be logged and the function returns immediately.**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_556: \[**Configure the link settle mode by calling link_set_rcv_settle_mode and set value to receiver_settle_mode_first.**\]**
 
 
@@ -225,9 +219,10 @@ static AMQP_VALUE EventHubReceiver_LL_OnMessageReceived(const void* context, MES
 **SRS_EVENTHUBRECEIVER_LL_29_706: \[**After `EventHubReceiver_LL_OnMessageReceived` invokes the user callback, messaging_delivery_accepted shall be called.**\]**
 
 ##### Timeout Management
-**SRS_EVENTHUBRECEIVER_LL_29_750: \[**`EventHubReceiver_LL_DoWork` shall check if a message was received, if so, reset the last activity time to the currect time i.e. now**\]** 
-**SRS_EVENTHUBRECEIVER_LL_29_751: \[**If a message was not received, check if the time now minus the last activity time is greater than or equal to the user specified timeout. If greater, the user registered callback is invoked along with the user supplied context with status code EVENTHUBRECEIVER_TIMEOUT. Last activity time shall be updated to the currect time i.e. now.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_750: \[**`EventHubReceiver_LL_DoWork` shall check if a message was received, if so, reset the last activity time to the current time i.e. now**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_751: \[**If a message was not received, check if the time now minus the last activity time is greater than or equal to the user specified timeout. If greater, the user registered callback is invoked along with the user supplied context with status code EVENTHUBRECEIVER_TIMEOUT. Last activity time shall be updated to the current time i.e. now.**\]** 
 **SRS_EVENTHUBRECEIVER_LL_29_753: \[**If at any point there is an error for a specific eventHubReceiverLLHandle, the user callback should be invoked along with the error code.**\]**
+
 
 ### EventHubReceiver_Set_ConnectionTracing_LL
 ```c
@@ -238,3 +233,23 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Set_ConnectionTrac
 **SRS_EVENTHUBRECEIVER_LL_29_801: \[**`EventHubReceiver_Set_ConnectionTracing_LL` shall save the value of tracingOnOff in eventHubReceiverLLHandle**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_802: \[**If an active connection has been setup, `EventHubReceiver_Set_ConnectionTracing_LL` shall be called with the value of connection_set_trace tracingOnOff**\]**
 **SRS_EVENTHUBRECEIVER_LL_29_803: \[**`Upon success, EventHubReceiver_Set_ConnectionTracing_LL` shall return EVENTHUBRECEIVER_OK**\]**
+
+### 
+```c
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveEndAsync_LL,
+					EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,
+					EVENTHUBRECEIVER_ASYNC_END_CALLBACK, onEventReceiveEndCallback,
+					void*, onEventReceiveEndUserContext);
+```
+**SRS_EVENTHUBRECEIVER_LL_29_900: \[**`EventHubReceiver_ReceiveEndAsync_LL` shall validate arguments, in case they are invalid, error code EVENTHUBRECEIVER_INVALID_ARG will be returned.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_920: \[**All pending message data not reported to the calling client shall be freed.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_921: \[**The link shall be freed by calling link_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_922: \[**The session shall be freed by calling session_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_923: \[**The connection shall be freed by calling connection_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_924: \[**The SASL client IO shall be freed by calling xio_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_925: \[**The TLS IO shall be freed by calling xio_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_926: \[**The SASL plain mechanism shall be freed by calling saslmechanism_destroy.**\]** 
+**SRS_EVENTHUBRECEIVER_LL_29_927: \[**The filter string shall be freed by STRING_delete.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_940: \[**Upon Success, `EventHubReceiver_ReceiveEndAsync_LL` shall return EVENTHUBRECEIVER_OK.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_941: \[**Upon Success, `EventHubReceiver_ReceiveEndAsync_LL` shall invoke the onEventReceiveEndCallback along with onEventReceiveEndUserContext.**\]**
+**SRS_EVENTHUBRECEIVER_LL_29_942: \[**Upon failure, `EventHubReceiver_ReceiveEndAsync_LL` shall return EVENTHUBRECEIVER_ERROR and a message will be logged.**\]**

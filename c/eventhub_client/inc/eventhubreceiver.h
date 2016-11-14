@@ -40,13 +40,13 @@ typedef void* EVENTHUBRECEIVER_HANDLE;
 * @param	connectionString	Pointer to a character string containing the connection string (see below)
 * @param	eventHubPath        Pointer to a character string identifying the Event Hub path (see below)
 * @param	consumerGroup       Pointer to a character string identifying a specific consumer group within a Event hub
-* @param	partitionId         A specific ID for a partition within the event hub
+* @param	partitionId         Pointer to a character string containing the specific ID for a partition within the event hub
 *
 * Sample connection string:
 *  <blockquote>
 *    <pre>HostName=[Event Hub name goes here].[Event Hub suffix goes here, e.g., servicebus.windows.net];SharedAccessKeyName=[Policy key name here];SharedAccessKey=[Policy key];EntityPath=[Event Hub Path]</pre>
 *  </blockquote>
-
+*
 *
 * @return	A non-NULL @c EVENTHUBRECEIVER_HANDLE value that is used when invoking other functions for EventHubReceiver
 *           @c NULL on failure.
@@ -56,17 +56,17 @@ extern EVENTHUBRECEIVER_HANDLE EventHubReceiver_Create
     const char* connectionString,
     const char* eventHubPath,
     const char* consumerGroup,
-    unsigned int partitionId
+    const char* partitionId
 );
 
 /**
 * @brief	Disposes of resources allocated by the EventHubReceiver_Create.
 *
-* @note     This is a blocking call.
-*
 * @param	eventHubReceiverHandle	The handle created by a call to the create function.
+*
+* @return	None
 */
-extern EVENTHUBRECEIVER_RESULT EventHubReceiver_Close(EVENTHUBRECEIVER_HANDLE eventHubReceiverHandle);
+extern void EventHubReceiver_Destroy(EVENTHUBRECEIVER_HANDLE eventHubReceiverHandle);
 
 /**
 * @brief	Asynchronous call to receive events message specified by @p eventHubReceiverHandle.
@@ -89,7 +89,7 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_Close(EVENTHUBRECEIVER_HANDLE ev
 *                                       to read data from the partition in the Event Hub.
 *
 *			@b NOTE: The application behavior is undefined if the user calls
-*			the EventHubReceiver_Close function from within any callback.
+*			the EventHubReceiver_Destroy function from within any callback.
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 */
@@ -112,7 +112,8 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampAsync
 * @param	onEventReceiveCallback  	The callback specified by the user for receiving
 * 										event payload from the Event Hub. If there is event
 *                                       data to be read, the callback result code will be
-*                                       EVENTHUBRECEIVER_OK.
+*                                       EVENTHUBRECEIVER_OK. If a timeout has occurred, 
+*                                       the callback result code will be EVENTHUBRECEIVER_TIMEOUT.
 * @param	onEventReceiveUserContext   User specified context that will be provided to the
 * 										callback. This can be @c NULL.
 * @param	onEventReceiveErrorCallback The callback specified by the user for receiving
@@ -135,7 +136,7 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampAsync
 *                                       EventHubReceiver_ReceiveFromStartTimestampAsync.
 *
 *			@b NOTE: The application behavior is undefined if the user calls
-*			the EventHubReceiver_Close function from within any callback.
+*			the EventHubReceiver_Destroy function from within any callback.
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 */
@@ -148,6 +149,32 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampWithTim
     void *onEventReceiveErrorUserContext,
     unsigned long long startTimestampInSec,
     unsigned int waitTimeoutInMs
+);
+
+/**
+* @brief	API to asynchronously cleanup and terminate communication with the event hub
+*
+* @param	eventHubReceiverHandle	        The handle created by a call to the create function.
+* @param	onEventReceiveEndCallback  	    The callback specified by the user notifying the
+*                                           user that the communication to the event hub 
+*                                           has terminated. On success, the callback result 
+*                                           code will be EVENTHUBRECEIVER_OK and an error
+*                                           code otherwise.
+* @param	onEventReceiveEndUserContext    User specified context that will be provided to the
+* 										    callback. This can be @c NULL.
+*
+* @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
+*
+* @note     This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or 
+*           EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK callback.
+*
+*           In the registered callback below, users may call EventHubReceiver_Destroy
+*/
+extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveEndAsync
+(
+    EVENTHUBRECEIVER_HANDLE eventHubReceiverHandle,
+    EVENTHUBRECEIVER_ASYNC_END_CALLBACK onEventReceiveEndCallback,
+    void* onEventReceiveEndUserContext
 );
 
 /**

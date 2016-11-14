@@ -83,6 +83,20 @@ typedef void(*EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK)(EVENTHUBRECEIVER_RESULT err
                                                         void* userContextCallback);
 
 /**
+* @brief	A callback definition for asynchronous callback used by
+*           clients of EventHubReceiver_LL for purposes of tearing down
+*           communication with an existing Event Hub. This callback will
+*           be invoked after the tear down has been completed.
+*
+* @param	errorCode           Unexpected error code
+* @param    userContext         A user supplied context
+*
+* @return   None
+*/
+typedef void(*EVENTHUBRECEIVER_ASYNC_END_CALLBACK)(EVENTHUBRECEIVER_RESULT result,
+                                                                void* userContextCallback);
+
+/**
 * @brief	Creates a EventHubReceiver_LL handle for communication with an
 * 			existing Event Hub using the specified parameters for the purposes
 *           of reading event data posted on a specific partition within the
@@ -91,7 +105,7 @@ typedef void(*EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK)(EVENTHUBRECEIVER_RESULT err
 * @param	connectionString	Pointer to a character string containing the connection string (see below)
 * @param	eventHubPath        Pointer to a character string identifying the Event Hub path
 * @param	consumerGroup       Pointer to a character string identifying a specific consumer group within a Event hub
-* @param	partitionId         A specific ID for a partition within the event hub
+* @param	partitionId         Pointer to a character string containing the specific ID for a partition within the event hub
 *
 * Sample connection string:
 *  <blockquote>
@@ -106,7 +120,7 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
     const char*,  connectionString,
     const char*,  eventHubPath,
     const char*,  consumerGroup,
-    unsigned int, partitionId
+    const char*,  partitionId
 );
 
 /**
@@ -114,9 +128,11 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
 *
 * @note     This is a blocking call.
 *
-* @param	eventHubReceiverHandle	The handle created by a call to the open function.
+* @param	eventHubReceiverHandle	The handle created by a call to the create function.
+*
+* @return	None
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Close_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
+MOCKABLE_FUNCTION(, void, EventHubReceiver_Destroy_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
 
 /**
 * @brief	Asynchronous call to receive events message specified by @p eventHubReceiverHandle.
@@ -161,7 +177,8 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
 * @param	onEventReceiveCallback  	The callback specified by the user for receiving
 * 										event payload from the Event Hub. If there is event
 *                                       data to be read, the callback result code will be
-*                                       EVENTHUBRECEIVER_OK.
+*                                       EVENTHUBRECEIVER_OK. If a timeout has occurred,
+*                                       the callback result code will be EVENTHUBRECEIVER_TIMEOUT.
 * @param	onEventReceiveUserContext   User specified context that will be provided to the
 * 										callback. This can be @c NULL.
 * @param	onEventReceiveErrorCallback The callback specified by the user for receiving
@@ -196,6 +213,31 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
 	void*, onEventReceiveErrorUserContext,
     unsigned long long, startTimestampInSec,
     unsigned int, waitTimeoutInMs
+);
+
+/**
+* @brief	API to asynchronously cleanup and terminate communication with the event hub
+*
+* @param	eventHubReceiverLLHandle        The handle created by a call to the create function.
+* @param	onEventReceiveEndCallback  	    The callback specified by the user notifying the
+*                                           user that the communication to the event hub
+*                                           has terminated. On success, the callback result
+*                                           code will be EVENTHUBRECEIVER_OK and an error
+*                                           code otherwise.
+* @param	onEventReceiveEndUserContext    User specified context that will be provided to the
+* 										    callback. This can be @c NULL.
+*
+* @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
+*
+* @note     This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or
+*           EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK callback.
+*
+*           In the registered callback below, users may call EventHubReceiver_Destroy_LL
+*/
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveEndAsync_LL,
+    EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,
+    EVENTHUBRECEIVER_ASYNC_END_CALLBACK, onEventReceiveEndCallback,
+    void*, onEventReceiveEndUserContext
 );
 
 /**
