@@ -7,7 +7,6 @@ cmake_minimum_required(VERSION 2.8.11)
 compileAsC99()
 
 set(eventhub_client_c_files
-    ./src/connection_string_parser.c
     ./src/eventdata.c
     ./src/eventhubclient.c
     ./src/eventhubclient_ll.c
@@ -15,7 +14,6 @@ set(eventhub_client_c_files
 )
 
 set(eventhub_client_h_files
-    ./inc/connection_string_parser.h
     ./inc/eventdata.h
     ./inc/eventhubclient.h
     ./inc/eventhubclient_ll.h

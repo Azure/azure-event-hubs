@@ -30,7 +30,7 @@ IN THE SOFTWARE.
 
 #include "eventhubclient_ll.h"
 #include "azure_c_shared_utility/strings.h"
-#include "connection_string_parser.h"
+#include "azure_c_shared_utility/connection_string_parser.h"
 #include "azure_c_shared_utility/xio.h"
 #include "azure_uamqp_c/connection.h"
 #include "azure_uamqp_c/session.h"
@@ -82,7 +82,7 @@ namespace BASEIMPLEMENTATION
 
 static MICROMOCK_MUTEX_HANDLE g_testByTest;
 EVENTHUBCLIENT_CONFIRMATION_RESULT g_confirmationResult;
-static uint64_t g_tickcounter_value = 1000;
+static tickcounter_ms_t g_tickcounter_value = (tickcounter_ms_t)1000;
 
 #define TEST_CONNSTR_HANDLE         (STRING_HANDLE)0x46
 #define DUMMY_STRING_HANDLE         (STRING_HANDLE)0x47
@@ -508,7 +508,7 @@ public:
     MOCK_STATIC_METHOD_1(, void, tickcounter_destroy, TICK_COUNTER_HANDLE, tick_counter);
     MOCK_VOID_METHOD_END()
         
-    MOCK_STATIC_METHOD_2(, int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, uint64_t*, current_ms);
+    MOCK_STATIC_METHOD_2(, int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, tickcounter_ms_t*, current_ms);
         *current_ms = g_tickcounter_value;
     MOCK_METHOD_END(int, 0)
 };
@@ -607,7 +607,7 @@ DECLARE_GLOBAL_MOCK_METHOD_4(CEventHubClientLLMocks, , MAP_RESULT, Map_GetIntern
 
 DECLARE_GLOBAL_MOCK_METHOD_0(CEventHubClientLLMocks, , TICK_COUNTER_HANDLE, tickcounter_create)
 DECLARE_GLOBAL_MOCK_METHOD_1(CEventHubClientLLMocks, , void, tickcounter_destroy, TICK_COUNTER_HANDLE, tick_counter);
-DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, uint64_t*, current_ms);
+DECLARE_GLOBAL_MOCK_METHOD_2(CEventHubClientLLMocks, , int, tickcounter_get_current_ms, TICK_COUNTER_HANDLE, tick_counter, tickcounter_ms_t*, current_ms);
 
 // ** End of Mocks **
 static MICROMOCK_GLOBAL_SEMAPHORE_HANDLE g_dllByDll;

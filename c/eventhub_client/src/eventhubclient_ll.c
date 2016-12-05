@@ -11,7 +11,7 @@
 #include "eventhubclient_ll.h"
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/map.h"
-#include "connection_string_parser.h"
+#include "azure_c_shared_utility/connection_string_parser.h"
 #include "azure_c_shared_utility/strings.h"
 #include "version.h"
 #include "azure_c_shared_utility/crt_abstractions.h"
