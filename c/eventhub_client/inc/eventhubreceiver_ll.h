@@ -21,6 +21,7 @@ extern "C"
 {
 #else
 #include <stddef.h>
+#include <stdint.h>
 #endif
 
 #include "azure_c_shared_utility/crt_abstractions.h"
@@ -34,7 +35,8 @@ extern "C"
         EVENTHUBRECEIVER_INVALID_ARG,                 \
         EVENTHUBRECEIVER_ERROR,                       \
         EVENTHUBRECEIVER_TIMEOUT,                     \
-        EVENTHUBRECEIVER_CONNECTION_RUNTIME_ERROR
+        EVENTHUBRECEIVER_CONNECTION_RUNTIME_ERROR,    \
+        EVENTHUBRECEIVER_NOT_ALLOWED
 
 DEFINE_ENUM(EVENTHUBRECEIVER_RESULT, EVENTHUBRECEIVER_RESULT_VALUES);
 
@@ -116,7 +118,7 @@ typedef void(*EVENTHUBRECEIVER_ASYNC_END_CALLBACK)(EVENTHUBRECEIVER_RESULT resul
 *           when invoking other functions for EventHubReceiver
 *           @c NULL on failure.
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_LL_Create,
     const char*,  connectionString,
     const char*,  eventHubPath,
     const char*,  consumerGroup,
@@ -132,7 +134,7 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_LL_HANDLE, EventHubReceiver_Create_LL,
 *
 * @return	None
 */
-MOCKABLE_FUNCTION(, void, EventHubReceiver_Destroy_LL, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
+MOCKABLE_FUNCTION(, void, EventHubReceiver_LL_Destroy, EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverHandle);
 
 /**
 * @brief	Asynchronous call to receive events message specified by @p eventHubReceiverHandle.
@@ -159,13 +161,13 @@ MOCKABLE_FUNCTION(, void, EventHubReceiver_Destroy_LL, EVENTHUBRECEIVER_LL_HANDL
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTimestampAsync_LL,
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_ReceiveFromStartTimestampAsync,
 	EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle, 
 	EVENTHUBRECEIVER_ASYNC_CALLBACK, onEventReceiveCallback, 
 	void*, onEventReceiveUserContext, 
 	EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK, onEventReceiveErrorCallback,
 	void*, onEventReceiveErrorUserContext,
-	unsigned long long, startTimestampInSec
+    uint64_t, startTimestampInSec
 );
 
 /**
@@ -205,13 +207,13 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTimestampWithTimeoutAsync_LL,
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_ReceiveFromStartTimestampWithTimeoutAsync,
 	EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,
 	EVENTHUBRECEIVER_ASYNC_CALLBACK, onEventReceiveCallback,
 	void*, onEventReceiveUserContext,
 	EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK, onEventReceiveErrorCallback,
 	void*, onEventReceiveErrorUserContext,
-    unsigned long long, startTimestampInSec,
+    uint64_t, startTimestampInSec,
     unsigned int, waitTimeoutInMs
 );
 
@@ -223,7 +225,8 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
 *                                           user that the communication to the event hub
 *                                           has terminated. On success, the callback result
 *                                           code will be EVENTHUBRECEIVER_OK and an error
-*                                           code otherwise.
+*                                           code otherwise. This is an optional parameter and
+*                                           therefore can be @c NULL.
 * @param	onEventReceiveEndUserContext    User specified context that will be provided to the
 * 										    callback. This can be @c NULL.
 *
@@ -234,7 +237,7 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveFromStartTi
 *
 *           In the registered callback below, users may call EventHubReceiver_Destroy_LL
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_ReceiveEndAsync_LL,
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_ReceiveEndAsync,
     EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,
     EVENTHUBRECEIVER_ASYNC_END_CALLBACK, onEventReceiveEndCallback,
     void*, onEventReceiveEndUserContext
@@ -263,7 +266,7 @@ MOCKABLE_FUNCTION(, void, EventHubReceiver_LL_DoWork, EVENTHUBRECEIVER_LL_HANDLE
 *
 * @note By default tracing is disabled.
 */
-MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_Set_ConnectionTracing_LL,
+MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_SetConnectionTracing,
                     EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle, bool, traceEnabled);
 
 #ifdef __cplusplus

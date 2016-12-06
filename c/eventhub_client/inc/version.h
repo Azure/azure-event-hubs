@@ -4,12 +4,14 @@
 #ifndef EVENTHUBVERSION_H
 #define EVENTHUBVERSION_H
 
+#include "azure_c_shared_utility/umock_c_prod.h"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-const char* EventHubClient_GetVersionString(void);
+    MOCKABLE_FUNCTION(, const char*, EventHubClient_GetVersionString);
 
 #ifdef __cplusplus
 }

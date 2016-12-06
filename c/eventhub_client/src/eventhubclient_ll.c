@@ -60,7 +60,7 @@ typedef struct EVENTHUB_EVENT_LIST_TAG
     void* context;
     EVENTHUB_EVENT_STATUS currentStatus;
     DLIST_ENTRY entry;
-    uint64_t idle_timer;
+    tickcounter_ms_t idle_timer;
 } EVENTHUB_EVENT_LIST, *PEVENTHUB_EVENT_LIST;
 
 typedef struct EVENTHUBCLIENT_LL_TAG
@@ -246,7 +246,7 @@ static void destroy_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
     eventhub_client_ll->message_sender_state = MESSAGE_SENDER_STATE_IDLE;
 }
 
-static void on_message_sender_state_changed(const void* context, MESSAGE_SENDER_STATE new_state, MESSAGE_SENDER_STATE previous_state)
+static void on_message_sender_state_changed(void* context, MESSAGE_SENDER_STATE new_state, MESSAGE_SENDER_STATE previous_state)
 {
     EVENTHUBCLIENT_LL* eventhub_client_ll = (EVENTHUBCLIENT_LL*)context;
     (void)previous_state;
@@ -494,7 +494,7 @@ static int initialize_uamqp_stack(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
     return result;
 }
 
-static void on_message_send_complete(const void* context, MESSAGE_SEND_RESULT send_result)
+static void on_message_send_complete(void* context, MESSAGE_SEND_RESULT send_result)
 {
     PDLIST_ENTRY currentListEntry = (PDLIST_ENTRY)context;
     EVENTHUBCLIENT_CONFIRMATION_RESULT callback_confirmation_result;
@@ -1087,10 +1087,10 @@ int create_batch_message(MESSAGE_HANDLE message, EVENTDATA_HANDLE* event_data_li
                 }
                 else
                 {
-                    data data = { payload.bytes, payload.length };
+                    data bin_data = { payload.bytes, (uint32_t)payload.length };
 
                     /* Codes_SRS_EVENTHUBCLIENT_LL_01_088: [The event payload shall be serialized as an AMQP message data section.] */
-                    AMQP_VALUE data_value = amqpvalue_create_data(data);
+                    AMQP_VALUE data_value = amqpvalue_create_data(bin_data);
                     if (data_value == NULL)
                     {
                         /* Codes_SRS_EVENTHUBCLIENT_LL_01_094: [If any error occurs during serializing each event properties and data that are part of the batch, the callback associated with the message shall be called with EVENTHUBCLIENT_CONFIRMATION_ERROR and the message shall be freed from the pending list.] */
@@ -1311,7 +1311,7 @@ void EventHubClient_LL_DoWork(EVENTHUBCLIENT_LL_HANDLE eventhub_client_ll)
                             {
                                 currentEvent->currentStatus = WAITING_FOR_ACK;
 
-                                uint64_t current_time;
+                                tickcounter_ms_t current_time;
                                 (void)tickcounter_get_current_ms(eventhub_client_ll->counter, &current_time);
                                 if (eventhub_client_ll->msg_timeout > 0 && ((current_time-currentEvent->idle_timer)/1000) > eventhub_client_ll->msg_timeout)
                                 {

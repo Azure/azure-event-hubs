@@ -9,6 +9,8 @@ compileAsC99()
 set(eventhub_client_c_files
     ./src/eventdata.c
     ./src/eventhubclient.c
+    ./src/eventhubreceiver.c
+    ./src/eventhubreceiver_ll.c
     ./src/eventhubclient_ll.c
     ./src/version.c
 )
@@ -17,11 +19,13 @@ set(eventhub_client_h_files
     ./inc/eventdata.h
     ./inc/eventhubclient.h
     ./inc/eventhubclient_ll.h
+    ./inc/eventhubreceiver.h
+    ./inc/eventhubreceiver_ll.h
     ./inc/version.h
 )
 
 #these are the include folders
-#the following "set" statetement exports across the project a global variable called SHARED_UTIL_INC_FOLDER that expands to whatever needs to included when using COMMON library
+#the following "set" statement exports across the project a global variable called SHARED_UTIL_INC_FOLDER that expands to whatever needs to included when using COMMON library
 
 set(EVENTHUB_CLIENT_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using eventhub_client lib" FORCE)
 

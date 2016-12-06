@@ -13,6 +13,7 @@
 extern "C" 
 {
 #else
+#include <stdint.h>
 #include <stddef.h>
 #endif
 
@@ -34,7 +35,8 @@ MOCKABLE_FUNCTION(, void, EventData_Destroy, EVENTDATA_HANDLE, eventDataHandle);
 MOCKABLE_FUNCTION(, const char*, EventData_GetPartitionKey, EVENTDATA_HANDLE, eventDataHandle);
 MOCKABLE_FUNCTION(, EVENTDATA_RESULT, EventData_SetPartitionKey, EVENTDATA_HANDLE, eventDataHandle, const char*, partitionKey);
 MOCKABLE_FUNCTION(, MAP_HANDLE, EventData_Properties, EVENTDATA_HANDLE, eventDataHandle);
-
+MOCKABLE_FUNCTION(, EVENTDATA_RESULT, EventData_SetEnqueuedTimestampUTCInMs, EVENTDATA_HANDLE, eventDataHandle, uint64_t, timestampInMs);
+MOCKABLE_FUNCTION(, uint64_t, EventData_GetEnqueuedTimestampUTCInMs, EVENTDATA_HANDLE, eventDataHandle);
 #ifdef __cplusplus
 }
 #endif

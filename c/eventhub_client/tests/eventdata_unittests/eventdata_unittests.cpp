@@ -1065,4 +1065,91 @@ TEST_FUNCTION(EventData_Map_Filter_Succeed)
     EventData_Destroy(eventDataHandle);
 }
 
+//**SRS_EVENTDATA_29_060: \[**`EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_INVALID_ARG if eventDataHandle parameter is NULL.**\]**
+TEST_FUNCTION(EventData_EventData_SetEnqueuedTimestampUTC_NULL_Param_Handle)
+{
+    // arrange
+    CEventDataMocks mocks;
+    EVENTDATA_RESULT result;
+    mocks.ResetAllCalls();
+
+    // act
+    result = EventData_SetEnqueuedTimestampUTCInMs(NULL, 10);
+
+    // assert
+    ASSERT_ARE_EQUAL(int, EVENTDATA_INVALID_ARG, result);
+    mocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+}
+
+//**SRS_EVENTDATA_29_061: \[**On success `EventData_SetEnqueuedTimestampUTCInMs` shall store the timestamp parameter in the EVENTDATA_HANDLE data structure.**\]**
+//**SRS_EVENTDATA_29_062: \[**On Success `EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_OK.**\]**
+TEST_FUNCTION(EventData_EventData_SetEnqueuedTimestampUTC_Success)
+{
+    // arrange
+    CEventDataMocks mocks;
+    EVENTDATA_RESULT result;
+    unsigned char expectedData[] = { 0x42, 0x43, 0x44 };
+    size_t expectedSize = sizeof(expectedData);
+    EVENTDATA_HANDLE eventDataHandle = EventData_CreateWithNewMemory(expectedData, expectedSize);
+    mocks.ResetAllCalls();
+
+    // act
+    result = EventData_SetEnqueuedTimestampUTCInMs(eventDataHandle, 10);
+
+    // assert
+    ASSERT_ARE_EQUAL(int, EVENTDATA_OK, result);
+
+    mocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+    EventData_Destroy(eventDataHandle);
+}
+
+//**SRS_EVENTDATA_07_050: \[**`EventData_GetEnqueuedTimestampUTCInMs` shall return 0 if the eventDataHandle parameter is NULL.**\]**
+TEST_FUNCTION(EventData_EventData_GetEnqueuedTimestampUTC_NULL_Param_Handle)
+{
+    //arrange
+    CEventDataMocks mocks;
+    uint64_t timestamp;
+    mocks.ResetAllCalls();
+
+    // act
+    timestamp = EventData_GetEnqueuedTimestampUTCInMs(NULL);
+
+    //assert
+    ASSERT_ARE_EQUAL(uint64_t, 0, timestamp);
+    mocks.AssertActualAndExpectedCalls();
+
+    //cleanup
+}
+
+//**SRS_EVENTDATA_07_051: \[**If eventDataHandle is not null, `EventData_GetEnqueuedTimestampUTCInMs` shall return the timestamp value stored in the EVENTDATA_HANDLE.**\]**
+TEST_FUNCTION(EventData_EventData_GetEnqueuedTimestampUTC_Success)
+{
+    // arrange
+    CEventDataMocks mocks;
+    uint64_t timestamp = 0;
+    unsigned char expectedData[] = { 0x42, 0x43, 0x44 };
+    size_t expectedSize = sizeof(expectedData);
+
+    EVENTDATA_HANDLE eventDataHandle = EventData_CreateWithNewMemory(expectedData, expectedSize);
+    timestamp = EventData_GetEnqueuedTimestampUTCInMs(eventDataHandle);
+    ASSERT_ARE_EQUAL_WITH_MSG(uint64_t, (uint64_t)0, timestamp, "Initial Timestamp Expected To Be Zero.");
+
+    (void)EventData_SetEnqueuedTimestampUTCInMs(eventDataHandle, 10);
+    mocks.ResetAllCalls();
+
+    // act
+    timestamp = EventData_GetEnqueuedTimestampUTCInMs(eventDataHandle);
+
+    // assert
+    ASSERT_ARE_EQUAL_WITH_MSG(uint64_t, 10, timestamp, "Invalid timestamp value seen.");
+    mocks.AssertActualAndExpectedCalls();
+
+    // cleanup
+    EventData_Destroy(eventDataHandle);
+}
+
 END_TEST_SUITE(eventdata_unittests)

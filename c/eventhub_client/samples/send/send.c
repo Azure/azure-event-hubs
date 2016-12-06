@@ -24,7 +24,7 @@ static const char TEST_STRING_VALUE_2[] = "Property_String_Value_2";
 
 #define SLEEP_TIME		1000
 #define BUFFER_SIZE     128
-static size_t g_id = 1000;
+static unsigned int g_id = 1000;
 
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_STATE, EVENTHUBCLIENT_STATE_VALUES);
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_ERROR_RESULT, EVENTHUBCLIENT_ERROR_RESULT_VALUES);
@@ -73,7 +73,7 @@ int Send_Sample(void)
     g_id++;
 
     char msgContent[BUFFER_SIZE];
-    size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%d, \"name\":\"Send_Sample\"}", g_id);
+    size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%u, \"name\":\"Send_Sample\"}", g_id);
 
     (void)printf("Starting the EventHub Client Send Sample (%s)...\r\n", EventHubClient_GetVersionString());
 

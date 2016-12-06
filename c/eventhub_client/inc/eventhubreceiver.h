@@ -100,7 +100,7 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampAsync
     void *onEventReceiveUserContext,
     EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK onEventReceiveErrorCallback,
     void *onEventReceiveErrorUserContext,
-    unsigned long long startTimestampInSec
+    uint64_t startTimestampInSec
 );
 
 /**
@@ -147,7 +147,7 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampWithTim
     void *onEventReceiveUserContext,
     EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK onEventReceiveErrorCallback,
     void *onEventReceiveErrorUserContext,
-    unsigned long long startTimestampInSec,
+    uint64_t startTimestampInSec,
     unsigned int waitTimeoutInMs
 );
 
@@ -159,7 +159,8 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampWithTim
 *                                           user that the communication to the event hub 
 *                                           has terminated. On success, the callback result 
 *                                           code will be EVENTHUBRECEIVER_OK and an error
-*                                           code otherwise.
+*                                           code otherwise. This is an optional parameter and
+*                                           therefore can be @c NULL.
 * @param	onEventReceiveEndUserContext    User specified context that will be provided to the
 * 										    callback. This can be @c NULL.
 *
@@ -188,7 +189,7 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveEndAsync
 *
 * @note By default tracing is disabled.
 */
-extern EVENTHUBRECEIVER_RESULT EventHubReceiver_Set_ConnectionTracing
+extern EVENTHUBRECEIVER_RESULT EventHubReceiver_SetConnectionTracing
 (
     EVENTHUBRECEIVER_HANDLE eventHubReceiverHandle,
     bool traceEnabled

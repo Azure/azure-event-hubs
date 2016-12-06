@@ -31,8 +31,8 @@ SOFTWARE.
 #endif
 
 #include <stdlib.h>
+#include "azure_c_shared_utility/xlogging.h"
 #include "eventhub_account.h"
-#include "iot_logging.h"
 
 #define MAX_PARTITION_SIZE      16
 
@@ -69,5 +69,17 @@ int EventHubAccount_PartitionCount(void)
     { 
         nPartitionCount = atoi(envVar); 
     } 
-    return nPartitionCount; 
+    return nPartitionCount;
+}
+
+const char* EventHubAccount_ConsumerGroup(void)
+{
+    static const char* defaultConsumerGroup = "$Default";
+    const char* envVar = getenv("EVENTHUB_CONSUMER_GROUP");
+    if (envVar == NULL)
+    {
+        LogInfo("Warning: EVENTHUB_CONSUMER_GROUP environment variable is NULL using value of %s\r\n", defaultConsumerGroup);
+        envVar = defaultConsumerGroup;
+    }
+    return envVar;
 }

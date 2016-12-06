@@ -41,7 +41,7 @@ int SendBatch_Sample(void)
         //Create an Array of EventData so we can send these data batched.
         EVENTDATA_HANDLE eventDataList[NUM_OF_MSG_TO_SEND];
 
-        size_t index;
+        unsigned int index;
         for (index = 0; index < NUM_OF_MSG_TO_SEND; index++)
         {
             char msgContent[BUFFER_SIZE];
@@ -96,7 +96,7 @@ int SendBatch_Sample(void)
                 EventHubClient_Destroy(eventHubClientHandle);
             }
         }
-        for (size_t i = 0; i < index; i++)
+        for (unsigned int i = 0; i < index; i++)
         {
             EventData_Destroy(eventDataList[i]);
         }

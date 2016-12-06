@@ -23,7 +23,7 @@ static const char TEST_STRING_VALUE_2[] = "Property_String_Value_2";
 
 #define SLEEP_TIME		1000
 #define BUFFER_SIZE     128
-static size_t g_id = 1000;
+static unsigned int g_id = 1000;
 
 DEFINE_ENUM_STRINGS(EVENTHUBCLIENT_CONFIRMATION_RESULT, EVENTHUBCLIENT_CONFIRMATION_RESULT_VALUES);
 
@@ -49,7 +49,7 @@ int SendAsync_Sample(void)
     else
     {
         char msgContent[BUFFER_SIZE];
-        size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%d, \"name\":\"SendAsync_Sample\"}", g_id);
+        size_t msgLength = sprintf_s(msgContent, BUFFER_SIZE, "{\"messageId\":%u, \"name\":\"SendAsync_Sample\"}", g_id);
 
         (void)printf("Starting the EventHub Client SendAsync Sample (%s)...\r\n", EventHubClient_GetVersionString());
 

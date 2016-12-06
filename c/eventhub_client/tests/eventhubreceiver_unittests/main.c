@@ -17,22 +17,11 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 IN THE SOFTWARE.
 */
 
-#ifndef EVENTHUBACCOUNT_H
-#define EVENTHUBACCOUNT_H
+#include "testrunnerswitcher.h"
 
-#ifdef __cplusplus
-#include <cstddef>
-extern "C"
+int main(void)
 {
-#endif
-
-extern const char* EventHubAccount_GetConnectionString(void);
-extern const char* EventHubAccount_GetName(void);
-extern int EventHubAccount_PartitionCount(void);
-extern const char* EventHubAccount_ConsumerGroup(void);
-
-#ifdef __cplusplus
+    size_t failedTestCount = 0;
+    RUN_TEST_SUITE(eventhubreceiver_unittests, failedTestCount);
+    return failedTestCount;
 }
-#endif
-
-#endif // EVENTHUBACCOUNT_H

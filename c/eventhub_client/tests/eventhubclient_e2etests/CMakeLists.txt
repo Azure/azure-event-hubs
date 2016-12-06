@@ -8,7 +8,7 @@ compileAsC11()
 set(theseTestsName eventhubclient_e2etests)
 
 set(${theseTestsName}_cpp_files
-	${theseTestsName}.cpp
+    ${theseTestsName}.cpp
 )
 
 set(${theseTestsName}_c_files
@@ -19,29 +19,32 @@ set(${theseTestsName}_h_files
 
 include_directories(${EVENTHUB_TEST_INC_FOLDER})
 
-build_test_artifacts(${theseTestsName} OFF "tests/e2eTests")
+build_test_artifacts(${theseTestsName} OFF)
 
 if(WIN32)
 	if(TARGET ${theseTestsName}_dll)
 		target_link_libraries(${theseTestsName}_dll
 			eventhub_client
-                        eventhub_test
+			eventhub_test
 			aziotsharedutil
+			uamqp
+			testrunnerswitcher
 		)
 	endif()
-	
+
 	if(TARGET ${theseTestsName}_exe)
 		target_link_libraries(${theseTestsName}_exe
 			eventhub_client
-            eventhub_test
+			eventhub_test
 			aziotsharedutil
+			uamqp
 		)
 	endif()
 else()
 	if(TARGET ${theseTestsName}_exe)
 		target_link_libraries(${theseTestsName}_exe
 			eventhub_client
-            eventhub_test
+			eventhub_test
 			aziotsharedutil
 		)
 		target_link_libraries(${theseTestsName}_exe pthread)

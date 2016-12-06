@@ -4165,7 +4165,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -4460,7 +4460,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn((AMQP_VALUE)NULL);
 
@@ -4518,7 +4518,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -4582,7 +4582,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -4648,7 +4648,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -4719,7 +4719,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
             .CopyOutArgumentBuffer(2, &no_property_keys, sizeof(no_property_keys))
             .CopyOutArgumentBuffer(3, &no_property_values, sizeof(no_property_values))
             .CopyOutArgumentBuffer(4, &no_property_size, sizeof(no_property_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -4824,7 +4824,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         size_t properties_encoded_size = sizeof(properties_encoded_data);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_get_encoded_size(TEST_APPLICATION_PROPERTIES_1, IGNORED_PTR_ARG))
             .CopyOutArgumentBuffer(2, &properties_encoded_size, sizeof(properties_encoded_size));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         unsigned char encoded_data_1[] = { 0x42 };
@@ -5450,7 +5450,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("prop_value_2"))
             .SetReturn(TEST_PROPERTY_2_VALUE_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_2_KEY_AMQP_VALUE, TEST_PROPERTY_2_VALUE_AMQP_VALUE));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_application_properties(TEST_UAMQP_MAP))
@@ -5535,7 +5535,7 @@ BEGIN_TEST_SUITE(eventhubclient_ll_unittests)
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_string("prop_value_2"))
             .SetReturn(TEST_PROPERTY_2_VALUE_AMQP_VALUE);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_set_map_value(TEST_UAMQP_MAP, TEST_PROPERTY_2_KEY_AMQP_VALUE, TEST_PROPERTY_2_VALUE_AMQP_VALUE));
-        amqp_binary amqy_binary = { test_data, length };
+        amqp_binary amqy_binary = { test_data, (uint32_t)length };
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_data(amqy_binary))
             .SetReturn(TEST_DATA_1);
         STRICT_EXPECTED_CALL(mocks, amqpvalue_create_application_properties(TEST_UAMQP_MAP))

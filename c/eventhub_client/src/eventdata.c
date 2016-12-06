@@ -20,6 +20,7 @@ typedef struct EVENT_DATA_TAG
     BUFFER_HANDLE buffer;
     STRING_HANDLE partitionKey;
     MAP_HANDLE properties;
+    uint64_t enqueuedTimestampUTC;
 } EVENT_DATA;
 
 typedef struct EVENT_PROPERTY_TAG
@@ -107,6 +108,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
             }
             else
             {
+                eventData->enqueuedTimestampUTC = 0;
                 result = (EVENTDATA_HANDLE)eventData;
             }
         }
@@ -124,6 +126,7 @@ EVENTDATA_HANDLE EventData_CreateWithNewMemory(const unsigned char* data, size_t
         }
         else
         {
+            eventData->enqueuedTimestampUTC = 0;
             result = (EVENTDATA_HANDLE)eventData;
         }
     }
@@ -260,7 +263,7 @@ EVENTDATA_HANDLE EventData_Clone(EVENTDATA_HANDLE eventDataHandle)
         {
             // Need to initialize this here in case it doesn't get set later
             result->partitionKey = NULL;
-
+            result->enqueuedTimestampUTC = srcData->enqueuedTimestampUTC;
             /* Codes_SRS_EVENTDATA_07_051: [EventData_Clone shall make use of BUFFER_Clone to clone the EVENT_DATA buffer.] */
             if ( (result->buffer = BUFFER_clone(srcData->buffer) ) == NULL)
             {
@@ -307,5 +310,46 @@ MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle)
         EVENT_DATA* handleData = (EVENT_DATA*)eventDataHandle;
         result = handleData->properties;
     }
+    return result;
+}
+
+EVENTDATA_RESULT EventData_SetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle, uint64_t timestampInMs)
+{
+    EVENTDATA_RESULT result;
+
+    if (eventDataHandle == NULL)
+    {
+        //**SRS_EVENTDATA_29_060: \[**`EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_INVALID_ARG if eventDataHandle parameter is NULL.**\]**
+        LogError("invalid arg (NULL) passed to EventData_SetEnqueuedTimestampUTCInMS\r\n");
+        result = EVENTDATA_INVALID_ARG;
+    }
+    else
+    {
+        //**SRS_EVENTDATA_29_061: \[**On success `EventData_SetEnqueuedTimestampUTCInMs` shall store the timestamp parameter in the EVENTDATA_HANDLE data structure.**\]**
+        //**SRS_EVENTDATA_29_062: \[**On Success `EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_OK.**\]**
+        EVENT_DATA* handleData = (EVENT_DATA*)eventDataHandle;
+        handleData->enqueuedTimestampUTC = timestampInMs;
+        result = EVENTDATA_OK;
+    }
+    return result;
+}
+
+uint64_t EventData_GetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle)
+{
+    uint64_t result;
+
+    if (eventDataHandle == NULL)
+    {
+        //**SRS_EVENTDATA_07_050: \[**`EventData_GetEnqueuedTimestampUTCInMs` shall return 0 if the eventDataHandle parameter is NULL.**\]**
+        LogError("invalid arg (NULL) passed to EventData_GetEnqueuedTimestampUTCInMS\r\n");
+        result = 0;
+    }
+    else
+    {
+        //**SRS_EVENTDATA_07_051: \[**If eventDataHandle is not null, `EventData_GetEnqueuedTimestampUTCInMs` shall return the timestamp value stored in the EVENTDATA_HANDLE.**\]**
+        EVENT_DATA* handleData = (EVENT_DATA*)eventDataHandle;
+        result = handleData->enqueuedTimestampUTC;
+    }
+
     return result;
 }

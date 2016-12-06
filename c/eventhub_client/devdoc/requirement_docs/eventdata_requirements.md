@@ -29,6 +29,8 @@ extern void EventData_Destroy(EVENTDATA_HANDLE eventDataHandle);
 extern const char* EventData_GetPartitionKey(EVENTDATA_HANDLE eventDataHandle);
 extern EVENTDATA_RESULT EventData_SetPartitionKey(EVENTDATA_HANDLE eventDataHandle, const char* partitionKey);
 extern MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle);
+extern uint64_t EventData_GetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle);
+extern EVENTDATA_RESULT EventData_SetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle, uint64_t timestampInMs);
 ```
 
 ###EventData_CreateWithNewMemory
@@ -105,3 +107,22 @@ extern MAP_HANDLE EventData_Properties(EVENTDATA_HANDLE eventDataHandle);
 
 **SRS_EVENTDATA_07_034: \[**if eventDataHandle is NULL then EventData_Properties shall return NULL.**\]** 
 **SRS_EVENTDATA_07_035: \[**Otherwise, for any non-NULL eventDataHandle it shall return a non-NULL MAP_HANDLE.**\]** 
+
+###EventData_GetEnqueuedTimestampUTCInMs
+
+```c
+extern uint64_t EventData_GetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle);
+```
+
+**SRS_EVENTDATA_07_050: \[**`EventData_GetEnqueuedTimestampUTCInMs` shall return 0 if the eventDataHandle parameter is NULL.**\]**
+**SRS_EVENTDATA_07_051: \[**If eventDataHandle is not null, `EventData_GetEnqueuedTimestampUTCInMs` shall return the timestamp value stored in the EVENTDATA_HANDLE.**\]**
+
+###EventData_SetEnqueuedTimestampUTCInMs
+
+```c
+extern EVENTDATA_RESULT EventData_SetEnqueuedTimestampUTCInMs(EVENTDATA_HANDLE eventDataHandle, uint64_t timestamp)
+```
+
+**SRS_EVENTDATA_29_060: \[**`EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_INVALID_ARG if eventDataHandle parameter is NULL.**\]**
+**SRS_EVENTDATA_29_061: \[**On success `EventData_SetEnqueuedTimestampUTCInMs` shall store the timestamp parameter in the EVENTDATA_HANDLE data structure.**\]**
+**SRS_EVENTDATA_29_062: \[**On Success `EventData_SetEnqueuedTimestampUTCInMs` shall return EVENTDATA_OK.**\]**
