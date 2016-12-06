@@ -45,7 +45,6 @@ linkSharedUtil(eventhub_client)
 
 add_subdirectory(samples)
 
-if((NOT IN_OPENWRT) AND (NOT skip_unittests))
-    # Disable tests for OpenWRT
+if (${run_unittests})
     add_subdirectory(tests)
 endif()
