@@ -232,10 +232,11 @@ MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_ReceiveFromStar
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 *
-* @note     This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or
+*           @b NOTE: This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or
 *           EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK callback.
 *
-*           In the registered callback below, users may call EventHubReceiver_Destroy_LL
+*			@b NOTE: The application behavior is undefined if the user calls
+*			the EventHubReceiver_Destroy function from within any callback.
 */
 MOCKABLE_FUNCTION(, EVENTHUBRECEIVER_RESULT, EventHubReceiver_LL_ReceiveEndAsync,
     EVENTHUBRECEIVER_LL_HANDLE, eventHubReceiverLLHandle,

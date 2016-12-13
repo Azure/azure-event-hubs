@@ -166,10 +166,11 @@ extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveFromStartTimestampWithTim
 *
 * @return	EVENTHUBRECEIVER_OK upon success or an error code upon failure.
 *
-* @note     This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or 
+*           @b NOTE: This API is safe to call within a EVENTHUBRECEIVER_ASYNC_CALLBACK or
 *           EVENTHUBRECEIVER_ASYNC_ERROR_CALLBACK callback.
 *
-*           In the registered callback below, users may call EventHubReceiver_Destroy
+*			@b NOTE: The application behavior is undefined if the user calls
+*			the EventHubReceiver_Destroy function from within any callback.
 */
 extern EVENTHUBRECEIVER_RESULT EventHubReceiver_ReceiveEndAsync
 (
