@@ -1,0 +1,42 @@
+{
+  "name": "event-processor-host",
+  "version": "0.0.1",
+  "description": "Azure Event Hubs EventProcessorHost implementation for Node.js",
+  "author": "Microsoft Corporation",
+  "license": "MIT",
+  "main": "./lib",
+  "dependencies": {
+    "azure-event-hubs": "^0.0.1",
+    "azure-iot-common": "^1.0.0-preview.7",
+    "bluebird": "^3.0.6",
+    "cerulean": "^0.2.1",
+    "debug": "^2.2.0",
+    "uuid": "^2.0.1"
+  },
+  "devDependencies": {
+    "chai": "^3.4.1",
+    "chai-as-promised": "^5.1.0",
+    "jshint": "^2.9.1-rc1",
+    "mocha": "^2.3.4"
+  },
+  "engines": {
+    "node": "^4.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Azure/azure-event-hubs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Azure/azure-event-hubs/issues"
+  },
+  "homepage": "https://github.com/Azure/azure-event-hubs#readme",
+  "scripts": {
+    "lint": "jshint --show-non-errors .",
+    "unittest-min": "mocha --reporter dot tests/*.js",
+    "alltest-min": "mocha --reporter dot tests/**/*.js",
+    "unittest": "mocha --reporter spec tests/*.js",
+    "alltest": "mocha --reporter spec tests/**/*.js",
+    "ci": "npm -s run lint && npm -s run alltest-min",
+    "test": "npm -s run lint && npm -s run unittest"
+  }
+}
