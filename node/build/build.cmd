@@ -52,6 +52,12 @@ echo.
 call :lint-and-test %node-root%\send_receive
 if errorlevel 1 goto :eof
 
+call :link-npm %node-root%\send_receive %node-root%\event_processor_host azure-event-hubs
+if errorlevel 1 goto :eof
+
+call :lint-and-test %node-root%\event_processor_host
+if errorlevel 1 goto :eof
+
 goto :eof
 
 
@@ -71,4 +77,13 @@ goto :eof
 cd "%1"
 echo %cd%
 call %npm-command%
+goto :eof
+
+:link-npm
+cd "%1"
+echo Linking %cd%
+call npm link
+cd "%2"
+echo Linking %3 in %cd%
+call npm link %3
 goto :eof

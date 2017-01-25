@@ -62,3 +62,6 @@ echo ""
 
 lint_and_test $node_root/send_receive
 [ $? -eq 0 ] || exit $?
+
+lint_and_test $node_root/event_processor_host
+[ $? -eq 0 ] || exit $?
