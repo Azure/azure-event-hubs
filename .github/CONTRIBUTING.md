@@ -1,23 +1,46 @@
-## What to contribute
-There are many ways that you can contribute to the Azure Event Hubs client project:
+﻿# Contribute or Provide Feedback for Azure Event Hubs
 
-* Submit a bug
-* Submit a code fix for a bug
-* Submit code to add a new platform/language support to the project, or modify existing code
-* Submit additions or modifications to the documentation
-* Submit a feature request
+## Table of Contents
 
-## Contributing Code
-To contribute code you need to issue a Pull Request against the develop branch. All code submissions will be reviewed and tested by the team, and those that meet a high bar for both quality and design/roadmap appropriateness will be merged into the source. Be sure to follow the existing file/folder structure when adding new boards or sensors.
+- [Code of Conduct](#code-of-conduct)
+- [Filing Issues](#filing-issues)
+- [Pull Requests](#pull-requests)
+    - [General guidelines](#general-guidelines)
+    - [Testing guidelines](#testing-guidelines)
 
-You must sign a [Contribution License Agreement](https://cla.microsoft.com/) ([CLA](https://cla.microsoft.com/)) before submitting a Pull Request. To complete the CLA, you will need to submit the request via the form and then electronically sign the CLA when you receive the email containing the link to the document.
+## Code of Conduct
 
-## Big contributions
-If your contribution is significantly big it is better to first check with the project developers in order to make sure the change aligns with the long term plans. This can be done simply by submitting a question via the GitHub Issues section.
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## Things to keep in mind when contributing
-Some guidance for when you make a contribution:
+## Language specific libraries
 
-* Add/update unit tests and code as required by your change
-* Make sure you run all the unit tests on the affected platform(s)/languages. If the change is in common code, generally running on one platform would be acceptable.
-* Run end-to-end tests or simple sample code to make sure the lib works in an end-to-end scenario.
+If you have an issue for a specific client library, see the following:
+* [.NET](https://github.com/azure/azure-event-hubs-dotnet)
+* [Java](https://github.com/azure/azure-event-hubs-java)
+* [C](https://github.com/azure/azure-event-hubs-c)
+* [Node.js](https://github.com/azure/azure-event-hubs-node)
+
+## Filing Issues
+
+You can find all of the issues that have been filed in the [Issues](https://github.com/Azure/azure-event-hubs/issues) section of the repository.
+
+If you encounter any service side bugs, please file an issue [here](https://github.com/Azure/azure-event-hubs/issues/new) and make sure to fill out the provided template with the requested information.
+
+To suggest a new feature or changes that could be made, file an issue the same way you would for a bug, but remove the provided template and replace it with information about your suggestion.
+
+### Pull Requests
+
+You can find all of the pull requests that have been opened in the [Pull Request](https://github.com/Azure/azure-event-hubs/pulls) section of the repository.
+
+To open your own pull request, click [here](https://github.com/Azure/azure-event-hubs/compare). When creating a pull request, keep the following in mind:
+- Make sure you are pointing to the fork and branch that your changes were made in
+- The pull request template that is provided **should be filled out**; this is not something that should just be deleted or ignored when the pull request is created
+    - Deleting or ignoring this template will elongate the time it takes for your pull request to be reviewed
+
+#### General guidelines
+
+The following guidelines must be followed in **EVERY** pull request that is opened.
+
+- Title of the pull request is clear and informative
+- There are a small number of commits that each have an informative message
+- A description of the changes the pull request makes is included, and a reference to the bug/issue the pull request fixes is included, if applicable
