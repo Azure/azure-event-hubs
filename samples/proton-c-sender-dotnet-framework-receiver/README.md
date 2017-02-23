@@ -25,7 +25,3 @@ Note that SASKeyName and SASKey need to be URL encoded.
 
 This example was based on the Proton C++ sample located here:
 https://qpid.apache.org/releases/qpid-proton-0.17.0/proton/cpp/examples/helloworld.cpp.html
-
-## Contributing
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
