@@ -1,14 +1,13 @@
+## Description
 <!--
-Thank you for your interest in the Azure Event Hub SDKs
+Please add an informative description that covers the changes made by the pull request.
 
-Before you create a pull request, please consider that each Azure Event Hub SDK now lives in its own repository:
--    C: https://github.com/Azure/azure-event-hubs-c/
-- .NET: https://github.com/Azure/azure-event-hubs-dotnet/
-- Node: https://github.com/Azure/azure-event-hubs-node/
-- Java: https://github.com/Azure/azure-event-hubs-java/
-
-We will not be accepting pull-requests for SDK code in this repository, and encourage you to clone the specific SDK repository and submit your PR there. 
-Please remember that all code pull-requests must include tests and be submitted against the `develop` branch
-
-Thank you again, we appreciate all feedback!
+If applicable, reference the bug/issue that this pull request fixes here.
 -->
+
+This checklist is used to make sure that common guidelines for a pull request are followed.
+
+- [ ] **I have read the [contribution guidelines](./CONTRIBUTING.md).**
+- [ ] Title of the pull request is clear and informative.
+- [ ] If applicable, the code is properly documented.
+- [ ] The code builds without any errors.
