@@ -8,9 +8,7 @@
     "Microsoft.Azure.EventHubs.Processor": {
       "target": "project"
     },
-    "Microsoft.Azure.EventHubs": {
-      "target": "project"
-    }
+    "Microsoft.Azure.EventHubs": "1.0.0"
   },
 
   "frameworks": {

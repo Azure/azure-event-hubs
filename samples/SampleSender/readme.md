@@ -7,7 +7,7 @@ This sample shows how to write a .NET Core console application that sends a set 
 ## Prerequisites
 
 1. [Visual Studio 2015](http://www.visualstudio.com).
-2. [.NET Core Visual Studio 2015 tool](http://www.microsoft.com/net/core).
+2. [.NET Core Visual Studio 2015 tools](http://www.microsoft.com/net/core).
 3. An Azure subscription.
 4. An Event Hubs namespace.
 
