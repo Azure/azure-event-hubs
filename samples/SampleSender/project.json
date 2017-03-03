@@ -5,9 +5,7 @@
   },
 
   "dependencies": {
-    "Microsoft.Azure.EventHubs": {
-      "target": "project"
-    },
+    "Microsoft.Azure.EventHubs": "1.0.0",
     "Microsoft.NETCore.App": {
       "type": "platform",
       "version": "1.0.1"

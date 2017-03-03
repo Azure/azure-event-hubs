@@ -5,9 +5,7 @@
   },
 
   "dependencies": {
-    "Microsoft.Azure.EventHubs.Processor": {
-      "target": "project"
-    },
+    "Microsoft.Azure.EventHubs.Processor": "1.0.0",
     "Microsoft.Azure.EventHubs": "1.0.0"
   },
 
