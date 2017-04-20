@@ -7,11 +7,11 @@ Any samples within the 'Azure.Microsoft.EventHubs' folder target the newer .NET 
 
 #### SampleSender
 
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleSender/README.md) shows how to write a .NET Core console application that sends a set of messages to an Event Hub.
+[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleSender/readme.md) shows how to write a .NET Core console application that sends a set of messages to an Event Hub.
 
 #### SampleEphReceiver
 
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleEphReceiver/README.md) shows how to write a .NET Core console application that receives messages from an Event Hub using the **EventProcessorHost**.
+[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleEphReceiver/readme.md) shows how to write a .NET Core console application that receives messages from an Event Hub using the **EventProcessorHost**.
 
 ## Java
 
