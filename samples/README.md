@@ -3,7 +3,7 @@
 ## .NET
 
 ### Microsoft.Azure.EventHubs
-Any samples within the 'Azure.Microsoft.EventHubs' folder target the newer .NET Standard library.
+Any samples within the `Azure.Microsoft.EventHubs` folder target the newer .NET Standard library.
 
 #### SampleSender
 
