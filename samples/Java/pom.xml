@@ -1,34 +1,36 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-  
   	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>azure-eventhubs-samples</artifactId>
 	<name>azure-eventhubs-samples</name>
-	    
+
 	<dependencies>
 	 	<dependency>
 	  		<groupId>com.microsoft.azure</groupId>
-	  		<artifactId>azure-eventhubs</artifactId>
-	  		<version>0.13.1</version>
-	 	</dependency>
-	 	<dependency>
-	  		<groupId>com.microsoft.azure</groupId>
 	  		<artifactId>azure-eventhubs-eph</artifactId>
-	  		<version>0.13.1</version>
-	 	</dependency>
-	 	<dependency>
-	  		<groupId>com.google.code.gson</groupId>
-	  		<artifactId>gson</artifactId>
-	  		<version>2.3.1</version>
-	   </dependency>
-	 	<dependency>
-	 		<groupId>com.microsoft.azure</groupId>
-	 		<artifactId>azure-storage</artifactId>
-	 		<version>4.0.0</version>
+	  		<version>0.14.0</version>
 	 	</dependency>
 	</dependencies>
 
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<optimize>true</optimize>
+					<showDeprecation>true</showDeprecation>
+					<showWarnings>true</showWarnings>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
 	<groupId>com.microsoft.azure</groupId>
 	<version>1.0.0</version>
+
 </project>
