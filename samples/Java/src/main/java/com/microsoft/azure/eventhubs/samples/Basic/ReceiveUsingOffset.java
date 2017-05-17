@@ -6,6 +6,7 @@ package com.microsoft.azure.eventhubs.samples.Basic;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.ServiceBusException;
@@ -27,8 +28,9 @@ public class ReceiveUsingOffset {
 
         final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
 
-        // receiver
-        final String partitionId = "0"; // API to get PartitionIds will be released as part of V0.2
+        final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
+        final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
+        
         final PartitionReceiver receiver = ehClient.createEpochReceiverSync(
                 EventHubClient.DEFAULT_CONSUMER_GROUP_NAME,
                 partitionId,
