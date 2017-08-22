@@ -1,3 +1,5 @@
+# An overview, how Event Hubs Capture integrates with Event Grid 
+
 One of the key scenarios for modern cloud scale apps is seamless integration and notification amongst other apps and services. In this blog post, we introduced [Azure EventGrid](https://azure.microsoft.com/blog/introducing-azure-event-grid-an-event-service-for-modern-applications/) (in public preview), a service designed just for that!
 Today, we will go over a realistic scenario of capturing Azure EventHub data into a SQL Database Warehouse and demonstrate the power and simplicity of using [Azure EventGrid](https://docs.microsoft.com/azure/event-grid/overview) to achieve this.
 
@@ -47,12 +49,12 @@ An Event subscription can be created either through the portal or using Azure CL
 ### Using portal
 In the overview blade of your previously created Event Hubs namespace, select Event Grid and click on add subscription as show below
 
-![Capture Portal1](.\media\EventCaptureGridDemo3.png)
-![Capture Portal2](.\media\EventCaptureGridDemo4.png)
+![Capture Portal1](./media/EventCaptureGridDemo3.png)
+![Capture Portal2](./media/EventCaptureGridDemo4.png)
 
 In the Create Event subscription blade, fill in the details and click on create,
 
-![Capture Portal3](.\media\EventCaptureGridDemo5.png)
+![Capture Portal3](./media/EventCaptureGridDemo5.png)
 
 Note: When you select the Event Types, you are specifying that Event Grid notifies the Subscriber endpoint which in this case is the Azure functions url, each time Event Hubs Capture creates a blob entry in the storage
 
@@ -60,7 +62,7 @@ Note: When you select the Event Types, you are specifying that Event Grid notifi
 
 You can use the Azure Cloud Shell to launch directly within the Azure portal as it has Azure CLI perinstalled and configured to use with your account
 
-## Azure CLI
+### Azure CLI
 ```cli
 az eventgrid resource event-subscription create --name <event_subscription_name>
 						--resource-group/-g <resource_group>
