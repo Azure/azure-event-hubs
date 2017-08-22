@@ -1,10 +1,3 @@
----
-title: Readme
-description: An overview, how Event Hubs Capture integrates with Event Grid  
-services: event-hubs
-author: shubhavijayasarathy
-
----
 One of the key scenarios for modern cloud scale apps is seamless integration and notification amongst other apps and services. In this blog post, we introduced [Azure EventGrid](https://azure.microsoft.com/blog/introducing-azure-event-grid-an-event-service-for-modern-applications/) (in public preview), a service designed just for that!
 Today, we will go over a realistic scenario of capturing Azure EventHub data into a SQL Database Warehouse and demonstrate the power and simplicity of using [Azure EventGrid](https://docs.microsoft.com/azure/event-grid/overview) to achieve this.
 
