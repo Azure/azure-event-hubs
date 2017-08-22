@@ -71,8 +71,8 @@ You can use the Azure Cloud Shell to launch directly within the Azure portal as 
 ```cli
 az eventgrid resource event-subscription create --name <event_subscription_name>
 						--resource-group/-g <resource_group>
-						--resource-name 
-						--provider-namespace <namespace_name>
+						--resource-name <eventhubs_namespacename>
+						--provider-namespace <Microsoft.EventHub>
 						--resource-type <eventhub_name>
 						--endpoint <function_endpoint>
 
