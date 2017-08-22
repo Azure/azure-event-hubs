@@ -84,9 +84,10 @@ This article shows how to use [Power BI with SQL Data Warehouse](https://docs.mi
 Now you are all set to plug in the UI you need to get valuable business insights for your management.
 
 # Conclusion
-Looking forward to you trying out this sample and providing us your feedback. We would also love to see pull requests.
+Looking forward to you trying out this sample and providing us your feedback. We would also love to see pull requests
 
-We'll be providing more samples as we understand newer scenarios that your encounter. So, please stay tuned to much more from the Azure EventHubs/EventGrid team. Ciao!
+We'll be providing more samples as we understand newer scenarios that your encounter.
+So, please stay tuned to much more from the Azure EventHubs/EventGrid team. Ciao!
 
 
 
