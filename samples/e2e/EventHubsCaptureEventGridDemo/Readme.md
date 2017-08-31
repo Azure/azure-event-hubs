@@ -15,29 +15,20 @@ a.	WindTurbineDataGenerator – a simple publisher for wind turbine data, that s
 b.	FunctionDWDumper – This Azure Functions project receives the EventGrid notification about each Capture Avro blob created. This gets the blob’s Uri path, reads its contents and pushes this data to a SQL Database data warehouse.
 
 # Prerequisites
-*	[Visual studio 2017 Version 15.3.0 Preview 7.1 or greater](https://www.visualstudio.com/vs/preview/)
+*	[Visual studio 2017 Version 15.3.2 or greater](https://www.visualstudio.com/vs/)
 *	While installing, ensure that you install the following workloads: .NET desktop development, Azure development, ASP.NET and web development, Node.js development, Python development
 
 ![Visual Studio](./media/EventCaptureGridDemo1.png)
 
-[Download](https://marketplace.visualstudio.com/vsgallery/e3705d94-7cc3-4b79-ba7b-f43f30774d28) and install Visual Studio 2017 Tools for Azure Functions extension
-
 # Detailed steps
-1. Build the solution
-2. Run WindTurbineDataGenerator.exe. This creates an event hub with Capture turned on, dumping Avro blobs periodically
-3. Create an Azure Function endpoint. Copy the code snippet in FunctionDWDumper
+1. Deploy the infrastructure for this solution by using the [sample template](https://raw.githubusercontent.com/Azure/azure-docs-json-samples/master/event-grid/EventHubsDataMigration.json).
+2. Build the solution
+3. Run WindTurbineDataGenerator.exe. This creates an event hub with Capture turned on, dumping Avro blobs periodically
+4. Publish your function app
 
 ## Create an Azure Function endpoint
-You can create a HTTP trigger based Azure Function using the following steps:
 
-1. Using the [Azure Portal](https://ms.portal.azure.com), create a new "Function App"
-2. Once the above is created successfully, navigate to the above Function App. Select the following settings ("Webhook + API"/ C#), and click on "Create this function".
-
-![Azure Functions](./media/EventCaptureGridDemo2.png)
-
-3. Replace the code of the newly created function(run.csx) with the code in FunctionDWDumper\DWDumperFunction1.cs. Once you finish this, click on the "Get function URL" in the top right of the function. Copy this url - you will need it in the next step when you create the Event Grid subscription, as you want to specify this Function endpoint as your destination endpoint for the Event Grid subscription that you will be creating.
-
-Or, you can create a HTTP Trigger using Visual Studio 2017 Tools for Azure Functions(which I used while doing this sample) as described [in this article](https://blogs.msdn.microsoft.com/webdev/2017/05/10/azure-function-tools-for-visual-studio-2017/)
+Publish your function from Visual Studio to the function app you deployed with the template Once you finish this, click on the "Get function URL" in the top right of the function. Copy this url - you will need it in the next step when you create the Event Grid subscription, as you want to specify this Function endpoint as your destination endpoint for the Event Grid subscription that you will be creating.
 
 ## Create an Azure SQL Data Warehouse resource
 Create a table with the schema speicified in CreateDataWarehouseTable.sql under scripts
@@ -57,21 +48,6 @@ In the Create Event subscription blade, fill in the details and click on create,
 ![Capture Portal3](./media/EventCaptureGridDemo5.png)
 
 Note: When you select the Event Types, you are specifying that Event Grid notifies the Subscriber endpoint which in this case is the Azure functions url, each time Event Hubs Capture creates a blob entry in the storage
-
-### Using Azure CLI 2.0
-
-You can use the Azure Cloud Shell to launch directly within the Azure portal as it has Azure CLI perinstalled and configured to use with your account
-
-### Azure CLI
-```cli
-az eventgrid resource event-subscription create --name <event_subscription_name>
-						--resource-group/-g <resource_group>
-						--resource-name <eventhubs_namespacename>
-						--provider-namespace <Microsoft.EventHub>
-						--resource-type <eventhub_name>
-						--endpoint <function_endpoint>
-
-```
 
 ## Observe the data populated in the SQL Data Warehouse
 Once the above steps are complete, data should now be populated in the data warehouse. I.e. EventGrid notifies Azure Function which then dumps the data to the data warehouse.  You can use powerful data visualization tools with your data warehouse to achieve your Actionable insights.
