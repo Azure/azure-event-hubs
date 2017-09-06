@@ -19,8 +19,8 @@ namespace FunctionDWDumper
 {    
     public static class DWDumperFunction1
     {
-        private const string StorageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
-        private const string SqlDwConnection = Environment.GetEnvironmentVariable("SqlDwConnection");
+        private static readonly string StorageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
+        private static readonly string SqlDwConnection = Environment.GetEnvironmentVariable("SqlDwConnection");
 
         /// <summary>
         /// Use the accompanying .sql script to create this table in the data warehouse
