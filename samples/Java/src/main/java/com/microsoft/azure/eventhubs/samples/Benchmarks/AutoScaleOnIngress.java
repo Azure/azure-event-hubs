@@ -5,7 +5,7 @@
 package com.microsoft.azure.eventhubs.samples.Benchmarks;
 
 import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -24,7 +24,7 @@ import java.util.function.BiConsumer;
 public class AutoScaleOnIngress {
 
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         // *********************************************************************
         // List of variables involved - to achieve desired LOAD / THROUGHPUT UNITS

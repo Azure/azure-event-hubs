@@ -4,11 +4,11 @@
  */
 package com.microsoft.azure.eventhubs.samples.Basic;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -17,7 +17,7 @@ import java.util.function.BiConsumer;
 
 public class ReceiveUsingOffset {
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final String namespaceName = "----ServiceBusNamespaceName-----";
         final String eventHubName = "----EventHubName-----";
@@ -27,8 +27,8 @@ public class ReceiveUsingOffset {
 
         final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
 
-        // receiver
-        final String partitionId = "0"; // API to get PartitionIds will be released as part of V0.2
+        // create receiver to partition - 0
+        final String partitionId = ehClient.getRuntimeInformation().get().getPartitionIds()[0];
         final PartitionReceiver receiver = ehClient.createEpochReceiverSync(
                 EventHubClient.DEFAULT_CONSUMER_GROUP_NAME,
                 partitionId,
@@ -67,7 +67,7 @@ public class ReceiveUsingOffset {
                     }
                     try {
                         ehClient.closeSync();
-                    } catch (ServiceBusException sbException) {
+                    } catch (EventHubException sbException) {
                         // wire-up this error to diagnostics infrastructure
                         System.out.println(String.format("closing failed with error: %s", sbException.toString()));
                     }
