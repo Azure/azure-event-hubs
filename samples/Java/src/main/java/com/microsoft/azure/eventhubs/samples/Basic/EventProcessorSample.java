@@ -45,7 +45,13 @@ public class EventProcessorSample
 		// persisting partition leases and checkpoints, with a default Storage container name made from the Event Hub name
 		// and consumer group name. The host name (a string that uniquely identifies the instance of EventProcessorHost)
 		// is automatically generated as well.
-		EventProcessorHost host = new EventProcessorHost(eventHubName, consumerGroupName, eventHubConnectionString.toString(), storageConnectionString);
+		EventProcessorHost host = new EventProcessorHost(
+				"----EventProcessorHostName----",
+				eventHubName,
+				consumerGroupName,
+				eventHubConnectionString.toString(),
+				storageConnectionString,
+				"----StorageContainerName----");
 		
 		// Registering an event processor class with an instance of EventProcessorHost starts event processing. The host instance
 		// obtains leases on some partitions of the Event Hub, possibly stealing some from other host instances, in a way that

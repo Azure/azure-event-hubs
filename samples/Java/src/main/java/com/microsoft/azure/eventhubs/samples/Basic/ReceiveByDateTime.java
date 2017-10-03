@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs.samples.Basic;
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.EventHubException;
 
@@ -28,8 +29,9 @@ public class ReceiveByDateTime {
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
         final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
 
-        // receiver
-        final String partitionId = ehClient.getRuntimeInformation().get().getPartitionIds()[0];
+        final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
+        final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
+
         final PartitionReceiver receiver = ehClient.createEpochReceiverSync(
                 EventHubClient.DEFAULT_CONSUMER_GROUP_NAME,
                 partitionId,
