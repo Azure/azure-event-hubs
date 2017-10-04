@@ -76,7 +76,8 @@ public class AutoScaleOnIngress {
                                             Duration.between(beforeSend, Instant.now()).toMillis(), BATCH_SIZE));
 
                                     if (throwable != null && throwable.getCause() != null) {
-                                        System.out.println(String.format("send failed with error: %s",
+                                        System.out.println(String.format("%s :send failed with error: %s",
+                                                Instant.now().toString(),
                                                 throwable.getCause().getMessage()));
                                     }
                                 }
