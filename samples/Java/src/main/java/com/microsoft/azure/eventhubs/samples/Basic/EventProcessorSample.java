@@ -11,6 +11,7 @@ package com.microsoft.azure.eventhubs.samples.Basic;
  * on EventProcessorHost, then uncomment.
  */
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventprocessorhost.CloseReason;
 import com.microsoft.azure.eventprocessorhost.EventProcessorHost;
@@ -18,7 +19,6 @@ import com.microsoft.azure.eventprocessorhost.EventProcessorOptions;
 import com.microsoft.azure.eventprocessorhost.ExceptionReceivedEventArgs;
 import com.microsoft.azure.eventprocessorhost.IEventProcessor;
 import com.microsoft.azure.eventprocessorhost.PartitionContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
