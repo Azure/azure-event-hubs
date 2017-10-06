@@ -1,0 +1,16 @@
+{
+  "ActiveDirectoryAuthority": "https://login.microsoftonline.com",
+  "Alias": "",
+  "ClientId": "",
+  "ClientSecrets": "",
+  "PrimaryNamespace": "",
+  "PrimaryNamespaceLocation": "South Central US",
+  "PrimaryResourceGroupName": "",
+  "ResourceManagerUrl": "https://management.azure.com/",
+  "SecondaryNamespace": "",
+  "SecondaryNamespaceLocation": "North Central US",
+  "SecondaryResourceGroupName": "",
+  "SkuName": "Standard",
+  "SubscriptionId": "",
+  "TenantId": ""
+}
