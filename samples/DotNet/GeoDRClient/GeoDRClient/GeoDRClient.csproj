@@ -105,7 +105,6 @@
     <Compile Include="GeoDRConfig.cs" />
     <Compile Include="JsonHelper.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
