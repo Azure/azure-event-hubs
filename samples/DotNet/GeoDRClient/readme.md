@@ -5,6 +5,7 @@ To learn more about Azure Event Hubs, please visit our [marketing page](https://
 Customers want to minimize the disruption in operations caused by regional failures (transient or permanent) in Azure. The Geo-disaster recovery (Geo-DR) feature shown here aims to provide richer customer controlled failover capabilities for all Event Hubs customers. For an overview on this feature,refer to the article – Enabling Geo-Disaster Recovery for Event Hubs.
 
 This sample shows how to 
+
 a.	Achieve Geo-DR for an Event Hubs namespace. 
 b.	Create a namespace with live metadata replication between two customer chosen regions
 
