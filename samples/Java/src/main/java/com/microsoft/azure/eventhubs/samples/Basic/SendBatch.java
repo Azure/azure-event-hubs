@@ -6,10 +6,10 @@ package com.microsoft.azure.eventhubs.samples.Basic;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
 public class SendBatch {
 
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final String namespaceName = "----ServiceBusNamespaceName-----";
         final String eventHubName = "----EventHubName-----";

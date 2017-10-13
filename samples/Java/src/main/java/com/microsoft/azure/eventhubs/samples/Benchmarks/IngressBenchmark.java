@@ -4,10 +4,9 @@
  */
 package com.microsoft.azure.eventhubs.samples.Benchmarks;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -18,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /*
  * Performance BenchMark is specific to customers load pattern!!
@@ -44,7 +42,7 @@ import java.util.function.Consumer;
 public class IngressBenchmark {
 
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final String namespaceName = "----ServiceBusNamespaceName-----";
         final String eventHubName = "----EventHubName-----";

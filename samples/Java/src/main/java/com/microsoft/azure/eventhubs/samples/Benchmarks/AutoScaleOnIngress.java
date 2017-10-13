@@ -5,7 +5,7 @@
 package com.microsoft.azure.eventhubs.samples.Benchmarks;
 
 import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -24,7 +24,7 @@ import java.util.function.BiConsumer;
 public class AutoScaleOnIngress {
 
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         // *********************************************************************
         // List of variables involved - to achieve desired LOAD / THROUGHPUT UNITS
@@ -76,7 +76,8 @@ public class AutoScaleOnIngress {
                                             Duration.between(beforeSend, Instant.now()).toMillis(), BATCH_SIZE));
 
                                     if (throwable != null && throwable.getCause() != null) {
-                                        System.out.println(String.format("send failed with error: %s",
+                                        System.out.println(String.format("%s :send failed with error: %s",
+                                                Instant.now().toString(),
                                                 throwable.getCause().getMessage()));
                                     }
                                 }

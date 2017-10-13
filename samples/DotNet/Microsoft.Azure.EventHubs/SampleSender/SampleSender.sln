@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "SampleSender", "SampleSender.xproj", "{940BCA4A-B154-4667-8A03-57E6B689866D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SampleSender", "SampleSender.csproj", "{940BCA4A-B154-4667-8A03-57E6B689866D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +18,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {85AFEF9E-A513-4DB5-8336-ED9024AC5407}
 	EndGlobalSection
 EndGlobal

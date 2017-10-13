@@ -6,7 +6,7 @@ package com.microsoft.azure.eventhubs.samples.Benchmarks;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +28,7 @@ public final class EventHubClientPool {
         this.clients = new EventHubClient[this.poolSize];
     }
 
-    public CompletableFuture<Void> initialize() throws IOException, ServiceBusException {
+    public CompletableFuture<Void> initialize() throws IOException, EventHubException {
         final CompletableFuture[] createSenders = new CompletableFuture[this.poolSize];
         for (int count = 0; count < poolSize; count++) {
             final int clientsIndex = count;

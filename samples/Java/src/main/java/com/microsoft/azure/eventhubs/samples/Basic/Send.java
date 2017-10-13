@@ -6,11 +6,11 @@ package com.microsoft.azure.eventhubs.samples.Basic;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -22,7 +22,7 @@ import java.util.function.BiConsumer;
 public class Send {
 
     public static void main(String[] args)
-            throws ServiceBusException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final String namespaceName = "----ServiceBusNamespaceName-----";
         final String eventHubName = "----EventHubName-----";
@@ -65,7 +65,7 @@ public class Send {
                         }
                         try {
                             ehClient.closeSync();
-                        } catch (ServiceBusException sbException) {
+                        } catch (EventHubException sbException) {
                             // wire-up this error to diagnostics infrastructure
                             System.out.println(String.format("closing failed with error: %s", sbException.toString()));
                         }
