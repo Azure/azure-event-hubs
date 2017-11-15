@@ -41,7 +41,7 @@ namespace GeoDRClient
                 }
                 else if (command.Equals("GetConnectionStrings", StringComparison.OrdinalIgnoreCase))
                 {
-                    status = await DeleteAliasAsync(args);
+                    status = await GetConnectionStringsAsync(args);
                 }
                 else
                 {
