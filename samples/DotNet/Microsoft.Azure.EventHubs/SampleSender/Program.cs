@@ -11,8 +11,8 @@ namespace SampleSender
     public class Program
     {
         private static EventHubClient eventHubClient;
-        private const string EhConnectionString = "{Event Hubs connection string}";
-        private const string EhEntityPath = "{Event Hub path/name}";
+        private const string EventHubConnectionString = "{Event Hubs connection string}";
+        private const string EventHubName = "{Event Hub path/name}";
 
         public static void Main(string[] args)
         {
@@ -24,9 +24,9 @@ namespace SampleSender
             // Creates an EventHubsConnectionStringBuilder object from a the connection string, and sets the EntityPath.
             // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
             // we are using the connection string from the namespace.
-            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EhConnectionString)
+            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EventHubConnectionString)
             {
-                EntityPath = EhEntityPath
+                EntityPath = EventHubName
             };
 
             eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
