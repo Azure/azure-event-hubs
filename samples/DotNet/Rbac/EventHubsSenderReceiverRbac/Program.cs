@@ -13,10 +13,10 @@ namespace EventHubsSenderReceiverRbac
 {
     class Program
     {
-        static string tenantId = ConfigurationManager.AppSettings["tenantId"];
-        static string clientId = ConfigurationManager.AppSettings["clientId"];
-        static string eventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
-        static string eventHubName = ConfigurationManager.AppSettings["eventHubName"];
+        static readonly string tenantId = ConfigurationManager.AppSettings["tenantId"];
+        static readonly string clientId = ConfigurationManager.AppSettings["clientId"];
+        static readonly string eventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
+        static readonly string eventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
         static void Main()
         {
@@ -61,7 +61,7 @@ namespace EventHubsSenderReceiverRbac
         {
             UserPasswordCredential userPasswordCredential = new UserPasswordCredential(
                 ConfigurationManager.AppSettings["userName"],
-                ConfigurationManager.AppSettings["passWord"]
+                ConfigurationManager.AppSettings["password"]
                 );
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
