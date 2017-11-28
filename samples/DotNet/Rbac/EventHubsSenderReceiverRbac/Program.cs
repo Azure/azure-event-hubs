@@ -13,14 +13,14 @@ namespace EventHubsSenderReceiverRbac
 {
     class Program
     {
-        static readonly string tenantId = ConfigurationManager.AppSettings["tenantId"];
-        static readonly string clientId = ConfigurationManager.AppSettings["clientId"];
-        static readonly string eventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
-        static readonly string eventHubName = ConfigurationManager.AppSettings["eventHubName"];
+        static readonly string TenantId = ConfigurationManager.AppSettings["tenantId"];
+        static readonly string ClientId = ConfigurationManager.AppSettings["clientId"];
+        static readonly string EventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
+        static readonly string EventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
         static void Main()
         {
-            MSIScenario();
+            ManagedServiceIdentityScenario();
 
             UserInteractiveLoginScenario();
             UserPasswordCredentialScenario();
@@ -29,7 +29,7 @@ namespace EventHubsSenderReceiverRbac
             ClientCredentialsCertScenario();
         }
 
-        static void MSIScenario()
+        static void ManagedServiceIdentityScenario()
         {
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
@@ -45,8 +45,8 @@ namespace EventHubsSenderReceiverRbac
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
                 TokenProvider = TokenProvider.CreateAadTokenProvider(
-                    new AuthenticationContext($"https://login.windows.net/{tenantId}"),
-                    clientId,
+                    new AuthenticationContext($"https://login.windows.net/{TenantId}"),
+                    ClientId,
                     new Uri("http://eventhubs.microsoft.com"),
                     new PlatformParameters(PromptBehavior.SelectAccount),
                     ServiceAudience.EventHubsAudience
@@ -66,8 +66,8 @@ namespace EventHubsSenderReceiverRbac
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
                 TokenProvider = TokenProvider.CreateAadTokenProvider(
-                    new AuthenticationContext($"https://login.windows.net/{tenantId}"),
-                    clientId,
+                    new AuthenticationContext($"https://login.windows.net/{TenantId}"),
+                    ClientId,
                     userPasswordCredential,
                     ServiceAudience.EventHubsAudience
                 ),
@@ -80,11 +80,11 @@ namespace EventHubsSenderReceiverRbac
         static void ClientAssertstionCertScenario()
         {
             X509Certificate2 certificate = GetCertificate();
-            ClientAssertionCertificate clientAssertionCertificate = new ClientAssertionCertificate(clientId, certificate);
+            ClientAssertionCertificate clientAssertionCertificate = new ClientAssertionCertificate(ClientId, certificate);
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
                 TokenProvider = TokenProvider.CreateAadTokenProvider(
-                    new AuthenticationContext($"https://login.windows.net/{tenantId}"),
+                    new AuthenticationContext($"https://login.windows.net/{TenantId}"),
                     clientAssertionCertificate,
                     ServiceAudience.EventHubsAudience
                     ),
@@ -96,11 +96,11 @@ namespace EventHubsSenderReceiverRbac
 
         static void ClientCredentialsCertScenario()
         {
-            ClientCredential clientCredential = new ClientCredential(clientId, ConfigurationManager.AppSettings["clientSecret"]);
+            ClientCredential clientCredential = new ClientCredential(ClientId, ConfigurationManager.AppSettings["clientSecret"]);
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
             {
                 TokenProvider = TokenProvider.CreateAadTokenProvider(
-                    new AuthenticationContext($"https://login.windows.net/{tenantId}"),
+                    new AuthenticationContext($"https://login.windows.net/{TenantId}"),
                     clientCredential,
                     ServiceAudience.EventHubsAudience
                 ),
@@ -142,10 +142,10 @@ namespace EventHubsSenderReceiverRbac
 
         static void SendReceive(MessagingFactorySettings messagingFactorySettings)
         {
-            MessagingFactory messagingFactory = MessagingFactory.Create($"sb://{eventHubNamespace}/",
+            MessagingFactory messagingFactory = MessagingFactory.Create($"sb://{EventHubNamespace}/",
                 messagingFactorySettings);
 
-            EventHubClient ehClient = messagingFactory.CreateEventHubClient(eventHubName);
+            EventHubClient ehClient = messagingFactory.CreateEventHubClient(EventHubName);
             ehClient.Send(new EventData(Encoding.UTF8.GetBytes($"{DateTime.UtcNow}")));
 
             EventHubConsumerGroup consumerGroup = ehClient.GetDefaultConsumerGroup();
