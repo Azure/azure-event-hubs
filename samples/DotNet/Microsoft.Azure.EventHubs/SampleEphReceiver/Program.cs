@@ -10,8 +10,8 @@ namespace SampleEphReceiver
 
     public class Program
     {
-        private const string EhConnectionString = "{Event Hubs connection string}";
-        private const string EhEntityPath = "{Event Hub path/name}";
+        private const string EventHubConnectionString = "{Event Hubs connection string}";
+        private const string EventHubName = "{event hub path/name}";
         private const string StorageContainerName = "{Storage account container name}";
         private const string StorageAccountName = "{Storage account name}";
         private const string StorageAccountKey = "{Storage account key}";
@@ -28,7 +28,7 @@ namespace SampleEphReceiver
             Console.WriteLine("Registering EventProcessor...");
 
             var eventProcessorHost = new EventProcessorHost(
-                EhEntityPath,
+                EventHubName,
                 PartitionReceiver.DefaultConsumerGroupName,
                 EhConnectionString,
                 StorageConnectionString,
