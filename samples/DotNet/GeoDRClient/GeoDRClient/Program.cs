@@ -9,7 +9,7 @@ namespace GeoDRClient
         /// EventHubManagementLibrary.exe CreatePairing sampleconfig.json 
         /// </summary>
         static int Main(string[] args)
-        {
+        {            
             var client = new GeoDisasterRecoveryClient();
             int status = client.ExecuteAsync(args).GetAwaiter().GetResult();
 

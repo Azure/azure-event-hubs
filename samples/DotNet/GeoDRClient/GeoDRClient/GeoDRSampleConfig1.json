@@ -1,16 +1,16 @@
 {
   "ActiveDirectoryAuthority": "https://login.microsoftonline.com",
-  "Alias": "",
-  "ClientId": "",
-  "ClientSecrets": "",
-  "PrimaryNamespace": "",
-  "PrimaryNamespaceLocation": "South Central US",
-  "PrimaryResourceGroupName": "",
-  "ResourceManagerUrl": "https://management.azure.com/",
+  "Alias": "", // The alias name you want
+  "ClientId": "", // The App Id from AAD
+  "ClientSecrets": "", // The client Secret
+  "PrimaryNamespace": "", // If you have a standard namespace already this is optional
+  "PrimaryNamespaceLocation": "South Central US", 
+  "PrimaryResourceGroupName": "", // Your resource group
+  "ResourceManagerUrl": "https://management.azure.com/", // Preset
   "SecondaryNamespace": "",
-  "SecondaryNamespaceLocation": "North Central US",
+  "SecondaryNamespaceLocation": "North Central US", // Preset
   "SecondaryResourceGroupName": "",
-  "SkuName": "Standard",
-  "SubscriptionId": "",
-  "TenantId": ""
+  "SkuName": "Standard", // Preset
+  "SubscriptionId": "", // Your Azure subscription ID
+  "TenantId": "" // Directory ID
 }

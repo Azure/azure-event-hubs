@@ -81,7 +81,7 @@ namespace GeoDRClient
                 config.SkuName);
 
             //// 2. Create Secondary Namespace (optional if you already have an empty namespace available)
-            await CreateOrUpdateNamespaceAsync(
+            var secondaryNamespaceInfo = await CreateOrUpdateNamespaceAsync(
                 client,
                 config.SecondaryResourceGroupName,
                 config.SecondaryNamespace,
@@ -95,7 +95,7 @@ namespace GeoDRClient
                 config.PrimaryResourceGroupName,
                 config.PrimaryNamespace,
                 config.Alias,
-                new ArmDisasterRecovery() { PartnerNamespace = config.SecondaryNamespace });
+                new ArmDisasterRecovery() { PartnerNamespace = secondaryNamespaceInfo.Id });
 
             while (adr.ProvisioningState != ProvisioningStateDR.Succeeded)
             {
@@ -235,7 +235,7 @@ namespace GeoDRClient
             return o;
         }
 
-        private static async Task CreateOrUpdateNamespaceAsync(
+        private static async Task<EHNamespace> CreateOrUpdateNamespaceAsync(
             EventHubManagementClient client,
             string rgName,
             string ns,
@@ -254,6 +254,7 @@ namespace GeoDRClient
 
             var namespace1 = await client.Namespaces.CreateOrUpdateAsync(rgName, ns, namespaceParams);
             Console.WriteLine($"{namespace1.Name} create/update completed");
+            return namespace1;
         }
     }
 }
