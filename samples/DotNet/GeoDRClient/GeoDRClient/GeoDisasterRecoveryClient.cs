@@ -80,7 +80,7 @@ namespace GeoDRClient
                 config.PrimaryNamespaceLocation,
                 config.SkuName);
 
-            //// 2. Create Secondary Namespace (optional if you already have an empty namespace available)
+            //// 2. Create Secondary Namespace
             var secondaryNamespaceInfo = await CreateOrUpdateNamespaceAsync(
                 client,
                 config.SecondaryResourceGroupName,
