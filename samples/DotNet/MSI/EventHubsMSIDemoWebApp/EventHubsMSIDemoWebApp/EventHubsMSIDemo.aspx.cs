@@ -28,9 +28,6 @@ namespace EventHubsMSIDemoWebApp
                 TransportType = TransportType.Amqp
             };
 
-            // TODO - Remove after backend is patched with the AuthComponent open fix
-            messagingFactorySettings.AmqpTransportSettings.EnableLinkRedirect = false;
-
             MessagingFactory messagingFactory = MessagingFactory.Create($"sb://{txtNamespace.Text}.servicebus.windows.net/",
                 messagingFactorySettings);
 
