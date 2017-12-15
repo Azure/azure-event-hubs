@@ -9,6 +9,8 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
+// Always add app to IAM roles
+// Don't use on deployment slots but only on root
 namespace EventHubsMSIDemoWebApp
 {
     public partial class EventHubsMSIDemo : System.Web.UI.Page

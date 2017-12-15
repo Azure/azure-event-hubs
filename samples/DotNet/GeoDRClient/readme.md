@@ -8,8 +8,8 @@ Customers, who want to minimize the disruption in operations caused by regional 
 
 This sample shows how to: 
 
-a.	Achieve Geo-DR for an Event Hubs namespace. 
-b.	Create a namespace with live metadata replication between two customer chosen regions
+1. Achieve Geo-DR for an Event Hubs namespace. 
+2. Create a namespace with live metadata replication between two customer chosen regions
 
 ## Getting Started
 ### Prerequisites
@@ -64,7 +64,7 @@ For breaking the pairing between a primary and secondary namespace
 For deleting an alias, that contains information about the primary-secondary pairing
 
 *	GetConnectionStrings
-In a Geo DR enabled namespace, the Event Hubs can be accessed only via the alias. This is because, the alias can point to either the primary event hub or the failed over event hub. This way, the user does not have to adjust the connection strings in his/her apps to point to a different event hub in the case of a failover.
+In a Geo DR enabled namespace, the Event Hubs should be accessed only via the alias. This is because, the alias can point to either the primary event hub or the failed over event hub. This way, the user does not have to adjust the connection strings in his/her apps to point to a different event hub in the case of a failover.
 
 Examples
 *	EventHubsGeoDRManagementSample.exe CreatePairing GeoDRSampleConfig.json

@@ -13,20 +13,45 @@ namespace EventHubsSenderReceiverRbac
 {
     class Program
     {
+        
         static readonly string TenantId = ConfigurationManager.AppSettings["tenantId"];
-        static readonly string ClientId = ConfigurationManager.AppSettings["clientId"];
+        static readonly string ClientId = ConfigurationManager.AppSettings["clientId"]; 
         static readonly string EventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
         static readonly string EventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
         static void Main()
         {
-            ManagedServiceIdentityScenario();
+            Console.WriteLine("Choose an action:");
+            Console.WriteLine("[A] Connect via Managed Service Identiry and send / receive.");
+            Console.WriteLine("[B] Connect via interactive logon and send / receive.");
+            Console.WriteLine("[C] Connect via using username and password and send / receive.");
+            Console.WriteLine("[D] Connect via utilizing Certificates and send / receive.");
+            //Console.WriteLine("[E] Connect via utilizing Certificate Assertion.");
 
-            UserInteractiveLoginScenario();
-            UserPasswordCredentialScenario();
+            Char key = Console.ReadKey(true).KeyChar;
+            String keyPressed = key.ToString().ToUpper();
 
-            ClientAssertstionCertScenario();
-            ClientCredentialsCertScenario();
+            switch (keyPressed)
+            {
+                case "A":
+                    ManagedServiceIdentityScenario(); // Use a native app here.
+                    break;
+                case "B":
+                    UserInteractiveLoginScenario(); // Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
+                    break;
+                case "C":
+                    UserPasswordCredentialScenario(); // Needs native application
+                    break;
+                case "D":
+                    ClientCredentialsCertScenario(); // This scenario needs app registration in AAD and iam registration. Only web api will work in AAD app registration.
+                    break;
+                default:
+                    Console.WriteLine("Unknown command, press enter to exit");
+                    Console.ReadLine();
+                    break;
+            }      
+            //ClientAssertionCertScenario(); // This will be released soon.
+
         }
 
         static void ManagedServiceIdentityScenario()
@@ -77,7 +102,7 @@ namespace EventHubsSenderReceiverRbac
             SendReceive(messagingFactorySettings);
         }
 
-        static void ClientAssertstionCertScenario()
+        static void ClientAssertionCertScenario()
         {
             X509Certificate2 certificate = GetCertificate();
             ClientAssertionCertificate clientAssertionCertificate = new ClientAssertionCertificate(ClientId, certificate);
@@ -161,6 +186,8 @@ namespace EventHubsSenderReceiverRbac
 
             ehClient.Close();
             messagingFactory.Close();
+            Console.WriteLine("Send / Receive complete. Press enter to exit.");
+            Console.ReadLine();
         }
     }
 }
