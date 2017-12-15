@@ -171,18 +171,30 @@ namespace EventHubsSenderReceiverRbac
                 messagingFactorySettings);
 
             EventHubClient ehClient = messagingFactory.CreateEventHubClient(EventHubName);
-            ehClient.Send(new EventData(Encoding.UTF8.GetBytes($"{DateTime.UtcNow}")));
-
             EventHubConsumerGroup consumerGroup = ehClient.GetDefaultConsumerGroup();
 
-            string[] partitionIds = { "0", "1" };
-            Parallel.ForEach(partitionIds, partitionId =>
-            {
-                EventHubReceiver receiver = consumerGroup.CreateReceiver(partitionId);
-                EventData data = receiver.Receive();
-                Console.WriteLine(Encoding.UTF8.GetString(data.GetBytes()));
-                receiver.Close();
+            var receiveTask = Task.Factory.StartNew(() =>
+                {
+                    string[] partitionIds = { "0", "1" };
+                    Parallel.ForEach(partitionIds, partitionId =>
+                    {
+                        EventHubReceiver receiver = consumerGroup.CreateReceiver(partitionId, EventHubConsumerGroup.StartOfStream);
+                        while(true)
+                        {
+                            EventData data = receiver.Receive(TimeSpan.FromSeconds(10));
+                            if (data == null)
+                                break;
+                            Console.WriteLine($"Received from partition {partitionId} : " + Encoding.UTF8.GetString(data.GetBytes()));                            
+                        }
+                        receiver.Close();
+                    });
             });
+
+            System.Threading.Thread.Sleep(5000);
+
+            ehClient.Send(new EventData(Encoding.UTF8.GetBytes($"{DateTime.UtcNow}")));
+
+            Task.WaitAll(receiveTask);
 
             ehClient.Close();
             messagingFactory.Close();
