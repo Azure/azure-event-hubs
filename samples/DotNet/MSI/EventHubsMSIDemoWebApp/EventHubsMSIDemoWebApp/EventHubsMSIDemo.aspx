@@ -11,10 +11,10 @@
     <form id="form1" runat="server">
         <div style="white-space: pre">
             <div>
-                <label>EventHub Namespace FQDN</label><asp:TextBox ID="txtNamespace" runat="server" Text="" />
+                <label>Event Hubs Namespace FQDN</label><asp:TextBox ID="txtNamespace" runat="server" Text="" />
             </div>
             <div>
-                <label>EventHub </label><asp:TextBox ID="txtEventHub" runat="server" Text=""/>
+                <label>Event Hub </label><asp:TextBox ID="txtEventHub" runat="server" Text=""/>
             </div>
             <div>
                 <label>Partition count </label><asp:TextBox ID="txtPartitions" runat="server"  Text="2"/>
