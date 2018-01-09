@@ -25,7 +25,7 @@ To run the sample, follow these steps:
     private const string StorageContainerName = "{Storage account container name}";
     private const string StorageAccountName = "{Storage account name}";
     private const string StorageAccountKey = "{Storage account key}";
-   ```
+    ```
 7. Run the program, and ensure that there are no errors.
 
 Congratulations! You have now received events from an event hub by using the Event Processor Host. To send events, see the [SampleSender](https://github.com/Azure/azure-event-hubs/tree/master/samples/DotNet/Microsoft.Azure.EventHubs/SampleSender) sample.
