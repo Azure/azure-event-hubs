@@ -22,7 +22,7 @@ namespace EventHubsSenderReceiverRbac
         static void Main()
         {
             Console.WriteLine("Choose an action:");
-            Console.WriteLine("[A] Connect via Managed Service Identiry and send / receive.");
+            Console.WriteLine("[A] Connect via Managed Service Identity and send / receive.");
             Console.WriteLine("[B] Connect via interactive logon and send / receive.");
             Console.WriteLine("[C] Connect via using username and password and send / receive.");
             Console.WriteLine("[D] Connect via utilizing Certificates and send / receive.");
