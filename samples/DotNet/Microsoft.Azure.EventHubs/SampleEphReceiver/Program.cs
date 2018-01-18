@@ -30,7 +30,7 @@ namespace SampleEphReceiver
             var eventProcessorHost = new EventProcessorHost(
                 EventHubName,
                 PartitionReceiver.DefaultConsumerGroupName,
-                EhConnectionString,
+                EventHubConnectionString,
                 StorageConnectionString,
                 StorageContainerName);
 
