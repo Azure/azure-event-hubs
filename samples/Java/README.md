@@ -16,7 +16,6 @@ The tutorial [here](https://docs.microsoft.com/azure/event-hubs/event-hubs-java-
     final String eventHubName = "----EventHubName-----";
     final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
     final String sasKey = "---SharedAccessSignatureKey----";
-    ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
 ```
 
 ## Process events from event hub
