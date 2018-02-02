@@ -11,8 +11,8 @@ namespace SampleSender
     public class Program
     {
         private static EventHubClient eventHubClient;
-        private const string EventHubConnectionString = "{Event Hubs connection string}";
-        private const string EventHubName = "{event hub path/name}";
+        private const string EventHubConnectionString = "Event Hubs namespace connection string";
+        private const string EventHubName = "event hub name";
 
         public static void Main(string[] args)
         {

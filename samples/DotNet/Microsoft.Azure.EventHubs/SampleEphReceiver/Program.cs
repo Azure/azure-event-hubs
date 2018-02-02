@@ -10,11 +10,11 @@ namespace SampleEphReceiver
 
     public class Program
     {
-        private const string EventHubConnectionString = "{Event Hubs connection string}";
-        private const string EventHubName = "{event hub path/name}";
-        private const string StorageContainerName = "{Storage account container name}";
-        private const string StorageAccountName = "{Storage account name}";
-        private const string StorageAccountKey = "{Storage account key}";
+        private const string EventHubConnectionString = "Event Hubs connection string";
+        private const string EventHubName = "event hub name";
+        private const string StorageContainerName = "Storage account container name";
+        private const string StorageAccountName = "Storage account name";
+        private const string StorageAccountKey = "Storage account key";
 
         private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 

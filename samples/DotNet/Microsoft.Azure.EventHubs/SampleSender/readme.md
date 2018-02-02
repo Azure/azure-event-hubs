@@ -18,10 +18,10 @@ To run the sample, follow these steps:
 3. In Visual Studio, select **File**, then **Open Project/Soultion**. Navigate to the \azure-event-hubs\samples\DotNet\Microsoft.Azure.EventHubs\SampleSender folder.
 4. Load the SampleSender.sln solution file into Visual Studio.
 5. Add the [Microsoft.Azure.EventHubs](https://www.nuget.org/packages/Microsoft.Azure.EventHubs/) NuGet package to the project.
-6. In Program.cs, replace the placeholders in brackets with the proper values that were obtained when creating the event hub. Make sure that the `{Event Hubs connection string}` is the namespace-level connection string, and not the event hub string:
+6. In Program.cs, replace the placeholders in brackets with the proper values that were obtained when creating the event hub. Make sure that the `Event Hubs connection string` is the namespace-level connection string, and not the event hub string:
     ```csharp
-    private const string EhConnectionString = "{Event Hubs connection string}";
-    private const string EhEntityPath = "{Event Hub path/name}";
+    private const string EhConnectionString = "Event Hubs connection string";
+    private const string EhEntityPath = "Event Hub name";
     ```
 7. Run the program, and ensure that there are no errors.
 

@@ -20,11 +20,11 @@ To run the sample, follow these steps:
 5. Add the [Microsoft.Azure.EventHubs](https://www.nuget.org/packages/Microsoft.Azure.EventHubs/) and [Microsoft.Azure.EventHubs.Processor](https://www.nuget.org/packages/Microsoft.Azure.EventHubs.Processor/) NuGet packages to the project.
 6. In Program.cs, replace the following constants with the corresponding values for the event hub connection string, event hub name, storage account container name, storage account name, and storage account key:
     ```csharp
-    private const string EventHubConnectionString = "{Event Hubs connection string}";
-    private const string EventHubName = "{Event Hub path/name}";
-    private const string StorageContainerName = "{Storage account container name}";
-    private const string StorageAccountName = "{Storage account name}";
-    private const string StorageAccountKey = "{Storage account key}";
+    private const string EventHubConnectionString = "Event Hubs connection string";
+    private const string EventHubName = "Event Hub name";
+    private const string StorageContainerName = "Storage account container name";
+    private const string StorageAccountName = "Storage account name";
+    private const string StorageAccountKey = "Storage account key";
     ```
 7. Run the program, and ensure that there are no errors.
 
