@@ -17,7 +17,7 @@ namespace Producer
 
         private readonly Random random = new Random((int)DateTimeOffset.UtcNow.Ticks);
 
-        private readonly DateTimeOffset startTime = new DateTimeOffset(2017, 01, 01, 00, 00, 00, TimeSpan.Zero);
+        private readonly DateTimeOffset startTime = new DateTimeOffset(DateTime.Now);
 
         private readonly List<string> knownCreditCards = new List<string>
         {
