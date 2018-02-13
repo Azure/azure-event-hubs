@@ -15,11 +15,7 @@ Any samples within the `Azure.Microsoft.EventHubs` folder target the newer .NET 
 
 ## Java
 
-### Get started sending events
-[This sample](./Java/send.md) shows how to write a Java console application that sends a set of messages to an Event Hub.
-
-### Get started receiving events using the Event Processor Host
-[This sample](./Java/receive-using-eph.md) shows how to write a Java console application that receives messages from an Event Hub using the **EventProcessorHost**.
+[Go here](./Java) for the Java language samples.
 
 ## Miscellaneous
 
