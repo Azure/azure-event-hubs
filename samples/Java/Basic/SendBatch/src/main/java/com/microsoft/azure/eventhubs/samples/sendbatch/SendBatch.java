@@ -8,45 +8,54 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.EventDataBatch;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.LinkedList;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SendBatch {
 
     public static void main(String[] args)
-            throws EventHubException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, IOException {
 
-        final String namespaceName = "----ServiceBusNamespaceName-----";
-        final String eventHubName = "----EventHubName-----";
-        final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
-        final String sasKey = "---SharedAccessSignatureKey----";
-        final ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
+        final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
+                .setNamespaceName("----ServiceBusNamespaceName-----") // to target National clouds - use .setEndpoint(URI)
+                .setEventHubName("----EventHubName-----")
+                .setSasKeyName("-----SharedAccessSignatureKeyName-----")
+                .setSasKey("---SharedAccessSignatureKey----");
 
         final Gson gson = new GsonBuilder().create();
-        final EventHubClient sender = EventHubClient.createFromConnectionStringSync(connStr.toString());
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final EventHubClient sender = EventHubClient.createSync(connStr.toString(), executorService);
 
         try {
-            while (true) {
-                final LinkedList<EventData> events = new LinkedList<>();
-                for (int count = 1; count < 11; count++) {
-                    final PayloadEvent payload = new PayloadEvent(count);
+            for (int batchNumber = 0; batchNumber < 10; batchNumber++) {
+
+                final EventDataBatch events = sender.createBatch();
+                EventData sendEvent;
+
+                // This do..while loop demonstrates - Maximizing batch size for every send call.
+                // sending multiple EventData's in one batch - guarantees order among the events sent in this batch
+                // and provides transactional semantics for the batch (all-or-none)
+                do {
+                    final PayloadEvent payload = new PayloadEvent(100 + batchNumber);
                     final byte[] payloadBytes = gson.toJson(payload).getBytes(Charset.defaultCharset());
-                    final EventData sendEvent = new EventData(payloadBytes);
+
+                    sendEvent = EventData.create(payloadBytes);
                     sendEvent.getProperties().put("from", "javaClient");
-                    events.add(sendEvent);
-                }
+                } while(events.tryAdd(sendEvent));
 
                 sender.sendSync(events);
-                System.out.println(String.format("Sent Batch... Size: %s", events.size()));
+                System.out.println(String.format("Sent Batch - Batch Id: %s, Size: %s", batchNumber, events.getSize()));
             }
         } finally {
             sender.closeSync();
+            executorService.shutdown();
         }
     }
 
