@@ -17,9 +17,8 @@ import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
+import java.util.concurrent.ExecutorService;
 
 public class Send {
 
@@ -61,28 +60,20 @@ public class Send {
             System.out.println(Instant.now() + ": Send Complete...");
             System.in.read();
         } finally {
-            if (sender != null)
-                sender.close().whenComplete(new BiConsumer<Void, Throwable>() {
-                    public void accept(Void t, Throwable u) {
-                        if (u != null) {
-                            // wire-up this error to diagnostics infrastructure
-                            System.out.println(String.format("closing failed with error: %s", u.toString()));
-                        }
-                        try {
-                            ehClient.closeSync();
-                        } catch (EventHubException sbException) {
-                            // wire-up this error to diagnostics infrastructure
-                            System.out.println(String.format("closing failed with error: %s", sbException.toString()));
-                        }
-                    }
-                }).get();
-            else if (ehClient != null) {
+            if (sender != null) {
+                sender.close()
+                        .thenComposeAsync(aVoid -> ehClient.close(), executorService)
+                        .whenCompleteAsync((aVoid1, throwable) -> {
+                            if (throwable != null) {
+                                // wire-up this error to diagnostics infrastructure
+                                System.out.println(String.format("closing failed with error: %s", throwable.toString()));
+                            }
+                        }, executorService).get();
+            } else {
                 ehClient.closeSync();
             }
 
-            if (executorService != null) {
-                executorService.shutdown();
-            }
+            executorService.shutdown();
         }
     }
 
