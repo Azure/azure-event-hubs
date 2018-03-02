@@ -40,10 +40,10 @@ public class SendBatch {
                 EventData sendEvent;
 
                 // This do..while loop demonstrates - Maximizing batch size for every send call.
-                // sending in one batch - guarantees order among the events sent in this batch and provides
-                // transactional semantics for this batch (all-or-none)
+                // sending multiple EventData's in one batch - guarantees order among the events sent in this batch
+                // and provides transactional semantics for the batch (all-or-none)
                 do {
-                    final PayloadEvent payload = new PayloadEvent(batchNumber);
+                    final PayloadEvent payload = new PayloadEvent(100 + batchNumber);
                     final byte[] payloadBytes = gson.toJson(payload).getBytes(Charset.defaultCharset());
 
                     sendEvent = EventData.create(payloadBytes);
@@ -51,7 +51,7 @@ public class SendBatch {
                 } while(events.tryAdd(sendEvent));
 
                 sender.sendSync(events);
-                System.out.println(String.format("Sent Batch... Size: %s", events.getSize()));
+                System.out.println(String.format("Sent Batch - Batch Id: %s, Size: %s", batchNumber, events.getSize()));
             }
         } finally {
             sender.closeSync();
