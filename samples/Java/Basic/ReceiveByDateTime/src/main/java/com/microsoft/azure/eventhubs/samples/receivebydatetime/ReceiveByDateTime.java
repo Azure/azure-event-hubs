@@ -64,13 +64,13 @@ public class ReceiveByDateTime {
                             }
 
                             System.out.println(String.format("ReceivedBatch Size: %s", batchSize));
-                        }).get();
+                        }, executorService).get();
             }
         } finally {
             // cleaning up receivers is paramount;
             // Quota limitation on maximum number of concurrent receivers per consumergroup per partition is 5
             receiver.close()
-                    .thenComposeAsync(aVoid -> ehClient.close())
+                    .thenComposeAsync(aVoid -> ehClient.close(), executorService)
                     .whenCompleteAsync((t, u) -> {
                         if (u != null) {
                             // wire-up this error to diagnostics infrastructure
