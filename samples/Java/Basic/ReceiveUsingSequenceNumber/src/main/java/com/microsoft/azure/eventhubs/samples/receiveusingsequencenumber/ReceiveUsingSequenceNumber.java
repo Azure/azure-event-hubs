@@ -14,7 +14,6 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.time.Instant;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,7 +41,7 @@ public class ReceiveUsingSequenceNumber {
                 EventPosition.fromSequenceNumber(1L),
                 2345);
 
-        System.out.println("date-time receiver created...");
+        System.out.println("receiver created from sequenceNumber...");
 
         try {
             int receivedCount = 0;
