@@ -24,12 +24,12 @@ public class Send {
 
     public static void main(String[] args)
             throws EventHubException, ExecutionException, InterruptedException, IOException {
-
-        final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                .setNamespaceName("----ServiceBusNamespaceName-----") // to target National clouds - use .setEndpoint(URI)
-                .setEventHubName("----EventHubName-----")
-                .setSasKeyName("-----SharedAccessSignatureKeyName-----")
-                .setSasKey("---SharedAccessSignatureKey----");
+    	
+    	final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
+                .setNamespaceName("qstest1")// to target National clouds - use .setEndpoint(URI)
+                .setEventHubName("qshub2")
+                .setSasKeyName("RootManageSharedAccessKey")
+                .setSasKey("6Loqtm2EkuvqnQLuQxuyUy16hLmLPidIadKtjdR6ORo="); 
 
         final Gson gson = new GsonBuilder().create();
 
