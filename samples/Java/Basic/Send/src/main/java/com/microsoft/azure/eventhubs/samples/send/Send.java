@@ -26,10 +26,10 @@ public class Send {
             throws EventHubException, ExecutionException, InterruptedException, IOException {
     	
     	final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                .setNamespaceName("qstest1")// to target National clouds - use .setEndpoint(URI)
-                .setEventHubName("qshub2")
-                .setSasKeyName("RootManageSharedAccessKey")
-                .setSasKey("6Loqtm2EkuvqnQLuQxuyUy16hLmLPidIadKtjdR6ORo="); 
+                .setNamespaceName("----NamespaceName-----")// to target National clouds - use .setEndpoint(URI)
+                .setEventHubName("----EventHubName-----")
+                .setSasKeyName("-----SharedAccessSignatureKeyName-----")
+                .setSasKey("---SharedAccessSignatureKey---"); 
 
         final Gson gson = new GsonBuilder().create();
 
