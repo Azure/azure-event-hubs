@@ -14,3 +14,7 @@
 	path = node
 	url = https://github.com/Azure/azure-event-hubs-node/
 	branch = master
+[submodule "spark"]
+	path = spark
+	url = https://github.com/Azure/azure-event-hubs-spark
+	branch = master
