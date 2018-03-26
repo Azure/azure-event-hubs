@@ -17,6 +17,9 @@ If you are looking for a specific client library, see the following:
 * [C](https://github.com/azure/azure-event-hubs-c)
 * [Node.js](https://github.com/azure/azure-event-hubs-node)
 
+Event Hubs is well-integrated with other Big Data systems. For more information on a particular integration, see the following:
+* [Apache Spark](https://github.com/Azure/azure-event-hubs-spark)
+
 ## How to provide feedback
 
 See our [Contribution Guidelines](./.github/CONTRIBUTING.md).
