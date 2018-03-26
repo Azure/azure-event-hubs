@@ -1,0 +1,16 @@
+[submodule "c"]
+	path = c
+	url = https://github.com/Azure/azure-event-hubs-c/
+	branch = master
+[submodule "dotnet"]
+	path = dotnet
+	url = https://github.com/azure/azure-event-hubs-dotnet/
+	branch = master
+[submodule "java"]
+	path = java
+	url = https://github.com/Azure/azure-event-hubs-java/
+	branch = master
+[submodule "node"]
+	path = node
+	url = https://github.com/Azure/azure-event-hubs-node/
+	branch = master
