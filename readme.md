@@ -4,7 +4,7 @@
 
 <h1 align="center">Microsoft Azure Event Hubs
 <p align="center">
-  <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
+  <a href="#star-our-repo">
         <img src="https://img.shields.io/github/stars/azure/azure-event-hubs.svg?style=social&label=Stars"
             alt="star our repo"></a>
   <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
@@ -13,8 +13,6 @@
 </p></h1>
 
 Azure Event Hubs is a hyper-scale data ingestion service that collects and stores trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
-
-## Event Hubs Ecosystem
 
 We're happy to host our client SDKs and integrations here on GitHub as free, open-source projects. We currently support:
 
