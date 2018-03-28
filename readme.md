@@ -12,8 +12,6 @@
             alt="follow on Twitter"></a>
 </p></h1>
 
-Azure Event Hubs is a hyper-scale data ingestion service that collects and stores trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
-
 We're happy to host our client SDKs and integrations here on GitHub as free, open-source projects. We currently support:
 
 * [.NET](https://github.com/azure/azure-event-hubs-dotnet)
@@ -27,3 +25,7 @@ Event Hubs also integrate with:
 * [Apache Spark](https://github.com/Azure/azure-event-hubs-spark)
 
 If you have any feedback, questions, or comments, go to the correct repo and file an issue. All invovlement is welcome and encouraged! 
+
+## What is Event Hubs?
+
+Azure Event Hubs is a hyper-scale data ingestion service that collects and stores trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
