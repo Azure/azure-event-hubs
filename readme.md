@@ -2,7 +2,7 @@
   <img src="event-hubs.png" alt="Microsoft Azure Event Hubs" width="100"/>
 </p>
 
-<h1 align="center">Microsoft Azure Event Hubs</h1>
+<h1 align="center">Microsoft Azure Event Hubs
 
 <p align="center">
     <a href="https://github.com/Azure/azure-event-hubs">
@@ -11,7 +11,7 @@
     <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
         <img src="https://img.shields.io/twitter/follow/shields_io.svg?style=social&logo=twitter"
             alt="follow on Twitter"></a>
-</p>
+</p></h1>
 
 Azure Event Hubs is a hyper-scale data ingestion service that collects and stores trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
 
