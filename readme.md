@@ -9,7 +9,7 @@
         <img src="https://img.shields.io/github/stars/badges/shields.svg?style=social&label=Stars"
             alt="star our GitHub repo"></a>
     <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
-        <img src="https://img.shields.io/twitter/follow/shields_io.svg?style=social&logo=twitter"
+        <img src="https://img.shields.io/twitter/follow/espadrine.svg?style=social&label=Follow @azureeventhubs"
             alt="follow on Twitter"></a>
 </p></h1>
 
