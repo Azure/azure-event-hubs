@@ -7,7 +7,7 @@
   <a href="#star-our-repo">
         <img src="https://img.shields.io/github/stars/azure/azure-event-hubs.svg?style=social&label=Stars"
             alt="star our repo"></a>
-  <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
+  <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs" target="_blank">
         <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow%20@azureeventhubs"
             alt="follow on Twitter"></a>
 </p></h1>
