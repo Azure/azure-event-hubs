@@ -22,7 +22,7 @@ We're happy to host our client SDKs and integrations here on GitHub as free, ope
 * [Go](https://github.com/azure/azure-event-hubs-go)
 * [Apache Spark integration](https://github.com/Azure/azure-event-hubs-spark)
 
-If you have any feedback, questions, or comments, go to the correct repo and file an issue. All invovlement is welcome and encouraged! 
+If you have any feedback, questions, or comments, go to the correct repo and file an issue. **Your invovlement is welcome and encouraged!**
 
 ## What is Event Hubs?
 
