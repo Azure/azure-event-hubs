@@ -2,6 +2,8 @@
   <img src="event-hubs.png" alt="Microsoft Azure Event Hubs" width="100"/>
 </p>
 
+<h1 align="center">Microsoft Azure Event Hubs</h1>
+
 <p align="center">
     <a href="https://github.com/Azure/azure-event-hubs">
         <img src="https://img.shields.io/github/stars/badges/shields.svg?style=social&label=Stars"
