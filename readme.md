@@ -13,8 +13,6 @@
             alt="follow on Twitter"></a>
 </p>
 
-# Microsoft Azure Event Hubs
-
 Azure Event Hubs is a hyper-scale data ingestion service that collects and stores trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
 
 ## Event Hubs Ecosystem
