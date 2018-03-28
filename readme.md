@@ -12,7 +12,7 @@
             alt="follow on Twitter"></a>
 </p></h1>
 
-We're happy to host our client SDKs and integrations here on GitHub as free, open-source projects. We currently support:
+We're happy to host our client SDKs and integrations on GitHub as free, open-source projects. We currently support:
 
 * [.NET](https://github.com/azure/azure-event-hubs-dotnet)
 * [Java](https://github.com/azure/azure-event-hubs-java)
