@@ -20,7 +20,7 @@ We're happy to host our client SDKs and integrations on GitHub as free, open-sou
 * [Node.js](https://github.com/azure/azure-event-hubs-node)
 * [Python](https://github.com/azure/azure-event-hubs-python)
 * [Go](https://github.com/azure/azure-event-hubs-go)
-* [Apache Spark integration](https://github.com/Azure/azure-event-hubs-spark)
+* [Apache Spark connector](https://github.com/Azure/azure-event-hubs-spark)
 
 If you have any feedback, questions, or comments, go to the correct repo and file an issue. **Your invovlement is welcome and encouraged!**
 
