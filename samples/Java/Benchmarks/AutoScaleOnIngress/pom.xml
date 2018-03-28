@@ -47,7 +47,7 @@
 	<dependency>
 	  		<groupId>com.microsoft.azure</groupId>
 	  		<artifactId>azure-eventhubs</artifactId>
-	  		<version>0.15.0</version>
+	  		<version>1.0.0</version>
 	 	</dependency>	 	
 	</dependencies>
 </project>
