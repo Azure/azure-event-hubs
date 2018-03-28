@@ -5,11 +5,9 @@
 <h1 align="center">Microsoft Azure Event Hubs
 
 <p align="center">
-    <a href="https://github.com/Azure/azure-event-hubs">
-        <img src="https://img.shields.io/github/stars/badges/shields.svg?style=social&label=Stars"
-            alt="star our GitHub repo"></a>
-    <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
-        <img src="https://img.shields.io/twitter/follow/espadrine.svg?style=social&label=Follow @azureeventhubs"
+  <a class="github-button" href="https://github.com/Azure/azure-event-hubs" data-size="large" data-show-count="true" aria-label="Star Azure/azure-event-hubs on GitHub">Star</a>
+  <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
+        <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow%20@azureeventhubs"
             alt="follow on Twitter"></a>
 </p></h1>
 
