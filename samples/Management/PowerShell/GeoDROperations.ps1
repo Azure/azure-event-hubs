@@ -5,12 +5,12 @@ Login-AzureRmAccount
 Install-Module AzureRM.EventHub
 
 #Step 2 – following parameters are used while creating the resources
-$location1 = “East US”
-$location2 = “West US”
-$resourceGroup = “eventhubgeodr_resourcegroup”
-$primarynamespace = “eventhub_primarynamespace1”
-$secondarynamespace = “eventhub_secondarynamespace1”
-$aliasname = “eventhubalias1”
+$location1 = “<provide your preferred primary location>”
+$location2 = “<provide your preferred secondary location>”
+$resourceGroup = “<provide your resource group name>”
+$primarynamespace = “<provide your primary namespace name>”
+$secondarynamespace = “<provide your secondary namespace name>”
+$aliasname = “<provide your alias name>”
 
 #Step 3 - Create Resource Group
 New-AzureRmResourceGroup -Name $resourceGroup -Location $location1

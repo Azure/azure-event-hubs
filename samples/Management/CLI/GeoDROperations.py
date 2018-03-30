@@ -5,12 +5,12 @@ az account set --subscription "your subscription name"
 
 #Step 2 – following parameters are used while creating the resources. The variable declaration assumes you run the commands from a Powershell Window. You may need to change in case you ran e.g. from the portal.
 
-export location1=NorthCentralUS
-export location2=SouthCentralUS
-export resourcegroup=geocliehtestrg
-export primarynamespace=testgeocliprimaryns3
-export secondarynamespace=testgeoclisecondaryns3
-export aliasname=testgeoclialiasname3
+export location1=<provide your preferred primary location>
+export location2=<provide your preferred secondary location>
+export resourcegroup=<provide your resource group name>
+export primarynamespace=<provide your primary namespace name>
+export secondarynamespace=<provide your secondary namespace name>
+export aliasname=<provide your alias name>
 
 #Step 3 - Create Resource Group
 az group create --name $resourcegroup --location $location1
