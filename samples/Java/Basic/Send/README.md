@@ -5,7 +5,7 @@ The [Send events to Azure Event Hubs using Java](https://docs.microsoft.com/azur
 To run the sample, you need to edit the [sample code](src/main/java/com/microsoft/azure/eventhubs/samples/send/Send.java) and provide the following information:
 
 ```java
-    final String namespaceName = "----ServiceBusNamespaceName-----";
+    final String namespaceName = "----EventHubsNamespaceName-----";
     final String eventHubName = "----EventHubName-----";
     final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
     final String sasKey = "---SharedAccessSignatureKey----";
@@ -13,7 +13,7 @@ To run the sample, you need to edit the [sample code](src/main/java/com/microsof
 
 ## Prerequisites
 
-Please refer to the [overview README](../../readme.md) for prerequisites and setting up the sample environment, including creating an Event Hubs cloud namespace and an Event Hub. 
+Please refer to the [overview README](../../README.md) for prerequisites and setting up the sample environment, including creating an Event Hubs cloud namespace and an Event Hub. 
 
 ## Build and run
 
