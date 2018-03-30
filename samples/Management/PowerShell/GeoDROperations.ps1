@@ -4,6 +4,10 @@ Login-AzureRmAccount
 # Optional – you need this if you do not have Event Hubs module already installed
 Install-Module AzureRM.EventHub
 
+# Optional - set your desired subscription
+Set-AzureSubscription
+   -SubscriptionName "your subscription name"
+
 #Step 2 – following parameters are used while creating the resources
 $location1 = “<provide your preferred primary location>”
 $location2 = “<provide your preferred secondary location>”
