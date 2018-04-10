@@ -28,6 +28,7 @@
         <module>Basic/ReceiveUsingSequenceNumber</module>
         <module>Basic/Send</module>
         <module>Basic/SendBatch</module>
+        <module>Basic/SimpleSend</module>
         <module>Benchmarks/AutoScaleOnIngress</module>
         <module>Benchmarks/IngressBenchmark</module>
     </modules>

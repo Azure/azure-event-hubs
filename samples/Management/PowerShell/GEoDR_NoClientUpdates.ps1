@@ -41,4 +41,4 @@ az eventhubs georecovery-alias fail-over --resource-group $resourcegroup --alias
 
 #Optional - check you geo-dr configuration details to reflect the fail-over
 #Note - your secondarynamespace after the failover will be your new primary, but the connection string remains the same
-az eventhubs georecovery-alias show --resource-group $resourcegroup --alias $aliasname --namespace-name $secondarynamespace -- this is your current primary
+az eventhubs georecovery-alias show --resource-group $resourcegroup --alias $aliasname --namespace-name $secondarynamespace #this is your current primary

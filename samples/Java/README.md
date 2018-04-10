@@ -11,14 +11,16 @@ Azure Event Hubs is a highly scalable data streaming platform and event ingestio
 
 ### Sending events
 
-* **Send** - The [Send](./Basic/Send) sample illustrates how to ingest events into your event hub.
+* **Send** - The [Send](./Basic/Send) sample illustrates the various options available with Event Hubs to ingest events.
 * **SendBatch** - The [SendBatch](./Basic/SendBatch) sample illustrates how to ingest batches of events into your event hub.
+* **SimpleSend** - The [SimpleSend](./Basic/SimpleSend) sample illustrates how to ingest events into your event hub.
  
 ### Processing events
 
 * **ReceiveByDateTime** - The [ReceiveByDateTime](./Basic/ReceiveByDateTime) sample illustrates how to receive events from an event hub partition using a specific date-time offset.
 * **ReceiveUsingOffset** - The [ReceiveUsingOffset](./Basic/ReceiveUsingOffset) sample illustrates how to receive events from an event hub partition using a specific data offset.
-* **EventProcessorSample** - The [EventProcessorSample](./Basic/EventProcessorSample) sample illustrates how to receive events from an event hub using the event processor host, which provides automatic partition selection and fail-over across multiple concurrent receivers. 
+* **EventProcessorSample** - The [EventProcessorSample](./Basic/EventProcessorSample) sample illustrates how to receive events from an event hub using the event processor host, which provides automatic partition selection and fail-over across multiple concurrent receivers.
+
 
 ### Benchmarks
 
