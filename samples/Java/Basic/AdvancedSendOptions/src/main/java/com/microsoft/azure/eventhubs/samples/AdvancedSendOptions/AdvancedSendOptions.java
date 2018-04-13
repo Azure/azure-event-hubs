@@ -2,7 +2,7 @@
  * Copyright (c) Microsoft. All rights reserved.
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
-package com.microsoft.azure.eventhubs.samples.send;
+package com.microsoft.azure.eventhubs.samples.AdvancedSendOptions;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -20,16 +20,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
-public class Send {
+public class AdvancedSendOptions {
 
     public static void main(String[] args)
             throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                .setNamespaceName("----ServiceBusNamespaceName-----") // to target National clouds - use .setEndpoint(URI)
+                .setNamespaceName("----NamespaceName-----")// to target National clouds - use .setEndpoint(URI)
                 .setEventHubName("----EventHubName-----")
                 .setSasKeyName("-----SharedAccessSignatureKeyName-----")
-                .setSasKey("---SharedAccessSignatureKey----");
+                .setSasKey("---SharedAccessSignatureKey---");
 
         final Gson gson = new GsonBuilder().create();
 
@@ -37,7 +37,15 @@ public class Send {
         byte[] payloadBytes = gson.toJson(payload).getBytes(Charset.defaultCharset());
         final EventData sendEvent = EventData.create(payloadBytes);
 
+        // The Executor handles all the asynchronous tasks and this is passed to the EventHubClient.
+        // The gives the user control to segregate their thread pool based on the work load.
+        // This pool can then be shared across multiple EventHubClient instances.
+        // The below sample uses a single thread executor as there is only on EventHubClient instance,
+        // handling different flavors of ingestion to Event Hubs here
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        // Each EventHubClient instance spins up a new TCP/SSL connection, which is expensive.
+        // It is always a best practice to reuse these instances. The following sample shows the same.
         final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);;
         PartitionSender sender = null;
 
@@ -46,7 +54,7 @@ public class Send {
             // Type-1 - Send - not tied to any partition
             // EventHubs service will round-robin the events across all EventHubs partitions.
             // This is the recommended & most reliable way to send to EventHubs.
-            ehClient.send(sendEvent).get();
+            ehClient.sendSync(sendEvent);
 
             // Partition-sticky Sends
             // Type-2 - Send using PartitionKey - all Events with Same partitionKey will land on the Same Partition
@@ -70,6 +78,7 @@ public class Send {
                             }
                         }, executorService).get();
             } else {
+                // This cleans up the resources including any open sockets
                 ehClient.closeSync();
             }
 

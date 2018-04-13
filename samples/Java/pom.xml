@@ -25,8 +25,10 @@
         <module>Basic/EventProcessorSample</module>
         <module>Basic/ReceiveByDateTime</module>
         <module>Basic/ReceiveUsingOffset</module>
-        <module>Basic/Send</module>
+        <module>Basic/ReceiveUsingSequenceNumber</module>
+        <module>Basic/AdvancedSendOptions</module>
         <module>Basic/SendBatch</module>
+        <module>Basic/SimpleSend</module>
         <module>Benchmarks/AutoScaleOnIngress</module>
         <module>Benchmarks/IngressBenchmark</module>
     </modules>
