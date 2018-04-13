@@ -15,7 +15,7 @@ To run the sample, you need to edit the [sample code](src/main/java/com/microsof
 
 ## Prerequisites
 
-Please refer to the [overview README](../../readme.md) for prerequisites and setting up the sample environment, including creating an Event Hubs cloud namespace and an Event Hub.
+Please refer to the [overview README](../../README.md) for prerequisites and setting up the sample environment, including creating an Event Hubs cloud namespace and an Event Hub.
 
 ## Build and run
 
