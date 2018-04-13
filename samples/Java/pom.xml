@@ -26,7 +26,7 @@
         <module>Basic/ReceiveByDateTime</module>
         <module>Basic/ReceiveUsingOffset</module>
         <module>Basic/ReceiveUsingSequenceNumber</module>
-        <module>Basic/Send</module>
+        <module>Basic/AdvancedSendOptions</module>
         <module>Basic/SendBatch</module>
         <module>Basic/SimpleSend</module>
         <module>Benchmarks/AutoScaleOnIngress</module>

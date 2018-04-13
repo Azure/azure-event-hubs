@@ -1,6 +1,8 @@
 # Receive events from Azure Event Hubs using Java
 
-This sample shows how to receive events from a particular Event Hub partition based on a sequence number. This is a lower-level API gesture that most applications will not use, but rather lean on the Event Processor Host to manage partition ownership and check-pointing. The [Event Processor Sample](../EventProcessorSample) shows this higher level functionality.
+This sample shows how to receive events from a particular Event Hub partition based on a sequence number. This sample here focuses on receive from a single partition of the many partitions in your event hub.
+This is a lower-level API gesture that most applications will not use, but rather lean on the Event Processor Host to manage partition ownership and check-pointing. The [Event Processor Sample](../EventProcessorSample) shows this higher level functionality.
+A receiver with the option of a sequence number provides the user with the added flexibility of providing a deterministic value for your start and end points. Internally this will map to an offset. This means, for high performance scenarios you would want to consider receiving by offset.
 
 To run the sample, you need to edit the [sample code](src/main/java/com/microsoft/azure/eventhubs/samples/receivebydatetime/ReceiveUsingSequenceNumber.java) and provide the following information:
 
