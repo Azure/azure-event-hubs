@@ -34,7 +34,7 @@ Publish your function from Visual Studio to the function app you deployed with t
 Create a table with the schema speicified in CreateDataWarehouseTable.sql under scripts
 
 ## Create an Event subscription
-Now that you have created the endpoint where we want notification, it is time to create Event subscription so you can route and filter events. Note, this users the already existing Event Hubs namespcace described earlier.
+Now that you have created the endpoint where we want notification, it is time to create Event subscription so you can route and filter events. Note, this uses the already existing Event Hubs namespcace described earlier.
 An Event subscription can be created either through the portal or using Azure CLI. Below, describes both scenarios.
 
 ### Using portal
