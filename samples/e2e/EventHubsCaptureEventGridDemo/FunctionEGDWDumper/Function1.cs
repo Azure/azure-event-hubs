@@ -1,3 +1,6 @@
+// This is the default URL for triggering event grid function in the local environment.
+// http://localhost:7071/admin/extensions/EventGridExtensionConfig?functionName={functionname} 
+
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -10,70 +13,38 @@ using System.Threading.Tasks;
 using Avro.File;
 using Avro.Generic;
 using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
-namespace FunctionDWDumper
-{    
-    public static class DWDumperFunction1
+namespace FunctionEGDWDumper
+{
+
+    public static class Function1
     {
         private static readonly string StorageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
         private static readonly string SqlDwConnection = Environment.GetEnvironmentVariable("SqlDwConnection");
 
         /// <summary>
         /// Use the accompanying .sql script to create this table in the data warehouse
-        /// </summary>
+        /// </summary>  
         private const string TableName = "dbo.Fact_WindTurbineMetrics";
 
-        /// <summary>
-        /// Before wiring this up with EventGrid, you can test this function by
-        /// a. Create a new EventGrid subscription name to https://requestb.in
-        ///    This keeps sending EventGrid json data to https://requestb.in
-        /// b. From there, copy the json request body
-        /// c. Execute the function in Azure portal as a one-off by selecting POST and providing the json body you copied
-        /// d. This should create some rows in the data warehouse.
-        ///    This ensures that the Azure Function is dumping data correctly to the data warehouse
-        /// e. Next, create a new EventGrid subscription name to Azure Functions
-        ///    This should automatically populate data to the data warehouse every time the Avro blob is created by Event Hubs Capture.
-        /// </summary>
-        /// <returns></returns>
-        [FunctionName("HttpTriggerCSharp")]
-        public static async Task<HttpResponseMessage> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequestMessage req, TraceWriter log)
+        [FunctionName("Function1")]
+        public static void Run([EventGridTrigger]JObject eventGridEvent, TraceWriter log)
         {
-            log.Info("C# HTTP trigger function processed a request.");
+            log.Info("C# EventGrid trigger function processed a request.");
+            log.Info(eventGridEvent.ToString(Formatting.Indented));
+            // Copy to a static Album instance
+            EventGridEHEvent ehEvent = eventGridEvent.ToObject<EventGridEHEvent>();
 
-            try
-            {
-                string jsonContent = await req.Content.ReadAsStringAsync();
-
-                EventGridEvent[] eventGridEvents = jsonContent.FromJson<EventGridEvent[]>();
-
-                foreach (var ege in eventGridEvents)
-                {
-                    var uri = new Uri(ege.data.fileUrl);
-                    Dump(uri);
-                }
-
-                return req.CreateResponse(HttpStatusCode.OK);
-            }
-            catch (Exception e)
-            {
-                // TODO, swallowing all exceptions for now!
-
-                string s = string.Format(CultureInfo.InvariantCulture,
-                    "Error processing request. Exception: {0}, Request: {1}", e, req.ToJson());
-                log.Error(s);
-
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
-            }
+            var uri = new Uri(ehEvent.data.fileUrl);
+            Dump(uri);
         }
 
-        /// <summary>
-        /// Dumps the data from the Avro blob to the data warehouse (DW). 
-        /// Before running this, ensure that the DW has the required <see cref="TableName"/> table created.
-        /// </summary>        
         private static void Dump(Uri fileUri)
         {
             // Get the blob reference
@@ -104,7 +75,6 @@ namespace FunctionDWDumper
                 }
             }
         }
-
         private static void BatchInsert(DataTable table)
         {
             // Write the data to SQL DW using SqlBulkCopy

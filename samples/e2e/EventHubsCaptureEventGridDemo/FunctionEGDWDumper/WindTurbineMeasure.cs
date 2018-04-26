@@ -1,6 +1,6 @@
 using System;
 
-namespace FunctionDWDumper
+namespace FunctionEGDWDumper
 {
     // TODO, move this class to a Contracts assembly that is shared across different projects
     class WindTurbineMeasure
