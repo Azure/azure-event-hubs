@@ -36,7 +36,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.microsoft.azure.eventhubs.samples.simplesend.SimpleSend</mainClass>
+                            <mainClass>com.microsoft.azure.eventhubs.samples.SimpleSend.SimpleSend</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
