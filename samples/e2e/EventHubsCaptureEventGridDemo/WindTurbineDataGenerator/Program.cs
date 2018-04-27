@@ -15,7 +15,7 @@ namespace WindTurbineDataGenerator
         private const string EventHubConnectionString =
             "[provide the EH connection string]";
 
-        private const string EventHubName = "hubdatamigration";
+        private const string EventHubName = "[provide the EH name]";
         
         private static int Main(string[] args)
         {
