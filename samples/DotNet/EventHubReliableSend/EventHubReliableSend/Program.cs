@@ -9,8 +9,6 @@ namespace EventHubReliableSend
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.ServiceBus;
-    using Microsoft.ServiceBus.Messaging;
 
     class Program
     {
@@ -21,6 +19,8 @@ namespace EventHubReliableSend
         const int NumberOfParallelClients = 10;
 
         // Try planning 1MB/sec load per partition.
+        // For example, if you are planning to push up to 32MB/sec to an event hub then create a 32-partition entity.
+        // More details at https://azure.microsoft.com/en-us/pricing/details/event-hubs/
         const int PartitionCount = 4;
 
         static List<SenderClient> senderClients = new List<SenderClient>();
@@ -38,7 +38,7 @@ namespace EventHubReliableSend
             // Create factories.
             nm = NamespaceManager.CreateFromConnectionString(ConnString);
 
-            // Crate Event Hub.
+            // Create Event Hub.
             try
             {
                 nm.CreateEventHubIfNotExists(new EventHubDescription(EhName)
@@ -48,7 +48,7 @@ namespace EventHubReliableSend
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Something went wrong while creating Event Hub {0}. Check the following exception details.", EhName);
+                Console.WriteLine($"Something went wrong while creating Event Hub {EhName}. Check the exception details.");
                 throw;
             }
 
