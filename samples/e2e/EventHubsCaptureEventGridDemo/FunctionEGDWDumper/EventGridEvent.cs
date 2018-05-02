@@ -1,10 +1,10 @@
-namespace FunctionDWDumper
+namespace FunctionEGDWDumper
 {
     /// <summary>
     /// These classes were generated from the EventGrid event schema.
     /// <see cref="DWDumperFunction1"/> comments for understanding how the EventGrid schema was obtained.
     /// </summary>
-    public class EventGridEvent
+    public class EventGridEHEvent
     {
         public string topic { get; set; }
         public string subject { get; set; }
