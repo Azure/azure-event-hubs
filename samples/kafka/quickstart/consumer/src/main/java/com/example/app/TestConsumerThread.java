@@ -41,7 +41,7 @@ public class TestConsumerThread implements Runnable {
         try {
             final Properties properties = new Properties();
             synchronized (TestConsumerThread.class) {
-                properties.put(ConsumerConfig.GROUP_ID_CONFIG, "KafkaExampleConsumer#" + id);
+                properties.put(ConsumerConfig.CLIENT_ID_CONFIG, "KafkaExampleConsumer#" + id);
                 id++;
             }
             properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class.getName());
