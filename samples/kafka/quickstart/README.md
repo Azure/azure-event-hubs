@@ -65,7 +65,7 @@ The producer will now begin sending events to the Kafka enabled Event Hub at top
 
 Using the provided consumer example, receive messages from the Kafka enabled Event Hubs. To change the Kafka version, change the dependency in the pom file to the desired version.
 
-### Provide Event Hubs Kafka endpoint
+### Provide an Event Hubs Kafka endpoint
 
 #### consumer.config
 
