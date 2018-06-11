@@ -39,7 +39,7 @@ Using the provided Akka Streams producer example, send messages to the Event Hub
 
 #### Producer application.conf
 
-Update the `bootstrap.servers` and `sasl.jaas.config` values in `producer/src/main/resources/application.conf` to direct the producer to the Event Hubs Kafka endpoint with the correct authentication.
+Update the `bootstrap.servers` and `sasl.jaas.config` values in `producer/src/main/resources/application.conf` to direct the producer to the Event Hubs Kafka endpoint with the correct authentication. Note that Akka Streams automatically uses the `application.conf` file to load configurations, so changing it's name or location will break this tutorial unless other steps to load configurations are taken. 
 
 ```config
 akka.kafka.producer {
@@ -76,7 +76,7 @@ Using the provided consumer example, receive messages from the Kafka enabled Eve
 
 #### Consumer application.conf
 
-Update the `bootstrap.servers` and `sasl.jaas.config` values in `consumer/src/main/resources/application.conf` to direct the consumer to the Event Hubs Kafka endpoint with the correct authentication.
+Update the `bootstrap.servers` and `sasl.jaas.config` values in `consumer/src/main/resources/application.conf` to direct the consumer to the Event Hubs Kafka endpoint with the correct authentication. Note that Akka Streams automatically uses the `application.conf` file to load configurations, so changing it's name or location will break this tutorial unless other steps to load configurations are taken. 
 
 ```config
 akka.kafka.consumer {
