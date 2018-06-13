@@ -12,13 +12,13 @@ If you don't have an Azure subscription, create a [free account](https://azure.m
 
 In addition:
 
-* [Java Development Kit (JDK) 1.7+](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
-    * On Ubuntu, run `apt-get install default-jdk` to install the JDK.
-    * Be sure to set the JAVA_HOME environment variable to point to the folder where the JDK is installed.
-* [Download](http://maven.apache.org/download.cgi) and [install](http://maven.apache.org/install.html) a Maven binary archive
-    * On Ubuntu, you can run `apt-get install maven` to install Maven.
-* [Git](https://www.git-scm.com/downloads)
-    * On Ubuntu, you can run `sudo apt-get install git` to install Git.
+-   [Java Development Kit (JDK) 1.7+](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
+    -   On Ubuntu, run `apt-get install default-jdk` to install the JDK.
+    -   Be sure to set the JAVA_HOME environment variable to point to the folder where the JDK is installed.
+-   [Download](http://maven.apache.org/download.cgi) and [install](http://maven.apache.org/install.html) a Maven binary archive
+    -   On Ubuntu, you can run `apt-get install maven` to install Maven.
+-   [Git](https://www.git-scm.com/downloads)
+    -   On Ubuntu, you can run `sudo apt-get install git` to install Git.
 
 ## Create an Event Hubs namespace
 
@@ -30,7 +30,7 @@ Now that you have a Kafka enabled Event Hubs connection string, clone the Azure 
 
 ```bash
 git clone https://github.com/Azure/azure-event-hubs.git
-cd azure-event-hubs/samples/kafka/quickstart
+cd azure-event-hubs/samples/kafka/quickstart/Java
 ```
 
 ## Producer
