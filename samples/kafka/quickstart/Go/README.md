@@ -38,8 +38,8 @@ cd azure-event-hubs/samples/kafka/quickstart/Go
 Define two environmental variables that specify the fully qualified domain name and port of the Kafka head of your Event Hub and its connection string.
 
 ```bash
-$ export KAFKA_EVENTHUB_ENDPOINT="my-event-hub-namespace.servicebus.windows.net:9093"
-$ export KAFKA_EVENTHUB_CONNECTION_STRING="Endpoint=sb://my-event-hub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Q7fh80DP+70+HrcduL0Xpub2VTN+retgFi4ivxMY7Yk="
+$ export KAFKA_EVENTHUB_ENDPOINT="<EVENT HUB NAMESPACE>.servicebus.windows.net:9093"
+$ export KAFKA_EVENTHUB_CONNECTION_STRING="Endpoint=sb://<EVENT HUB NAMESPACE>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<SHARED ACCESS KEY>"
 ```
 
 ## Producer
