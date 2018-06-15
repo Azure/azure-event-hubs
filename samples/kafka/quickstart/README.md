@@ -2,7 +2,7 @@
 
 Azure Event Hubs is a highly scalable data streaming platform and event ingestion service, capable of receiving and processing millions of events per second. Event Hubs can process and store events, data, or telemetry produced by distributed software and devices. Data sent to an event hub can be transformed and stored using any real-time analytics provider or batching/storage adapters.
 
-An Azure Event Hubs Kafka endpoint enables users to connect to Azure Event Hubs using the Kafka protocol (i.e. Kafka clients). By making minimal changes to a Kafka application, users will be able to connect to Azure Event Hubs and reap the benefits of the Azure ecosystem. Kafka-enabled Event Hubs currently supports Kafka versions 1.0 and later.
+An Event Hubs Kafka endpoint enables users to connect to Event Hubs using the Kafka protocol (i.e. Kafka clients). By making minimal changes to a Kafka application, users will be able to connect to Azure Event Hubs and reap the benefits of the Azure ecosystem. Kafka-enabled Event Hubs currently supports Kafka versions 1.0 and later.
 
 This quickstart will show how to create and connect to an Event Hubs Kafka endpoint using an example producer and consumer.
 
