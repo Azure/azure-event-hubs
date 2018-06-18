@@ -10,7 +10,7 @@ Clone this repo and copy the setup script, producer, and consumer to your workin
 
 ```bash
 git clone https://github.com/Azure/azure-event-hubs.git
-cp -n azure-event-hubs/samples/kafka/* .
+cp -n azure-event-hubs/samples/kafka/python/* .
 ```
 
 Now run the set up script:
