@@ -1,16 +1,16 @@
-# Send and Receive Messages in Node using Azure Event Hubs for Kafka Ecosystem
+# Send and Receive Messages in Node using Event Hubs for Apache Kafka Ecosystems
 
-Azure Event Hubs is a highly scalable data streaming platform and event ingestion service, capable of receiving and processing millions of events per second. Event Hubs can process and store events, data, or telemetry produced by distributed software and devices. Data sent to an event hub can be transformed and stored using any real-time analytics provider or batching/storage adapters.
+One of the key benefits of using Apache Kafka is the number of ecosystems it can connect to. Kafka-enabled Event Hubs allow users to combine the flexibility of the Kafka ecosystem with the scalability, consistency, and support of the Azure ecosystem without having to manage on prem clusters or resources - it's the best of both worlds!
 
 An Azure Event Hubs Kafka endpoint enables users to connect to Azure Event Hubs using the Kafka protocol (i.e. Kafka clients). By making minimal changes to a Kafka application, users will be able to connect to Azure Event Hubs and reap the benefits of the Azure ecosystem. Kafka enabled Event Hubs currently supports Kafka versions 1.0 and later.
 
-This quickstart will show how to create and connect to an Event Hubs Kafka endpoint using an example producer and consumer written in Go.
+This quickstart will show how to create and connect to an Event Hubs Kafka endpoint using an example producer and consumer written in Node.
 
-NOTE: This sample uses the [node-rdkafka](https://github.com/Blizzard/node-rdkafka) library which currently doesn't support Windows as well as Linux/Mac. For instructions on how to configure for Windows, please visit the node-rdkafka project and follow their instructions before continuing with the sample (though our sample is untested on Windows). However, this sample has been tested on the [Linux Subsystem on Windows 10](https://docs.microsoft.com/en-us/windows/wsl/install-win10), so that is a good option if you plan on running on Windows.
+NOTE: This sample uses the [node-rdkafka](https://github.com/Blizzard/node-rdkafka) library which currently doesn't support Windows as well as it supports Linux/Mac. For instructions on how to configure for Windows, please visit the node-rdkafka project and follow their instructions before continuing with the sample (though our sample is untested on Windows). However, this sample has been tested on the [Linux Subsystem on Windows 10](https://docs.microsoft.com/en-us/windows/wsl/install-win10), so that is a good option if you plan on running on Windows.
 
 ## Prerequisites
 
-If you don't have an Azure subscription, create a [free account](https://azure.microsoft.com/en-us/free/?ref=microsoft.com&utm_source=microsoft.com&utm_medium=docs&utm_campaign=visualstudio) before you begin.
+If you don't have an Azure subscription, create a [free account](https://azure.microsoft.com/free/?ref=microsoft.com&utm_source=microsoft.com&utm_medium=docs&utm_campaign=visualstudio) before you begin.
 
 In addition:
 
@@ -23,7 +23,7 @@ In addition:
 
 ## Create an Event Hubs namespace
 
-An Event Hub's namespace is required to send or receive from any Event Hubs service. See [Create Kafka Enabled Event Hubs](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create-kafka-enabled) for instructions on getting an Event Hubs Kafka endpoint.
+An Event Hub's namespace is required to send or receive from any Event Hubs service. See [Create Kafka Enabled Event Hubs](https://docs.microsoft.com/azure/event-hubs/event-hubs-create-kafka-enabled) for instructions on getting an Event Hubs Kafka endpoint.
 
 Make sure to copy the Event Hubs connection string for later use.
 
@@ -35,7 +35,7 @@ Now that you have a Kafka enabled Event Hubs connection string, clone the Azure 
 
 ```bash
 git clone https://github.com/Azure/azure-event-hubs.git
-cd azure-event-hubs/samples/kafka/quickstart/Node
+cd azure-event-hubs/samples/kafka/Node
 ```
 
 ## Configuration
