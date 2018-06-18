@@ -8,11 +8,11 @@ This tutorial will show how to connect Confluent's Apache Kafka Python client to
 
 ## Prerequisites
 
-If you don't have an Azure subscription, create a [free account](https://azure.microsoft.com/en-us/free/?ref=microsoft.com&utm_source=microsoft.com&utm_medium=docs&utm_campaign=visualstudio) before you begin.
+If you don't have an Azure subscription, create a [free account](https://azure.microsoft.com/free/?ref=microsoft.com&utm_source=microsoft.com&utm_medium=docs&utm_campaign=visualstudio) before you begin.
 
 ## Create an Event Hubs namespace
 
-An Event Hubs namespace is required to send or receive from any Event Hubs service. See [Create Kafka-enabled Event Hubs](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create-kafka-enabled) for instructions on getting an Event Hubs Kafka endpoint. Make sure to copy the Event Hubs connection string for later use.
+An Event Hubs namespace is required to send or receive from any Event Hubs service. See [Create Kafka-enabled Event Hubs](https://docs.microsoft.com/azure/event-hubs/event-hubs-create-kafka-enabled) for instructions on getting an Event Hubs Kafka endpoint. Make sure to copy the Event Hubs connection string for later use.
 
 ## Set up
 
@@ -20,7 +20,7 @@ Clone this repo and copy the setup script, producer, and consumer to your workin
 
 ```bash
 git clone https://github.com/Azure/azure-event-hubs.git
-cp -n azure-event-hubs/samples/kafka/* .
+cp -n azure-event-hubs/samples/kafka/python/* .
 ```
 
 Now run the set up script:

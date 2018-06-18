@@ -15,6 +15,6 @@ echo "Setting up Confluent's Python Kafka library"
 #The "/" at the end of confluent-kafka-python is important
 #If there's no "/" pip will try to download a confluent-kafka-python package and fail to find it
 sudo pip install confluent-kafka-python/
-echo "Try running your producer now."
+echo "Try running the samples now!"
 
 #Sometimes 'sudo apt-get purge librdkafka1' helps if this script doesn't work initially
