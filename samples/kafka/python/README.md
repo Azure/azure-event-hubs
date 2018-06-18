@@ -1,10 +1,10 @@
 # Using Confluent's Python Kafka client and librdkafka with Event Hubs for Apache Kafka Ecosystems
 
-Sample for sending 100 messages to a Kafka-enabled Event Hub using Confluent's Python Kafka client
+Sending 100 messages to a Kafka-enabled Event Hub using Confluent's Python Kafka client
 
 ***This sample is still a work in progress. Your mileage may vary.***
 
-### Set up
+## Set up
 
 Clone this repo and copy the setup script, producer, and consumer to your working directory:
 
