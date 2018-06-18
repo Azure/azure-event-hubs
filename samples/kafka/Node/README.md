@@ -59,7 +59,7 @@ This sample uses the [`node-rdkafka` module](https://github.com/Blizzard/node-rd
 
 Linux:
 ```bash
-npm install node-=rdkafka
+npm install node-rdkafka
 ```
 
 Mac OS:
