@@ -1,4 +1,4 @@
-# Using Akka Streams with Event Hubs for Apache Kafka Ecosystems
+# Using Akka Streams with Event Hubs for Apache Kafka Ecosystems (Java)
 
 One of the key benefits of using Apache Kafka is the number of ecosystems it can connect to. Kafka-enabled Event Hubs allow users to combine the flexibility of the Kafka ecosystem with the scalability, consistency, and support of the Azure ecosystem without having to manage on prem clusters or resources - it's the best of both worlds!
 
@@ -24,11 +24,11 @@ An Event Hubs namespace is required to send or receive from any Event Hubs servi
 
 ## Clone the example project
 
-Now that you have a Kafka-enabled Event Hubs connection string, clone the Azure Event Hubs repository and navigate to the `akka` subfolder:
+Now that you have a Kafka-enabled Event Hubs connection string, clone the Azure Event Hubs repository and navigate to the `samples/kafka/akka/java` subfolder:
 
 ```bash
 git clone https://github.com/Azure/azure-event-hubs.git
-cd azure-event-hubs/samples/kafka/akka
+cd azure-event-hubs/samples/kafka/akka/java
 ```
 
 ## Akka Streams Producer

@@ -3,7 +3,7 @@ import java.util.concurrent.TimeUnit.SECONDS
 import akka.actor.ActorSystem
 import akka.kafka.ProducerSettings
 import akka.kafka.scaladsl.Producer
-import akka.stream.scaladsl.{Source}
+import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{ByteArraySerializer, StringSerializer}

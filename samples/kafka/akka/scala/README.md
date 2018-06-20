@@ -1,4 +1,4 @@
-# Using Akka Streams with Event Hubs for Apache Kafka Ecosystems
+# Using Akka Streams with Event Hubs for Apache Kafka Ecosystems (Scala)
 
 One of the key benefits of using Apache Kafka is the number of ecosystems it can connect to. Kafka-enabled Event Hubs allow users to combine the flexibility of the Kafka ecosystem with the scalability, consistency, and support of the Azure ecosystem without having to manage on prem clusters or resources - it's the best of both worlds!
 
