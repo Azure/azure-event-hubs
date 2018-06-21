@@ -62,7 +62,6 @@ if __name__ == '__main__':
         'group.id': group,
         'client.id': 'python-example-consumer',
         'request.timeout.ms': 60000,
-        'session.timeout.ms': 6000,
         'default.topic.config': {'auto.offset.reset': 'smallest'}
     }
 
@@ -117,9 +116,6 @@ if __name__ == '__main__':
                     raise KafkaException(msg.error())
             else:
                 # Proper message
-                sys.stderr.write('%% %s [%d] at offset %d with key %s:\n' %
-                                 (msg.topic(), msg.partition(), msg.offset(),
-                                  str(msg.key())))
                 print(msg.value())
 
     except KeyboardInterrupt:
