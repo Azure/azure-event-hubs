@@ -63,3 +63,4 @@ if __name__ == '__main__':
     #Wait until all messages have been delivered
     sys.stderr.write ('%% Waiting for %d deliveries\n' % len (p))
     p.flush ()
+    
