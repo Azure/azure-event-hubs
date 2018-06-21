@@ -4,8 +4,6 @@ One of the key benefits of using Kafka is the number of ecosystems it can connec
 
 This tutorial will show how to connect Confluent's Apache Kafka Python client to Kafka-enabled Event Hubs without changing your protocol clients or running your own clusters. Azure Event Hubs for Apache Kafka Ecosystems supports [Apache Kafka version 1.0.](https://kafka.apache.org/10/documentation.html)
 
-***This sample is still a work in progress. Your mileage may vary, and your feedback is appreciated!***
-
 ## Prerequisites
 
 If you don't have an Azure subscription, create a [free account](https://azure.microsoft.com/free/?ref=microsoft.com&utm_source=microsoft.com&utm_medium=docs&utm_campaign=visualstudio) before you begin.
