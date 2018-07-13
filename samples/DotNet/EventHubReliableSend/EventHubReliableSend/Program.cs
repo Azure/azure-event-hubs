@@ -9,6 +9,8 @@ namespace EventHubReliableSend
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.ServiceBus;
+    using Microsoft.ServiceBus.Messaging;
 
     class Program
     {
@@ -106,7 +108,7 @@ namespace EventHubReliableSend
             // Log partition metrics which will tell us how fast we're sending.
             try
             {
-                Console.WriteLine("\nIncoming Throughput Metrics:");
+                Console.WriteLine("Throughput Metrics:");
                 Console.WriteLine("=============================");
                 for (int partitionId=0; partitionId<PartitionCount; partitionId++)
                 {
@@ -116,7 +118,7 @@ namespace EventHubReliableSend
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Caught exception while getting partition throughput metrics: {1}", ex.Message);
+                Console.WriteLine("Caught exception while getting partition throughput metrics: {0}", ex.Message);
             }
 
             monitorLock.Reset();
