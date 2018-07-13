@@ -14,7 +14,7 @@ This sample shows how to write a .NET Core console application that sends a set 
 To run the sample, follow these steps:
 
 1. Clone or download this GitHub repo.
-2. [Create an Event Hubs namespace and an event hub](event-hubs-quickstart-namespace-portal.md).
+2. [Create an Event Hubs namespace and an event hub](https://docs.microsoft.com/azure/event-hubs/event-hubs-create).
 3. In Visual Studio, select **File**, then **Open Project/Soultion**. Navigate to the \azure-event-hubs\samples\DotNet\Microsoft.Azure.EventHubs\SampleSender folder.
 4. Load the SampleSender.sln solution file into Visual Studio.
 5. Add the [Microsoft.Azure.EventHubs](https://www.nuget.org/packages/Microsoft.Azure.EventHubs/) NuGet package to the project.
