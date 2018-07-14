@@ -6,7 +6,6 @@ package com.microsoft.azure.eventhubs.samples.autoscaleoningress;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubException;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,6 +14,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
 /*
@@ -24,7 +25,7 @@ import java.util.function.BiConsumer;
 public class AutoScaleOnIngress {
 
     public static void main(String[] args)
-            throws EventHubException, ExecutionException, InterruptedException, IOException {
+        throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         // *********************************************************************
         // List of variables involved - to achieve desired LOAD / THROUGHPUT UNITS
@@ -43,12 +44,14 @@ public class AutoScaleOnIngress {
 
         final int NO_OF_CONNECTIONS = tus;
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
         System.out.println();
         System.out.print("EventHub Connection String: ");
         final String connectionString = System.console().readLine();
         System.out.println();
 
-        final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connectionString);
+        final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connectionString, executorService);
 
         ehClientPool.initialize().get();
         System.out.println("started sending...");
@@ -62,26 +65,26 @@ public class AutoScaleOnIngress {
             for (int batchSize = 0; batchSize < BATCH_SIZE; batchSize++) {
                 final byte[] payload = new byte[EVENT_SIZE];
                 Arrays.fill(payload, (byte) 32);
-                final EventData eventData = new EventData(payload);
+                final EventData eventData = EventData.create(payload);
                 eventDataList.add(eventData);
             }
 
             for (int concurrentSends = 0; concurrentSends < NO_OF_CONCURRENT_SENDS; concurrentSends++) {
                 if (sendTasks[concurrentSends] == null || sendTasks[concurrentSends].isDone()) {
                     sendTasks[concurrentSends] = ehClientPool.send(eventDataList)
-                            .whenComplete(new BiConsumer<Void, Throwable>() {
-                                @Override
-                                public void accept(Void aVoid, Throwable throwable) {
-                                    System.out.println(String.format("result: %s, latency: %s, batchSize, %s", throwable == null ? "success" : "failure",
-                                            Duration.between(beforeSend, Instant.now()).toMillis(), BATCH_SIZE));
+                        .whenComplete(new BiConsumer<Void, Throwable>() {
+                            @Override
+                            public void accept(Void aVoid, Throwable throwable) {
+                                System.out.println(String.format("result: %s, latency: %s, batchSize, %s", throwable == null ? "success" : "failure",
+                                    Duration.between(beforeSend, Instant.now()).toMillis(), BATCH_SIZE));
 
-                                    if (throwable != null && throwable.getCause() != null) {
-                                        System.out.println(String.format("%s :send failed with error: %s",
-                                                Instant.now().toString(),
-                                                throwable.getCause().getMessage()));
-                                    }
+                                if (throwable != null && throwable.getCause() != null) {
+                                    System.out.println(String.format("%s :send failed with error: %s",
+                                        Instant.now().toString(),
+                                        throwable.getCause().getMessage()));
                                 }
-                            });
+                            }
+                        });
                 }
             }
 

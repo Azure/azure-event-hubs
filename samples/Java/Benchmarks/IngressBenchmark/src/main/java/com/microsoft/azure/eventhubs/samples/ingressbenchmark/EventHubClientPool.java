@@ -7,9 +7,9 @@ package com.microsoft.azure.eventhubs.samples.ingressbenchmark;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 
@@ -19,20 +19,22 @@ public final class EventHubClientPool {
     private final String connectionString;
     private final Object previouslySentLock = new Object();
     private final EventHubClient[] clients;
+    private final ExecutorService executorService;
 
     private int previouslySent = 0;
 
-    EventHubClientPool(final int poolSize, final String connectionString) {
+    EventHubClientPool(final int poolSize, final String connectionString, ExecutorService executorService) {
         this.poolSize = poolSize;
         this.connectionString = connectionString;
         this.clients = new EventHubClient[this.poolSize];
+        this.executorService = executorService;
     }
 
     public CompletableFuture<Void> initialize() throws IOException, EventHubException {
         final CompletableFuture[] createSenders = new CompletableFuture[this.poolSize];
         for (int count = 0; count < poolSize; count++) {
             final int clientsIndex = count;
-            createSenders[count] = EventHubClient.createFromConnectionString(this.connectionString).thenAccept(new Consumer<EventHubClient>() {
+            createSenders[count] = EventHubClient.create(this.connectionString, executorService).thenAccept(new Consumer<EventHubClient>() {
                 @Override
                 public void accept(EventHubClient eventHubClient) {
                     clients[clientsIndex] = eventHubClient;
