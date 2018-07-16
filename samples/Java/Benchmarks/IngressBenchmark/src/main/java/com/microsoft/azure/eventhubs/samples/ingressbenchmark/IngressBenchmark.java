@@ -7,7 +7,6 @@ package com.microsoft.azure.eventhubs.samples.ingressbenchmark;
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubException;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -16,6 +15,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
 /*
@@ -42,14 +43,14 @@ import java.util.function.BiConsumer;
 public class IngressBenchmark {
 
     public static void main(String[] args)
-            throws EventHubException, ExecutionException, InterruptedException, IOException {
+        throws EventHubException, ExecutionException, InterruptedException, IOException {
 
         final String namespaceName = "----ServiceBusNamespaceName-----";
         final String eventHubName = "----EventHubName-----";
         final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
         final String sasKey = "---SharedAccessSignatureKey----";
-        final ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, eventHubName, sasKeyName, sasKey);
-
+        final ConnectionStringBuilder connStr = new ConnectionStringBuilder().setNamespaceName(namespaceName).setEventHubName(eventHubName)
+            .setSasKeyName(sasKeyName).setSasKey(sasKey);
 
         // ***************************************************************************************************************
         // List of variables involved
@@ -64,10 +65,11 @@ public class IngressBenchmark {
 
         final int NO_OF_CONNECTIONS = 10;
 
-        // each EventHubClient reserves its own **PHYSICAL SOCKET**
-        final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString());
-        ehClientPool.initialize().get();
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
+        // each EventHubClient reserves its own **PHYSICAL SOCKET**
+        final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString(), executorService);
+        ehClientPool.initialize().get();
 
         final CompletableFuture<Void>[] sendTasks = new CompletableFuture[NO_OF_CONCURRENT_SENDS];
         for (int perfSample = 0; perfSample < 50000 - NO_OF_CONCURRENT_SENDS + 1; perfSample++) {
@@ -76,7 +78,7 @@ public class IngressBenchmark {
             for (int batchSize = 0; batchSize < BATCH_SIZE; batchSize++) {
                 final byte[] payload = new byte[EVENT_SIZE];
                 Arrays.fill(payload, (byte) 32);
-                final EventData eventData = new EventData(payload);
+                final EventData eventData = EventData.create(payload);
                 eventDataList.add(eventData);
             }
 
@@ -88,12 +90,14 @@ public class IngressBenchmark {
                     sendTasks[concurrentSends] = ehClientPool.send(eventDataList).whenComplete(new BiConsumer<Void, Throwable>() {
                         @Override
                         public void accept(Void aVoid, Throwable throwable) {
-                            System.out.println(String.format("%s,%s", throwable == null ? "success" : "failure", Duration.between(beforeSend, Instant.now()).toMillis()));
+                            System.out.println(
+                                String.format("%s,%s", throwable == null ? "success" : "failure", Duration.between(beforeSend, Instant.now()).toMillis()));
                         }
                     });
 
-                    if (!isInitializing)
+                    if (!isInitializing) {
                         break;
+                    }
                 }
             }
 
