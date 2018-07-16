@@ -46,7 +46,7 @@ public class AdvancedSendOptions {
 
         // Each EventHubClient instance spins up a new TCP/SSL connection, which is expensive.
         // It is always a best practice to reuse these instances. The following sample shows the same.
-        final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);;
+        final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
         PartitionSender sender = null;
 
         try {
