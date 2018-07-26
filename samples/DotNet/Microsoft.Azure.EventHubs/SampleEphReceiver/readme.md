@@ -16,7 +16,7 @@ To run the sample, follow these steps:
 
 1. Clone or download this GitHub repo.
 2. [Create an Event Hubs namespace and an event hub](event-hubs-quickstart-namespace-portal.md).
-3. In Visual Studio, select **File**, then **Open Project/Soultion**. Navigate to the \azure-event-hubs\samples\DotNet\Microsoft.Azure.EventHubs\SampleEphReceiver folder.
+3. In Visual Studio, select **File**, then **Open Project/Solution**. Navigate to the \azure-event-hubs\samples\DotNet\Microsoft.Azure.EventHubs\SampleEphReceiver folder.
 4. Load the SampleEphReceiver.sln solution file into Visual Studio.
 5. Add the [Microsoft.Azure.EventHubs](https://www.nuget.org/packages/Microsoft.Azure.EventHubs/) and [Microsoft.Azure.EventHubs.Processor](https://www.nuget.org/packages/Microsoft.Azure.EventHubs.Processor/) NuGet packages to the project.
 6. In Program.cs, replace the following constants with the corresponding values for the event hub connection string, event hub name:
