@@ -34,7 +34,7 @@ if __name__ == '__main__':
     #See https: //github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
     #See https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka#prerequisites for SSL issues
     conf = {
-        'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}',
+        'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}:9093',
         'security.protocol': 'SASL_SSL',
         'sasl.mechanism': 'PLAIN',
         'sasl.username': '$ConnectionString',
