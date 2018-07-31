@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Consumer configuration
     # See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
     conf = {
-        'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}',
+        'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}:9093',
         'security.protocol' : 'SASL_SSL',
         'sasl.mechanism' : 'PLAIN',
         'sasl.username' : '$ConnectionString',
