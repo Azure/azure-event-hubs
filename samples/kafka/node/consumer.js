@@ -3,7 +3,7 @@ var Kafka = require('node-rdkafka');
 
 var stream = Kafka.KafkaConsumer.createReadStream({
     'metadata.broker.list': 'EVENTHUB_FQDN',
-    'group.id': 'EVENTHUB_CONSUMER_GROUP', //The default for EvenHubs is $Default
+    'group.id': 'EVENTHUB_CONSUMER_GROUP', //The default for EventHubs is $Default
     'socket.keepalive.enable': true,
     'enable.auto.commit': false,
     'security.protocol': 'SASL_SSL',
