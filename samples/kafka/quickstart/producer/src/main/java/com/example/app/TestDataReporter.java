@@ -32,6 +32,6 @@ public class TestDataReporter implements Runnable {
                 }
             });
         }
-        System.out.println("Finished sending " + NUM_MESSAGES + " messages from thread #" + Thread.currentThread.getId() + "!");
+        System.out.println("Finished sending " + NUM_MESSAGES + " messages from thread #" + Thread.currentThread().getId() + "!");
     }
 }
