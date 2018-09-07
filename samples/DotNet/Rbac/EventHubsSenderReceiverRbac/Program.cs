@@ -22,11 +22,11 @@ namespace EventHubsSenderReceiverRbac
         static void Main()
         {
             Console.WriteLine("Choose an action:");
-            Console.WriteLine("[A] Connect via Managed Service Identity and send / receive.");
-            Console.WriteLine("[B] Connect via interactive logon and send / receive.");
-            Console.WriteLine("[C] Connect via using username and password and send / receive.");
-            Console.WriteLine("[D] Connect via utilizing Certificates and send / receive.");
-            //Console.WriteLine("[E] Connect via utilizing Certificate Assertion.");
+            Console.WriteLine("[A] Authenticate via Managed Service Identity and send / receive.");
+            Console.WriteLine("[B] Authenticate via interactive logon and send / receive.");
+            Console.WriteLine("[C] Authenticate via username and password and send / receive.");
+            Console.WriteLine("[D] Authenticate via client secret and send / receive.");
+            Console.WriteLine("[E] Authenticate via certificate and send / receive.");
 
             Char key = Console.ReadKey(true).KeyChar;
             String keyPressed = key.ToString().ToUpper();
@@ -43,15 +43,16 @@ namespace EventHubsSenderReceiverRbac
                     UserPasswordCredentialScenario(); // Needs native application
                     break;
                 case "D":
-                    ClientCredentialsCertScenario(); // This scenario needs app registration in AAD and iam registration. Only web api will work in AAD app registration.
+                    ClientCredentialsScenario(); // This scenario needs app registration in AAD and iam registration. Only web api will work in AAD app registration.
+                    break;
+                case "E":
+                    ClientAssertionCertScenario();
                     break;
                 default:
                     Console.WriteLine("Unknown command, press enter to exit");
                     Console.ReadLine();
                     break;
             }      
-            //ClientAssertionCertScenario(); // This will be released soon.
-
         }
 
         static void ManagedServiceIdentityScenario()
@@ -119,7 +120,7 @@ namespace EventHubsSenderReceiverRbac
             SendReceive(messagingFactorySettings);
         }
 
-        static void ClientCredentialsCertScenario()
+        static void ClientCredentialsScenario()
         {
             ClientCredential clientCredential = new ClientCredential(ClientId, ConfigurationManager.AppSettings["clientSecret"]);
             MessagingFactorySettings messagingFactorySettings = new MessagingFactorySettings
