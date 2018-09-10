@@ -27,3 +27,7 @@ If you have any feedback, questions, or comments, go to the respective repo and 
 ## What is Event Hubs?
 
 Azure Event Hubs is a hyper-scale data ingestion service, fully-managed by Microsoft, that enables you to collect, store and process trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
+
+## Azure Event Hubs for Apache Kafka
+
+Event Hubs now provides a Kafka endpoint that can be used by your existing Kafka-based applications as an alternative to running your own Kafka cluster. To learn more, check out the new [Azure Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka) repo!
