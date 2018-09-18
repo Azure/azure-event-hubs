@@ -14,6 +14,7 @@
 
 We're happy to host our client SDKs and integrations on GitHub as free, open-source projects. We currently support:
 
+* [Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka)
 * [.NET](https://github.com/azure/azure-event-hubs-dotnet)
 * [Java](https://github.com/azure/azure-event-hubs-java)
 * [C](https://github.com/azure/azure-event-hubs-c)
