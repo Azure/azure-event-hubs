@@ -32,7 +32,7 @@ public class SimpleSend {
         final Gson gson = new GsonBuilder().create();
 
         // The Executor handles all asynchronous tasks and this is passed to the EventHubClient instance.
-        // The enables the user to segregate their thread pool based on the work load.
+        // This enables the user to segregate their thread pool based on the work load.
         // This pool can then be shared across multiple EventHubClient instances.
         // The following sample uses a single thread executor, as there is only one EventHubClient instance,
         // handling different flavors of ingestion to Event Hubs here.
@@ -57,6 +57,7 @@ public class SimpleSend {
             }
 
             System.out.println(Instant.now() + ": Send Complete...");
+            System.out.println("Press Enter to stop.");
             System.in.read();
         } finally {
             ehClient.closeSync();
