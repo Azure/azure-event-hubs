@@ -26,7 +26,7 @@ $alternatename = "<your alternatename for you primary namespace>"
 
 #Step 3 - create your secondary namespace. Copy the ARM ID from the output as you need it later for -PartnerPartnernamespace. 
 # sample ARM ID looks like this - /subscriptions/your subscriptionid/resourceGroups/$resourcegroup/providers/Microsoft.EventHub/namespaces/secondarynamespace
-New-AzureRmEventHubNamespace – ResourceGroup $resourceGroup – NamespaceName $secondarynamespace -Location $location2 -SkuName Standard
+New-AzureRmEventHubNamespace –ResourceGroup $resourceGroup –NamespaceName $secondarynamespace -Location $location2 -SkuName Standard
 
 #Step 4 - Create a geo-dr configuration with primarynamespace name as the alias name and pair the namespaces. Note, you will also provide the alternatename here.
 # It is using this alternatename that you will access your old primary once you have triggered the failover
@@ -36,7 +36,7 @@ New-AzureRmEventHubGeoDRConfiguration -Name $aliasname -Namespace $primarynamesp
 Get-AzureRmEventHubGeoDRConfiguration -ResourceGroup $resourcegroup -Name $aliasname -Namespace $primarynamespace
 
 #Step 5 - you can now do a failover on your secondary namespace with the following command
-Set-AzureRmEventHubGeoDRConfigurationFailOver -ResourceGreoup $resourcegroup -Name $aliasname -Namespace $secondarynamespace
+Set-AzureRmEventHubGeoDRConfigurationFailOver -ResourceGroup $resourcegroup -Name $aliasname -Namespace $secondarynamespace
 
 #Optional - check you geo-dr configuration details to reflect the fail-over
 #Note - your secondarynamespace after the failover will be your new primary, but the connection string remains the same
