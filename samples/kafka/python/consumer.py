@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # Copyright 2016 Confluent Inc.
-# 
+#
 # Modified for use with Azure Event Hubs for Apache Kafka Ecosystems
 # 06/18/2018
 #
@@ -55,10 +55,10 @@ if __name__ == '__main__':
     # See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
     conf = {
         'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}:9093',
-        'security.protocol' : 'SASL_SSL',
-        'sasl.mechanism' : 'PLAIN',
-        'sasl.username' : '$ConnectionString',
-        'sasl.password' : '{YOUR.EVENTHUB.CONNECTION.STRING}',
+        'security.protocol': 'SASL_SSL',
+        'sasl.mechanism': 'PLAIN',
+        'sasl.username': '$ConnectionString',
+        'sasl.password': '{YOUR.EVENTHUB.CONNECTION.STRING}',
         'group.id': group,
         'client.id': 'python-example-consumer',
         'request.timeout.ms': 60000,
