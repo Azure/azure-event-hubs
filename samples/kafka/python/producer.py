@@ -31,7 +31,7 @@ if __name__ == '__main__':
     topic = sys.argv[1]
 
     #Producer configuration
-    #See https: //github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+    #See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
     #See https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka#prerequisites for SSL issues
     conf = {
         'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}:9093',
