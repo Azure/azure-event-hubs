@@ -54,11 +54,11 @@ if __name__ == '__main__':
     # Consumer configuration
     # See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
     conf = {
-        'bootstrap.servers': '{YOUR.EVENTHUB.FQDN}:9093',
+        'bootstrap.servers': '{YOUR.EVENTHUBS.FQDN}:9093',
         'security.protocol': 'SASL_SSL',
         'sasl.mechanism': 'PLAIN',
         'sasl.username': '$ConnectionString',
-        'sasl.password': '{YOUR.EVENTHUB.CONNECTION.STRING}',
+        'sasl.password': '{YOUR.EVENTHUBS.CONNECTION.STRING}',
         'group.id': group,
         'client.id': 'python-example-consumer',
         'request.timeout.ms': 60000,
