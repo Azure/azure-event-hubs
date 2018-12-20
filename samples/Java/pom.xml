@@ -29,6 +29,7 @@
         <module>Basic/AdvancedSendOptions</module>
         <module>Basic/SendBatch</module>
         <module>Basic/SimpleSend</module>
+        <module>Basic/SimpleProxy</module>
         <module>Benchmarks/AutoScaleOnIngress</module>
         <module>Benchmarks/IngressBenchmark</module>
     </modules>
