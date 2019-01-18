@@ -60,7 +60,7 @@ public class SimpleProxy {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
                 if (this.getRequestorType() == RequestorType.PROXY
-                        && this.getRequestingScheme().equalsIgnoreCase("http")
+                        && this.getRequestingScheme().equalsIgnoreCase("basic")
                         && this.getRequestingHost().equals(proxyIpAddressStr)
                         && this.getRequestingPort() == proxyPort) {
                     return new PasswordAuthentication("userName", "password".toCharArray());
