@@ -15,7 +15,7 @@ import com.microsoft.azure.eventhubs.EventHubException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 
 public class SendBatch {
@@ -30,7 +30,7 @@ public class SendBatch {
                 .setSasKey("---SharedAccessSignatureKey----");
 
         final Gson gson = new GsonBuilder().create();
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
         final EventHubClient sender = EventHubClient.createSync(connStr.toString(), executorService);
 
         try {

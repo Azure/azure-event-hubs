@@ -15,7 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
@@ -65,7 +65,7 @@ public class IngressBenchmark {
 
         final int NO_OF_CONNECTIONS = 10;
 
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
         // each EventHubClient reserves its own **PHYSICAL SOCKET**
         final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString(), executorService);

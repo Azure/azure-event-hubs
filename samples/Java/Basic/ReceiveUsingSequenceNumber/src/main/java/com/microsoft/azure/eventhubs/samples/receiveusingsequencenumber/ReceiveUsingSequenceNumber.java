@@ -15,7 +15,7 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 
 public class ReceiveUsingSequenceNumber {
@@ -29,7 +29,7 @@ public class ReceiveUsingSequenceNumber {
                 .setSasKeyName("-----SharedAccessSignatureKeyName-----")
                 .setSasKey("---SharedAccessSignatureKey----");
 
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
         final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
 
         final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
