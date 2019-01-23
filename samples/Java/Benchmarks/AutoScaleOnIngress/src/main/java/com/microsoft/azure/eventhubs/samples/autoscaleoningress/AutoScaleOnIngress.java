@@ -14,7 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
@@ -44,7 +44,7 @@ public class AutoScaleOnIngress {
 
         final int NO_OF_CONNECTIONS = tus;
 
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
         System.out.println();
         System.out.print("EventHub Connection String: ");

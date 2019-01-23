@@ -9,7 +9,7 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
 
@@ -19,11 +19,11 @@ public final class EventHubClientPool {
     private final String connectionString;
     private final Object previouslySentLock = new Object();
     private final EventHubClient[] clients;
-    private final ExecutorService executorService;
+    private final ScheduledExecutorService executorService;
 
     private int previouslySent = 0;
 
-    EventHubClientPool(final int poolSize, final String connectionString, ExecutorService executorService) {
+    EventHubClientPool(final int poolSize, final String connectionString, ScheduledExecutorService executorService) {
         this.poolSize = poolSize;
         this.connectionString = connectionString;
         this.clients = new EventHubClient[this.poolSize];

@@ -16,7 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 
 public class SimpleProxy {
@@ -78,7 +78,7 @@ public class SimpleProxy {
 
         connStr.setTransportType(TransportType.AMQP_WEB_SOCKETS);
 
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
         final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
         final Gson gson = new GsonBuilder().create();
         PartitionSender sender = null;

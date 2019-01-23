@@ -18,7 +18,7 @@ import java.time.Instant;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class AdvancedSendOptions {
 
@@ -42,7 +42,7 @@ public class AdvancedSendOptions {
         // This pool can then be shared across multiple EventHubClient instances.
         // The below sample uses a single thread executor as there is only on EventHubClient instance,
         // handling different flavors of ingestion to Event Hubs here
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
         // Each EventHubClient instance spins up a new TCP/SSL connection, which is expensive.
         // It is always a best practice to reuse these instances. The following sample shows the same.
