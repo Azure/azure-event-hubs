@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.27428.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "SFProcessorSample", "SFProcessorSample\SFProcessorSample.sfproj", "{77B93189-5A7C-44C7-90D2-0124F49E0571}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stateful1", "Stateful1\Stateful1.csproj", "{EB735890-3EBF-4D4D-9583-E045FCDA6E50}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Stateful1", "Stateful1\Stateful1.csproj", "{EB735890-3EBF-4D4D-9583-E045FCDA6E50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -16,6 +16,8 @@ Global
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|Any CPU.Build.0 = Debug|x64
+		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|Any CPU.Deploy.0 = Debug|x64
 		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|x64.ActiveCfg = Debug|x64
 		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|x64.Build.0 = Debug|x64
 		{77B93189-5A7C-44C7-90D2-0124F49E0571}.Debug|x64.Deploy.0 = Debug|x64
