@@ -7,6 +7,12 @@ Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "SFProcessorSample", "SFProc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Stateful1", "Stateful1\Stateful1.csproj", "{EB735890-3EBF-4D4D-9583-E045FCDA6E50}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1300D1AD-AA43-4BC7-9D25-930F8D3FAE89}"
+	ProjectSection(SolutionItems) = preProject
+		ProgrammersGuide.md = ProgrammersGuide.md
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
