@@ -15,18 +15,17 @@ namespace Stateful1
     class SampleEventProcessor : IEventProcessor
     {
         private int total = 0;
-        private Stopwatch stopwatch = null;
-        private readonly long checkpointInterval = 10000L;
+        private readonly long checkpointInterval = 100L;
 
         override public Task OpenAsync(CancellationToken cancellationToken, PartitionContext context)
         {
-            ServiceEventSource.Current.Message("DUMMY IEventProcessor.OpenAsync for {0}", context.PartitionId);
+            ServiceEventSource.Current.Message("SAMPLE IEventProcessor.OpenAsync for {0}", context.PartitionId);
             return Task.CompletedTask;
         }
 
         public override Task CloseAsync(PartitionContext context, CloseReason reason)
         {
-            ServiceEventSource.Current.Message("DUMMY IEventProcessor.CloseAsync for {0} reason {1}", context.PartitionId, reason);
+            ServiceEventSource.Current.Message("SAMPLE IEventProcessor.CloseAsync for {0} reason {1}", context.PartitionId, reason);
             return Task.CompletedTask;
         }
 
@@ -41,29 +40,16 @@ namespace Stateful1
                 last = e;
                 if ((this.total % this.checkpointInterval) == 0)
                 {
-                    ServiceEventSource.Current.Message("DUMMY IEventProcessor.ProcessEventsAsync for {0} got {1} total {2} lastseq {3} lastbody {4}",
+                    ServiceEventSource.Current.Message("SAMPLE IEventProcessor.ProcessEventsAsync for {0} got {1} total {2} last sequence number {3} lastbody {4}",
                         context.PartitionId, count, this.total, last.SystemProperties.SequenceNumber, System.Text.Encoding.UTF8.GetString(last.Body.ToArray()));
                     await context.CheckpointAsync();
-                    if (this.stopwatch == null)
-                    {
-                        this.stopwatch = new Stopwatch();
-                        this.stopwatch.Start();
-                    }
-                    else
-                    {
-                        this.stopwatch.Stop();
-                        ServiceEventSource.Current.Message("DUMMY IEventProcessor.ProcessEventsAsync for {0} messages per second {1}", context.PartitionId,
-                            (this.checkpointInterval * 1000L / this.stopwatch.ElapsedMilliseconds));
-                        this.stopwatch.Reset();
-                        this.stopwatch.Start();
-                    }
                 }
             }
         }
 
         public override Task ProcessErrorAsync(PartitionContext context, Exception error)
         {
-            ServiceEventSource.Current.Message("DUMMY IEventProcessor.ProcessErrorAsync for {0} error {1}", context.PartitionId, error);
+            ServiceEventSource.Current.Message("SAMPLE IEventProcessor.ProcessErrorAsync for {0} error {1}", context.PartitionId, error);
             return Task.CompletedTask;
         }
     }

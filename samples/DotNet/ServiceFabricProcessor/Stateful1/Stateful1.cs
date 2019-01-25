@@ -42,7 +42,7 @@ namespace Stateful1
 
         private void OnShutdown(Exception e)
         {
-            ServiceEventSource.Current.Message("DUMMY OnShutdown got {0}", (e == null) ? "NO ERROR" : e.ToString());
+            ServiceEventSource.Current.Message("SAMPLE OnShutdown got {0}", (e == null) ? "NO ERROR" : e.ToString());
             this.keepgoing = false;
         }
     }
