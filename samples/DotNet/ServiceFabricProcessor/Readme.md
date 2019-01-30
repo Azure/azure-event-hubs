@@ -2,6 +2,9 @@
 
 This sample was developed for use with Visual Studio 2017 and the Service Fabric SDK.
 
+You can find the NuGet package for Service Fabric Studio at https://www.nuget.org/packages/Microsoft.Azure.EventHubs.ServiceFabricProcessor/
+but it already appears in the sample as a dependency and you should not need to download or install it manually.
+
 ## Install the Service Fabric SDK
 
 Instructions for installing the Service Fabric SDK are [here](https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-get-started)
@@ -13,6 +16,16 @@ Instructions for installing the Service Fabric SDK are [here](https://docs.micro
 * Once Visual Studio is running as admin, open the solution file, SFProcessorSample.sln.
 
 * In file Stateful1.cs, replace the placeholder value of eventHubConnectionString with the connection string of your event hub.
+This needs to be an Event Hub native connection string, which is of the form
+
+> Endpoint=sb://yourEventHubNamespace.servicebus.windows.net/;SharedAccessKeyName=yourKeyName;SharedAccessKey=yourKeyBase64Encoded;EntityPath=yourEventHub
+
+Service Fabric Processor also works with event hubs in national clouds, and for those the domain name of the Endpoint
+will be servicebus.something.else, varying according to which national cloud, but it will always contain "servicebus".
+IoT-style connection strings are not supported yet. Service Fabric Processor fully supports event hubs which are
+embedded in IoT deployments; it just requires going to Portal and getting the native connection string for
+the event hub. If it does not have the EntityPath= clause at the end, you can add it manually. Service Fabric Processor
+will not work without it.
 
 * Service Fabric Processor requires that the Service Fabric service have the same number of partitions as the
 event hub. As supplied, the sample is configured for four partitions, so it will only work with a four-partition
