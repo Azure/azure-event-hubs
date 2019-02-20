@@ -13,14 +13,15 @@ namespace EventHubsSenderReceiverRbac
     class Program
     {
         static readonly string TenantId = ConfigurationManager.AppSettings["tenantId"];
-        static readonly string ClientId = ConfigurationManager.AppSettings["clientId"]; 
+        static readonly string ClientId = ConfigurationManager.AppSettings["clientId"];
+        static readonly string ReplyUrl = ConfigurationManager.AppSettings["replyUrl"];
         static readonly string EventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
         static readonly string EventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
         static void Main()
         {
             Console.WriteLine("Choose an action:");
-            Console.WriteLine("[A] Authenticate via Managed Service Identity and send / receive.");
+            Console.WriteLine("[A] Authenticate via Managed Identity and send / receive.");
             Console.WriteLine("[B] Authenticate via interactive logon and send / receive.");
             Console.WriteLine("[C] Authenticate via client secret and send / receive.");
             Console.WriteLine("[D] Authenticate via certificate and send / receive.");
@@ -31,13 +32,13 @@ namespace EventHubsSenderReceiverRbac
             switch (keyPressed)
             {
                 case "A":
-                    ManagedServiceIdentityScenario(); // Use a native app here.
+                    ManagedIdentityScenario(); // Use managed identity, either user-assigned or system-assigned.
                     break;
                 case "B":
-                    UserInteractiveLoginScenario(); // Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
+                    UserInteractiveLoginScenario(); // Provision a native app. Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
                     break;
                 case "C":
-                    ClientCredentialsScenario(); // This scenario needs app registration in AAD and iam registration. Only web api will work in AAD app registration.
+                    ClientCredentialsScenario(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
                     break;
                 case "E":
                     ClientAssertionCertScenario();
@@ -49,7 +50,7 @@ namespace EventHubsSenderReceiverRbac
             }      
         }
 
-        static void ManagedServiceIdentityScenario()
+        static void ManagedIdentityScenario()
         {
             var ehClient = EventHubClient.CreateWithManagedServiceIdentity(new Uri($"sb://{EventHubNamespace}/"), EventHubName);
 
@@ -61,7 +62,7 @@ namespace EventHubsSenderReceiverRbac
             TokenProvider tp = TokenProvider.CreateAadTokenProvider(
                 new AuthenticationContext($"https://login.windows.net/{TenantId}"),
                 ClientId,
-                new Uri("http://eventhubs.microsoft.com"),
+                new Uri(ReplyUrl),
                 new PlatformParameters(PromptBehavior.Auto),
                 UserIdentifier.AnyUser
             );
