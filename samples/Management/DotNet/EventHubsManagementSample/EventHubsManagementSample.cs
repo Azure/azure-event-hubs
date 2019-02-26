@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace EventHubsDotNetCore
+namespace EventHubsManagementSample
 {
     using System;
     using System.Threading.Tasks;
@@ -27,11 +27,9 @@ namespace EventHubsDotNetCore
 
         static EventHubManagementSample()
         {
-            var builder = new ConfigurationBuilder();
-            builder.AddJsonFile("appsettings.json", true, true);
-            builder.AddUserSecrets<Program>();
-
-            SettingsCache = builder.Build();
+            SettingsCache = new ConfigurationBuilder()
+                             .AddJsonFile("appsettings.json", true, true)
+                             .Build();
         }
 
         public static void Run()

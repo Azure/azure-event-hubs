@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.271
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubsDotNetCore", "EventHubsDotNetCore\EventHubsDotNetCore.csproj", "{1FB31C38-A397-4E82-ADFE-22132F33E0C2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EventHubsManagementSample", "EventHubsManagementSample\EventHubsManagementSample.csproj", "{1FB31C38-A397-4E82-ADFE-22132F33E0C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
