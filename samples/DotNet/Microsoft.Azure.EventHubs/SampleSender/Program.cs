@@ -13,6 +13,7 @@ namespace SampleSender
         private static EventHubClient eventHubClient;
         private const string EventHubConnectionString = "Event Hubs namespace connection string";
         private const string EventHubName = "event hub name";
+        private static bool SetRandomPartitionKey = false;
 
         public static void Main(string[] args)
         {
@@ -42,13 +43,26 @@ namespace SampleSender
         // Creates an Event Hub client and sends 100 messages to the event hub.
         private static async Task SendMessagesToEventHub(int numMessagesToSend)
         {
+            var rnd = new Random();
+
             for (var i = 0; i < numMessagesToSend; i++)
             {
                 try
                 {
                     var message = $"Message {i}";
-                    Console.WriteLine($"Sending message: {message}");
-                    await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
+
+                    // Set random partition key?
+                    if (SetRandomPartitionKey)
+                    {
+                        var pKey = Guid.NewGuid().ToString();
+                        await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)), pKey);
+                        Console.WriteLine($"Sent message: '{message}' Partition Key: '{pKey}'");
+                    }
+                    else
+                    {
+                        await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
+                        Console.WriteLine($"Sent message: '{message}'");
+                    }
                 }
                 catch (Exception exception)
                 {
