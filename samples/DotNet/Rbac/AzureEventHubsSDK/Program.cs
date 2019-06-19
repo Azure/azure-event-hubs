@@ -18,13 +18,21 @@ namespace EventHubsSenderReceiverRbac
         static readonly string EventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
         static readonly string EventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
-        static void Main()
+        static int Main()
+        {
+            return MainAsync().GetAwaiter().GetResult();
+        }
+
+        private static async Task<int> MainAsync()
         {
             Console.WriteLine("Choose an action:");
             Console.WriteLine("[A] Authenticate via Managed Identity and send / receive.");
             Console.WriteLine("[B] Authenticate via interactive logon and send / receive.");
             Console.WriteLine("[C] Authenticate via client secret and send / receive.");
             Console.WriteLine("[D] Authenticate via certificate and send / receive.");
+            Console.WriteLine("[E] Connect via data owner RBAC");
+            Console.WriteLine("[F] Connect via custom role RBAC");
+            Console.WriteLine("[G] Connect via ...");
 
             Char key = Console.ReadKey(true).KeyChar;
             String keyPressed = key.ToString().ToUpper();
@@ -32,65 +40,109 @@ namespace EventHubsSenderReceiverRbac
             switch (keyPressed)
             {
                 case "A":
-                    ManagedIdentityScenario(); // Use managed identity, either user-assigned or system-assigned.
+                    await ManagedIdentityScenarioAsync(); // Use managed identity, either user-assigned or system-assigned.
                     break;
                 case "B":
-                    UserInteractiveLoginScenario(); // Provision a native app. Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
+                    await UserInteractiveLoginScenarioAsync(); // Provision a native app. Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
                     break;
                 case "C":
-                    ClientCredentialsScenario(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
+                    await ClientCredentialsScenarioAsync(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
                     break;
                 case "E":
-                    ClientAssertionCertScenario();
+                    await ClientAssertionCertScenarioAsync();
                     break;
                 default:
                     Console.WriteLine("Unknown command, press enter to exit");
                     Console.ReadLine();
-                    break;
-            }      
+                    return -1;
+            }
+
+            return 0;
         }
 
-        static void ManagedIdentityScenario()
+        static async Task ManagedIdentityScenarioAsync()
         {
-            var ehClient = EventHubClient.CreateWithManagedServiceIdentity(new Uri($"sb://{EventHubNamespace}/"), EventHubName);
+            var ehClient = EventHubClient.CreateWithManagedIdentity(new Uri($"sb://{EventHubNamespace}/"), EventHubName);
 
-            SendReceiveAsync(ehClient).Wait();
+            await SendReceiveAsync(ehClient);
         }
 
-        static void UserInteractiveLoginScenario()
+        static async Task UserInteractiveLoginScenarioAsync()
         {
-            TokenProvider tp = TokenProvider.CreateAadTokenProvider(
-                new AuthenticationContext($"https://login.windows.net/{TenantId}"),
-                ClientId,
-                new Uri(ReplyUrl),
-                new PlatformParameters(PromptBehavior.Auto),
-                UserIdentifier.AnyUser
-            );
+            var ehClient = EventHubClient.CreateWithAzureActiveDirectory(
+                new Uri($"sb://{EventHubNamespace}/"), 
+                EventHubName,
+                async (audience, authority, state) =>
+                {
+                    var authContext = new AuthenticationContext(authority);
 
-            var ehClient = EventHubClient.Create(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);
+                    var authResult = await authContext.AcquireTokenAsync(
+                        audience,
+                        ClientId,
+                        new Uri(ReplyUrl),
+                        new PlatformParameters(PromptBehavior.Auto),
+                        UserIdentifier.AnyUser);
 
-            SendReceiveAsync(ehClient).Wait();
+                    return authResult.AccessToken;
+                },
+                $"https://login.windows.net/{TenantId}");
+
+            await SendReceiveAsync(ehClient);
         }
 
-        static void ClientAssertionCertScenario()
+        static async Task ClientAssertionCertScenarioAsync()
         {
             X509Certificate2 certificate = GetCertificate();
             ClientAssertionCertificate clientAssertionCertificate = new ClientAssertionCertificate(ClientId, certificate);
-            TokenProvider tp = TokenProvider.CreateAadTokenProvider(new AuthenticationContext($"https://login.windows.net/{TenantId}"), clientAssertionCertificate);
 
-            var ehClient = EventHubClient.Create(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);
+            TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
+                async (audience, authority, state) =>
+                {
+                    var authContext = new AuthenticationContext(authority);
 
-            SendReceiveAsync(ehClient).Wait();
+                    var authResult = await authContext.AcquireTokenAsync(
+                        audience,
+                        clientAssertionCertificate);
+
+                    return authResult.AccessToken;
+                });
+
+            var ehClient = EventHubClient.CreateWithTokenProvider(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);
+            await SendReceiveAsync(ehClient);
         }
 
-        static void ClientCredentialsScenario()
+        static async Task ClientCredentialsScenarioAsync()
         {
             ClientCredential clientCredential = new ClientCredential(ClientId, ConfigurationManager.AppSettings["clientSecret"]);
-            TokenProvider tp = TokenProvider.CreateAadTokenProvider(new AuthenticationContext($"https://login.windows.net/{TenantId}"), clientCredential);
+            TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
+                async (audience, authority, state) =>
+                {
+                    var authContext = new AuthenticationContext(authority);
 
-            var ehClient = EventHubClient.Create(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);
+                    var authResult = await authContext.AcquireTokenAsync(
+                        audience,
+                        clientCredential);
 
-            SendReceiveAsync(ehClient).Wait();
+                    return authResult.AccessToken;
+                });
+
+            var ehClient = EventHubClient.CreateWithTokenProvider(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);            
+            await SendReceiveAsync(ehClient);
+        }
+
+        static Task DataOwnerScenarioAsync()
+        {
+            return Task.FromResult(0);
+        }
+
+        static Task CustomRoleScenarioAsync()
+        {
+            return Task.FromResult(0);
+        }
+
+        static Task ControlPlaneAndDataPlaneMixedScenarioAsync()
+        {
+            return Task.FromResult(0);
         }
 
         static X509Certificate2 GetCertificate()
@@ -130,24 +182,24 @@ namespace EventHubsSenderReceiverRbac
             Console.WriteLine($"Discovered partitions as {string.Join(",", ehDesc.PartitionIds)}");
 
             var receiveTasks = ehDesc.PartitionIds.Select(async partitionId =>
+                {
+                    Console.WriteLine($"Initiating receiver on partition {partitionId}");
+                    var receiver = ehClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, EventPosition.FromEnd());
+
+                    while(true)
                     {
-                        Console.WriteLine($"Initiating receiver on partition {partitionId}");
-                        var receiver = ehClient.CreateReceiver(PartitionReceiver.DefaultConsumerGroupName, partitionId, EventPosition.FromEnd());
-
-                        while(true)
+                        var events = await receiver.ReceiveAsync(1, TimeSpan.FromSeconds(15));
+                        if (events == null)
                         {
-                            var events = await receiver.ReceiveAsync(1, TimeSpan.FromSeconds(15));
-                            if (events == null)
-                            {
-                                break;
-                            }
-
-                            var eventData = events.FirstOrDefault();
-                            Console.WriteLine($"Received from partition {partitionId} with message content '" + Encoding.UTF8.GetString(eventData.Body.Array) + "'"); 
+                            break;
                         }
 
-                        await receiver.CloseAsync();
-                    }).ToList<Task>();
+                        var eventData = events.FirstOrDefault();
+                        Console.WriteLine($"Received from partition {partitionId} with message content '" + Encoding.UTF8.GetString(eventData.Body.Array) + "'"); 
+                    }
+
+                    await receiver.CloseAsync();
+                }).ToList<Task>();
 
             await Task.Delay(5000);
 
