@@ -6,7 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Azure.EventHubs;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Identity.Client;
 
 namespace EventHubsSenderReceiverRbac
 {
@@ -68,20 +68,17 @@ namespace EventHubsSenderReceiverRbac
         }
 
         static async Task UserInteractiveLoginScenarioAsync()
-        {
+        {          
             var ehClient = EventHubClient.CreateWithAzureActiveDirectory(
                 new Uri($"sb://{EventHubNamespace}/"), 
                 EventHubName,
                 async (audience, authority, state) =>
                 {
-                    var authContext = new AuthenticationContext(authority);
+                    var app = PublicClientApplicationBuilder.Create(ClientId)
+                                .WithRedirectUri(ReplyUrl)
+                                .Build();
 
-                    var authResult = await authContext.AcquireTokenAsync(
-                        audience,
-                        ClientId,
-                        new Uri(ReplyUrl),
-                        new PlatformParameters(PromptBehavior.Auto),
-                        UserIdentifier.AnyUser);
+                    var authResult = await app.AcquireTokenInteractive(new string[] { $"{audience}/.default" }).ExecuteAsync();
 
                     return authResult.AccessToken;
                 },
@@ -93,17 +90,16 @@ namespace EventHubsSenderReceiverRbac
         static async Task ClientAssertionCertScenarioAsync()
         {
             X509Certificate2 certificate = GetCertificate();
-            ClientAssertionCertificate clientAssertionCertificate = new ClientAssertionCertificate(ClientId, certificate);
 
             TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
                 async (audience, authority, state) =>
                 {
-                    var authContext = new AuthenticationContext(authority);
+                    IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(ClientId)
+                        .WithAuthority(authority)
+                        .WithCertificate(certificate)
+                        .Build();
 
-                    var authResult = await authContext.AcquireTokenAsync(
-                        audience,
-                        clientAssertionCertificate);
-
+                    var authResult = await app.AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
                     return authResult.AccessToken;
                 });
 
@@ -113,16 +109,15 @@ namespace EventHubsSenderReceiverRbac
 
         static async Task ClientCredentialsScenarioAsync()
         {
-            ClientCredential clientCredential = new ClientCredential(ClientId, ConfigurationManager.AppSettings["clientSecret"]);
             TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
                 async (audience, authority, state) =>
                 {
-                    var authContext = new AuthenticationContext(authority);
+                    IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(ClientId)
+                               .WithAuthority(authority)
+                               .WithClientSecret(ConfigurationManager.AppSettings["clientSecret"])
+                               .Build();
 
-                    var authResult = await authContext.AcquireTokenAsync(
-                        audience,
-                        clientCredential);
-
+                    var authResult = await app.AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
                     return authResult.AccessToken;
                 });
 
