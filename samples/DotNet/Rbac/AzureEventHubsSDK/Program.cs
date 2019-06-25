@@ -18,12 +18,7 @@ namespace EventHubsSenderReceiverRbac
         static readonly string EventHubNamespace = ConfigurationManager.AppSettings["eventHubNamespaceFQDN"];
         static readonly string EventHubName = ConfigurationManager.AppSettings["eventHubName"];
 
-        static int Main()
-        {
-            return MainAsync().GetAwaiter().GetResult();
-        }
-
-        private static async Task<int> MainAsync()
+        static async Task<int> Main()
         {
             Console.WriteLine("Choose an action:");
             Console.WriteLine("[A] Authenticate via Managed Identity and send / receive.");
