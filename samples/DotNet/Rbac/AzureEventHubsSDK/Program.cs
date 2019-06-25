@@ -30,9 +30,6 @@ namespace EventHubsSenderReceiverRbac
             Console.WriteLine("[B] Authenticate via interactive logon and send / receive.");
             Console.WriteLine("[C] Authenticate via client secret and send / receive.");
             Console.WriteLine("[D] Authenticate via certificate and send / receive.");
-            Console.WriteLine("[E] Connect via data owner RBAC");
-            Console.WriteLine("[F] Connect via custom role RBAC");
-            Console.WriteLine("[G] Connect via ...");
 
             Char key = Console.ReadKey(true).KeyChar;
             String keyPressed = key.ToString().ToUpper();
@@ -48,7 +45,7 @@ namespace EventHubsSenderReceiverRbac
                 case "C":
                     await ClientCredentialsScenarioAsync(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
                     break;
-                case "E":
+                case "D":
                     await ClientAssertionCertScenarioAsync();
                     break;
                 default:
@@ -123,16 +120,6 @@ namespace EventHubsSenderReceiverRbac
 
             var ehClient = EventHubClient.CreateWithTokenProvider(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);            
             await SendReceiveAsync(ehClient);
-        }
-
-        static Task DataOwnerScenarioAsync()
-        {
-            return Task.FromResult(0);
-        }
-
-        static Task CustomRoleScenarioAsync()
-        {
-            return Task.FromResult(0);
         }
 
         static Task ControlPlaneAndDataPlaneMixedScenarioAsync()
