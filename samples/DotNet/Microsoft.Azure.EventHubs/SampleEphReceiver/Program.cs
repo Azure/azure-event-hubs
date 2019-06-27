@@ -10,11 +10,11 @@ namespace SampleEphReceiver
 
     public class Program
     {
-        private const string EventHubConnectionString = "Event Hubs connection string";
-        private const string EventHubName = "event hub name";
-        private const string StorageContainerName = "Storage account container name";
-        private const string StorageAccountName = "Storage account name";
-        private const string StorageAccountKey = "Storage account key";
+        private const string EventHubConnectionString = "Endpoint=sb://serkant-demo.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=y2w71RLNTpUjrFA6OM83v55/e0pcY+R5VqjKnXn57nc=";
+        private const string EventHubName = "myeh";
+        private const string StorageAccountName = "serkantdemo";
+        private const string StorageAccountKey = "cShMcVIyns73iJ6yN/a2/OMPc7SmIJiPO7jIrgg1zkdYZzXD92WCrJGLyeg5e0z/u+HqrFaGB2VJwXO1uxaF0A==";
+        private const string StorageContainerName = "democontainer";
 
         private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
