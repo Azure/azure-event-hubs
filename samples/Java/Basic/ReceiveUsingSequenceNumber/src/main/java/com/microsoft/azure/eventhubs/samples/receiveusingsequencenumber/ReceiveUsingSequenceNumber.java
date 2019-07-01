@@ -30,7 +30,7 @@ public class ReceiveUsingSequenceNumber {
                 .setSasKey("---SharedAccessSignatureKey----");
 
         final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
-        final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
+        final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString(), executorService);
 
         final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
         final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
