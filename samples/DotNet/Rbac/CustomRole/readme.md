@@ -19,7 +19,8 @@ To run the sample, follow these steps:
 4. [Create a new AAD (Azure Active Directory) application](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
 5. Assign AAD application to both Event Hubs namespace and Storage account with the custom role you just created.
 
-```{
+```
+{
         "Name": "Custom role for RBAC sample",
         "Id": "8ddab47f-cf99-4b04-8fc3-1d2d857fb931",
 	"Description": "Test role",
@@ -36,7 +37,8 @@ To run the sample, follow these steps:
 	"AssignableScopes": [
 	  "/subscriptions/your-subscription-id"
 	]
-}```
+}
+```
 
 6. Update the sample with Event Hubs namespace and Storage account name.
 7. Run [Sender application](https://github.com/Azure/azure-event-hubs/tree/serkar.AddCustomRbacEhSample/samples/DotNet/Microsoft.Azure.EventHubs/SampleSender) to send some number of messages to your event hub.
