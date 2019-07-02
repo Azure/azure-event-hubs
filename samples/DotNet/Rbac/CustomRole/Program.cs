@@ -8,53 +8,50 @@ namespace CustomRole
     using System.Threading.Tasks;
     using Microsoft.Azure.EventHubs;
     using Microsoft.Azure.EventHubs.Processor;
-    using Microsoft.Azure.Storage;
-    using Microsoft.Azure.Storage.Auth;
     using Microsoft.Identity.Client;
+    using Microsoft.WindowsAzure.Storage;
+    using Microsoft.WindowsAzure.Storage.Auth;
 
     public class Program
     {
-        static readonly string TenantId = "";
-        static readonly string ClientId = "";
-        static readonly string ClientSecret = "";
-        static readonly string EventHubNamespace = "";
-        static readonly string EventHubName = "";
-        static readonly string StorageContainerName = "";
-        
-        public static void Main(string[] args)
-        {
-            MainAsync(args).GetAwaiter().GetResult();
-        }
+        private const string Authority = "Authority of tenant";
+        private const string ClientId = "AAD app id";
+        private const string ClientSecret = "AAD app secret";
+        private const string EventHubNamespace = "FQDN of Event Hubs namespace";
+        private const string EventHubName = "Event hub name";
+        private const string StorageAccountName = "Storage account name";
+        private const string StorageContainerName = "Storage account container name";
 
-        private static async Task MainAsync(string[] args)
+        static IConfidentialClientApplication tokenClient;
+
+        public static async Task Main(string[] args)
         {
-            // Create Azure Storage Client with token provider.
-            var tokenAndFrequency = await StorageTokenRenewerAsync(null, CancellationToken.None);
-            var tokenCredential = new TokenCredential(tokenAndFrequency.Token, StorageTokenRenewerAsync, null, tokenAndFrequency.Frequency.Value);
+            // Use the same identity client for both Event Hubs and Storage
+            tokenClient = ConfidentialClientApplicationBuilder.Create(ClientId)
+                       .WithAuthority(Authority)
+                       .WithClientSecret(ClientSecret)
+                       .Build();
+
+            // Create Storage client with access token provider
+            var tokenAndFrequency = await TokenRenewerAsync(tokenClient, CancellationToken.None);
+            var tokenCredential = new TokenCredential(tokenAndFrequency.Token,
+                                                        TokenRenewerAsync,
+                                                        tokenClient,
+                                                        tokenAndFrequency.Frequency.Value);
             var storageCredentials = new StorageCredentials(tokenCredential);
-            var cloudStorageAccount = new CloudStorageAccount(storageCredentials, false);
+            CloudStorageAccount cloudStorageAccount = new CloudStorageAccount(storageCredentials, StorageAccountName, string.Empty, true);
 
-            // Create Azure Active Directory token provider for Event Hubs access.
-            TokenProvider tokenProvider = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
-                async (audience, authority, state) =>
-                {
-                    IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(ClientId)
-                               .WithTenantId(TenantId)
-                               .WithClientSecret(ClientSecret)
-                               .Build();
-
-                    var authResult = await app.AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
-                    return authResult.AccessToken;
-                });
+            // Create Event Hubs account with access token provider
+            TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
+                new AzureActiveDirectoryTokenProvider.AuthenticationCallback(GetAccessToken), Authority, tokenClient);
 
             Console.WriteLine("Registering EventProcessor...");
-
             var eventProcessorHost = new EventProcessorHost(
                 new Uri(EventHubNamespace),
                 EventHubName,
                 PartitionReceiver.DefaultConsumerGroupName,
-                tokenProvider,
-                null,
+                tp,
+                cloudStorageAccount,
                 StorageContainerName);
 
             // Registers the Event Processor Host and starts receiving messages
@@ -67,17 +64,10 @@ namespace CustomRole
             await eventProcessorHost.UnregisterEventProcessorAsync();
         }
 
-        static async Task<NewTokenAndFrequency> StorageTokenRenewerAsync(object state, CancellationToken cancellationToken)
+        private static async Task<NewTokenAndFrequency> TokenRenewerAsync(Object state, CancellationToken cancellationToken)
         {
-            // Specify the resource ID for requesting Azure AD tokens for Azure Storage.
-            const string StorageResource = "https://storage.azure.com/";
-
-            IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(ClientId)
-                       .WithTenantId(TenantId)
-                       .WithClientSecret(ClientSecret)
-                       .Build();
-
-            var authResult = await app.AcquireTokenForClient(new string[] { $"{StorageResource}/.default" }).ExecuteAsync(cancellationToken);
+            var authResult = await ((IConfidentialClientApplication)state)
+                .AcquireTokenForClient(new string[] { $"https://storage.azure.com/.default" }).ExecuteAsync();
 
             // Renew the token 5 minutes before it expires.
             var next = (authResult.ExpiresOn - DateTimeOffset.UtcNow) - TimeSpan.FromMinutes(5);
@@ -89,6 +79,13 @@ namespace CustomRole
 
             // Return the new token and the next refresh time.
             return new NewTokenAndFrequency(authResult.AccessToken, next);
+        }
+
+        static async Task<string> GetAccessToken(string audience, string authority, object state)
+        {
+            var authResult = await tokenClient
+                .AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
+            return authResult.AccessToken;
         }
     }
 }
