@@ -41,11 +41,9 @@ namespace CustomRole
             var storageCredentials = new StorageCredentials(tokenCredential);
             CloudStorageAccount cloudStorageAccount = new CloudStorageAccount(storageCredentials, StorageAccountName, string.Empty, true);
 
-            // Create Event Hubs account with access token provider
+            // Create Event Hubs access token provider and processor host
             TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
                 new AzureActiveDirectoryTokenProvider.AuthenticationCallback(GetAccessToken), Authority, tokenClient);
-
-            Console.WriteLine("Registering EventProcessor...");
             var eventProcessorHost = new EventProcessorHost(
                 new Uri(EventHubNamespace),
                 EventHubName,
@@ -55,6 +53,7 @@ namespace CustomRole
                 StorageContainerName);
 
             // Registers the Event Processor Host and starts receiving messages
+            Console.WriteLine("Registering EventProcessor...");
             await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
 
             Console.WriteLine("Receiving. Press enter key to stop worker.");
