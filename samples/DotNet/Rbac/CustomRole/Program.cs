@@ -43,7 +43,7 @@ namespace CustomRole
 
             // Create Event Hubs access token provider and processor host
             TokenProvider tp = TokenProvider.CreateAzureActiveDirectoryTokenProvider(
-                new AzureActiveDirectoryTokenProvider.AuthenticationCallback(GetAccessToken), Authority, tokenClient);
+                new AzureActiveDirectoryTokenProvider.AuthenticationCallback(GetAccessTokenAsync), Authority, tokenClient);
             var eventProcessorHost = new EventProcessorHost(
                 new Uri(EventHubNamespace),
                 EventHubName,
@@ -65,8 +65,7 @@ namespace CustomRole
 
         private static async Task<NewTokenAndFrequency> TokenRenewerAsync(Object state, CancellationToken cancellationToken)
         {
-            var authResult = await ((IConfidentialClientApplication)state)
-                .AcquireTokenForClient(new string[] { $"https://storage.azure.com/.default" }).ExecuteAsync();
+            var authResult = await AcquireTokenAsync("https://storage.azure.com/");
 
             // Renew the token 5 minutes before it expires.
             var next = (authResult.ExpiresOn - DateTimeOffset.UtcNow) - TimeSpan.FromMinutes(5);
@@ -80,11 +79,17 @@ namespace CustomRole
             return new NewTokenAndFrequency(authResult.AccessToken, next);
         }
 
-        static async Task<string> GetAccessToken(string audience, string authority, object state)
+        static async Task<string> GetAccessTokenAsync(string audience, string authority, object state)
         {
-            var authResult = await tokenClient
-                .AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
+            var authResult = await AcquireTokenAsync(audience);
+
             return authResult.AccessToken;
+        }
+
+        static async Task<AuthenticationResult> AcquireTokenAsync(string audience)
+        {
+            return await tokenClient
+                .AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
         }
     }
 }
