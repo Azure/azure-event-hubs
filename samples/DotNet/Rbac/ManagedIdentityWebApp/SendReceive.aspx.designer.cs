@@ -7,10 +7,10 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace EventHubsMSIDemoWebApp {
+namespace ManagedIdentityWebApp {
     
     
-    public partial class EventHubsMSIDemo {
+    public partial class SendReceive {
         
         /// <summary>
         /// form1 control.
@@ -76,13 +76,13 @@ namespace EventHubsMSIDemoWebApp {
         protected global::System.Web.UI.WebControls.Button btnReceive;
         
         /// <summary>
-        /// txtReceivedData control.
+        /// txtOutput control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtReceivedData;
+        protected global::System.Web.UI.WebControls.TextBox txtOutput;
         
         /// <summary>
         /// hiddenStartingOffset control.
