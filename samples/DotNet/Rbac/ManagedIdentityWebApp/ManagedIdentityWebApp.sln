@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2010
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubsMSIDemoWebApp", "EventHubsMSIDemoWebApp\EventHubsMSIDemoWebApp.csproj", "{476F98B4-05BF-42B6-B0B4-E50CD5B71635}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManagedIdentityWebApp", "ManagedIdentityWebApp.csproj", "{476F98B4-05BF-42B6-B0B4-E50CD5B71635}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
