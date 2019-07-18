@@ -40,7 +40,7 @@ public class SimpleSend {
 
         // Each EventHubClient instance spins up a new TCP/SSL connection, which is expensive.
         // It is always a best practice to reuse these instances. The following sample shows this.
-        final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString(), executorService);
+        final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
 
         try {
             for (int i = 0; i < 100; i++) {
