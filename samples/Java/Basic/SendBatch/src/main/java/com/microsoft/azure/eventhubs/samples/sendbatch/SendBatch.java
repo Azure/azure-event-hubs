@@ -31,7 +31,7 @@ public class SendBatch {
 
         final Gson gson = new GsonBuilder().create();
         final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
-        final EventHubClient sender = EventHubClient.createFromConnectionStringSync(connStr.toString(), executorService);
+        final EventHubClient sender = EventHubClient.createSync(connStr.toString(), executorService);
 
         try {
             for (int batchNumber = 0; batchNumber < 10; batchNumber++) {
