@@ -93,7 +93,8 @@ namespace EventHubsSenderReceiverRbac
 
                     var authResult = await app.AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
                     return authResult.AccessToken;
-                });
+                },
+                $"https://login.microsoftonline.com/{TenantId}");
 
             var ehClient = EventHubClient.CreateWithTokenProvider(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);
             await SendReceiveAsync(ehClient);
@@ -111,15 +112,11 @@ namespace EventHubsSenderReceiverRbac
 
                     var authResult = await app.AcquireTokenForClient(new string[] { $"{audience}/.default" }).ExecuteAsync();
                     return authResult.AccessToken;
-                });
+                },
+                $"https://login.microsoftonline.com/{TenantId}");
 
             var ehClient = EventHubClient.CreateWithTokenProvider(new Uri($"sb://{EventHubNamespace}/"), EventHubName, tp);            
             await SendReceiveAsync(ehClient);
-        }
-
-        static Task ControlPlaneAndDataPlaneMixedScenarioAsync()
-        {
-            return Task.FromResult(0);
         }
 
         static X509Certificate2 GetCertificate()
