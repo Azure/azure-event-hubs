@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubReliableSend", "EventHubReliableSend\EventHubReliableSend.csproj", "{4C491ADD-C086-4641-92E5-0EA368C939EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubReliableSend", "EventHubReliableSend.csproj", "{4C491ADD-C086-4641-92E5-0EA368C939EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
