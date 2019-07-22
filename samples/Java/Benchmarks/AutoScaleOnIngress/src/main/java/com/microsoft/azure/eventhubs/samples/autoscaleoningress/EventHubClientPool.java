@@ -34,7 +34,7 @@ public final class EventHubClientPool {
         final CompletableFuture[] createSenders = new CompletableFuture[this.poolSize];
         for (int count = 0; count < poolSize; count++) {
             final int clientsIndex = count;
-            createSenders[count] = EventHubClient.createFromConnectionString(this.connectionString, executorService).thenAccept(new Consumer<EventHubClient>() {
+            createSenders[count] = EventHubClient.create(this.connectionString, executorService).thenAccept(new Consumer<EventHubClient>() {
                 @Override
                 public void accept(EventHubClient eventHubClient) {
                     clients[clientsIndex] = eventHubClient;
