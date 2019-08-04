@@ -12,6 +12,7 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.concurrent.ExecutionException;
@@ -20,15 +21,17 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class SimpleSend {
 
-    final URI namespace = new URI("YourEventHubsNamespace.servicebus.windows.net");
+    final java.net.URI namespace = new java.net.URI("YourEventHubsNamespace.servicebus.windows.net");
     final String eventhub = "Your event hub";
     final String authority = "https://login.windows.net/replaceWithTenantIdGuid";
     final String clientId = "replaceWithClientIdGuid";
     final String clientSecret = "replaceWithClientSecret";
-    final AuthCallback callback = new AuthCallback(clientId, clientSecret);
+
+    public SimpleSend() throws URISyntaxException {
+    }
 
     public static int main(String[] args)
-        throws EventHubException, ExecutionException, InterruptedException, IOException {
+            throws EventHubException, ExecutionException, InterruptedException, IOException, URISyntaxException {
 
         SimpleSend ss = new SimpleSend();
         return ss.run(args);
@@ -51,7 +54,7 @@ public class SimpleSend {
                     managedIdentityScenario(); // Use managed identity, either user-assigned or system-assigned.
                     break;
                 case 'B':
-                    userInteractiveLoginScenario(); // Provision a native app. Make sure to give Microsoft.ServiceBus and Microsoft.EventHubs under required permissions
+                    userInteractiveLoginScenario(); // Provision a native app. Make sure to give microsoft.eventhubs under required permissions
                     break;
                 case 'C':
                     clientCredentialsScenario(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
@@ -86,8 +89,8 @@ public class SimpleSend {
     private void managedIdentityScenario() throws IOException {
 
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                .setNamespaceName("Your Event Hubs namespace name") // to target National clouds - use .setEndpoint(URI)
-                .setEventHubName("Your event hub")
+                .setEndpoint(this.namespace)
+                .setEventHubName(this.eventhub)
                 .setAuthentication(ConnectionStringBuilder.MANAGED_IDENTITY_AUTHENTICATION);
         ScheduledExecutorService executorService = getScheduledExecutorService();
 
