@@ -79,7 +79,7 @@ public class SimpleProxy {
         connStr.setTransportType(TransportType.AMQP_WEB_SOCKETS);
 
         final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
-        final EventHubClient ehClient = EventHubClient.createSync(connStr.toString(), executorService);
+        final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString(), executorService);
         final Gson gson = new GsonBuilder().create();
         PartitionSender sender = null;
 
