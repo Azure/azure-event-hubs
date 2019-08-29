@@ -43,11 +43,11 @@
             </plugin>
         </plugins>
     </build>
-	<dependencies>
+    <dependencies>
 	<dependency>
-	  		<groupId>com.microsoft.azure</groupId>
-	  		<artifactId>azure-eventhubs</artifactId>
-	  		<version>2.3.0</version>
-	 	</dependency>	 	
-	</dependencies>
+	    <groupId>com.microsoft.azure</groupId>
+	    <artifactId>azure-eventhubs</artifactId>
+	    <version>3.0.0</version>
+	</dependency>
+    </dependencies>
 </project>

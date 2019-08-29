@@ -46,13 +46,11 @@ public class EventProcessorSample
 		// Create the instance of EventProcessorHost using the most basic constructor. This constructor uses Azure Storage for
 		// persisting partition leases and checkpoints. The host name, which identifies the instance of EventProcessorHost, must be unique.
 		// You can use a plain UUID, or use the createHostName utility method which appends a UUID to a supplied string.
-		EventProcessorHost host = new EventProcessorHost(
-				EventProcessorHost.createHostName(hostNamePrefix),
-				eventHubName,
-				consumerGroupName,
-				eventHubConnectionString.toString(),
-				storageConnectionString,
-				storageContainerName);
+		EventProcessorHost host = EventProcessorHost.EventProcessorHostBuilder
+				.newBuilder(EventProcessorHost.createHostName(hostNamePrefix), consumerGroupName)
+				.useAzureStorageCheckpointLeaseManager(storageConnectionString, storageContainerName, null)
+				.useEventHubConnectionString(eventHubConnectionString.toString(), eventHubName)
+				.build();
 		
 		// Registering an event processor class with an instance of EventProcessorHost starts event processing. The host instance
 		// obtains leases on some partitions of the Event Hub, possibly stealing some from other host instances, in a way that
