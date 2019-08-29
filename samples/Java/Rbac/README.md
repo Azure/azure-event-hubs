@@ -6,7 +6,7 @@ This sample uses the [Microsoft Authentication Library (MSAL) for Java](https://
 
 ## Prerequisites
 
-Please refer to the [overview README](../../readme.md) for setting up the sample environment, including creating an Event Hubs cloud namespace and an event hub. 
+Please refer to the [overview README](../readme.md) for setting up the sample environment, including creating an Event Hubs cloud namespace and an event hub. 
 
 The specific AAD pattern used in this sample is ["Authenticate an appliction"](https://docs.microsoft.com/en-us/azure/event-hubs/authenticate-application). Please follow the steps described to
 create an application (client) id and application (client) secret, obtain your directory (tenant) id, and give the application Data Owner access to your event hub.
