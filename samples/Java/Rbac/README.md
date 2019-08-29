@@ -14,11 +14,11 @@ create an application (client) id and application (client) secret, obtain your d
 Once you have performed the previous steps, edit SendReceive.java to provide the necessary information. 
 
 ```java
-    final java.net.URI namespace = new java.net.URI("YourEventHubsNamespace.servicebus.windows.net");
-    final String eventhub = "Your event hub";
-    final String authority = "https://login.windows.net/replaceWithTenantIdGuid";
-    final String clientId = "replaceWithClientIdGuid";
-    final String clientSecret = "replaceWithClientSecret";
+    final java.net.URI namespace = new java.net.URI("----EventHubsNamespace---.servicebus.windows.net"); // to target National clouds, change domain name too
+    final String eventhub = "----EventHubName----";
+    final String authority = "https://login.windows.net/----replaceWithTenantIdGuid----";
+    final String clientId = "----replaceWithClientIdGuid----"; // not needed to run with Managed Identity
+    final String clientSecret = "----replaceWithClientSecret----"; // not needed to run with Managed Identity
 ```
 
 The Azure Event Hubs Java SDK also has limited built-in support for Managed Identity: specifically, when running in a virtual machine with a system-assigned managed identity, the SDK can

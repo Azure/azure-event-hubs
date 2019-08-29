@@ -25,11 +25,11 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class SendReceive {
 
-    final java.net.URI namespace = new java.net.URI("YourEventHubsNamespace.servicebus.windows.net");
-    final String eventhub = "Your event hub";
-    final String authority = "https://login.windows.net/replaceWithTenantIdGuid";
-    final String clientId = "replaceWithClientIdGuid";
-    final String clientSecret = "replaceWithClientSecret";
+    final java.net.URI namespace = new java.net.URI("----EventHubsNamespace---.servicebus.windows.net"); // to target National clouds, change domain name too
+    final String eventhub = "----EventHubName----";
+    final String authority = "https://login.windows.net/----replaceWithTenantIdGuid----";
+    final String clientId = "----replaceWithClientIdGuid----"; // not needed to run with Managed Identity
+    final String clientSecret = "----replaceWithClientSecret----"; // not needed to run with Managed Identity
 
     public SendReceive() throws URISyntaxException {
     }
@@ -44,10 +44,10 @@ public class SendReceive {
     private int run(String[] args) throws IOException {
 
         System.out.println("Choose an action:");
-        System.out.println("[A] Authenticate via Managed Identity and send / receive.");
-        System.out.println("[B] Authenticate via interactive logon and send / receive.");
-        System.out.println("[C] Authenticate via client secret and send / receive.");
-        System.out.println("[D] Authenticate via certificate and send / receive.");
+        System.out.println("[A] Authenticate via Managed Identity");
+        System.out.println("[B] Get AAD token using AuthCallback");
+        System.out.println("[C] Get AAD token using AzureActiveDirectoryTokenProvider to wrap AuthCallback");
+        System.out.println("[D] Get AAD token using ITokenProvider implementation");
 
         char key = (char)System.in.read();
         char keyPressed = Character.toUpperCase(key);
@@ -55,16 +55,16 @@ public class SendReceive {
         try {
             switch (keyPressed) {
                 case 'A':
-                    managedIdentityScenario(); // Use managed identity, either user-assigned or system-assigned.
+                    managedIdentityScenario();
                     break;
                 case 'B':
-                    userInteractiveLoginScenario(); // Provision a native app. Make sure to give microsoft.eventhubs under required permissions
+                    useAuthCallback();
                     break;
                 case 'C':
-                    clientCredentialsScenario(); // This scenario needs app registration in AAD and IAM registration. Only web api will work in AAD app registration.
+                    useAADTokenProvider();
                     break;
                 case 'D':
-                    clientAssertionCertScenario();
+                    useCustomTokenProvider();
                     break;
                 default:
                     System.out.println("Unknown command, press enter to exit");
@@ -103,7 +103,7 @@ public class SendReceive {
         sendReceive(ehClient, executorService);
     }
 
-    private void userInteractiveLoginScenario() throws IOException, InterruptedException, ExecutionException, EventHubException {
+    private void useAuthCallback() throws IOException, InterruptedException, ExecutionException, EventHubException {
 
         final AuthCallback callback = new AuthCallback(clientId, clientSecret);
         ScheduledExecutorService executorService = getScheduledExecutorService();
@@ -113,7 +113,7 @@ public class SendReceive {
         sendReceive(ehClient, executorService);
     }
 
-    private void clientCredentialsScenario() throws IOException, InterruptedException, ExecutionException, EventHubException {
+    private void useAADTokenProvider() throws IOException, InterruptedException, ExecutionException, EventHubException {
 
         final AuthCallback callback = new AuthCallback(clientId, clientSecret);
         ScheduledExecutorService executorService = getScheduledExecutorService();
@@ -125,7 +125,7 @@ public class SendReceive {
         sendReceive(ehClient, executorService);
     }
 
-    private void clientAssertionCertScenario() throws IOException, InterruptedException, ExecutionException, EventHubException {
+    private void useCustomTokenProvider() throws IOException, InterruptedException, ExecutionException, EventHubException {
 
         final CustomTokenProvider tokenProvider = new CustomTokenProvider(authority, clientId, clientSecret);
         ScheduledExecutorService executorService = getScheduledExecutorService();
