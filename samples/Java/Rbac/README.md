@@ -1,19 +1,25 @@
-# Send events to Azure Event Hubs using Java
+# Role based access sample with Azure Event Hubs Java SDK
 
-The [Send events to Azure Event Hubs using Java](https://docs.microsoft.com/azure/event-hubs/event-hubs-java-get-started-send) tutorial walks you through ingesting into your event hub using Java with this code.
+For general information on using Role based access (RBAC) with Azure Event Hubs, see the [documentation](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-role-based-access-control).
 
-To run the sample, you need to edit the [sample code](src/main/java/com/microsoft/azure/eventhubs/samples/simplesend/SimpleSend.java) and provide the following information:
-
-```java
-    final String namespaceName = "----EventHubsNamespaceName-----";
-    final String eventHubName = "----EventHubName-----";
-    final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
-    final String sasKey = "---SharedAccessSignatureKey----";
-```
+This sample uses the [Microsoft Authentication Library (MSAL) for Java](https://github.com/AzureAD/microsoft-authentication-library-for-java) to obtain tokens from Azure Active Directory (AAD).
 
 ## Prerequisites
 
-Please refer to the [overview README](../../readme.md) for prerequisites and setting up the sample environment, including creating an Event Hubs cloud namespace and an Event Hub. 
+Please refer to the [overview README](../../readme.md) for setting up the sample environment, including creating an Event Hubs cloud namespace and an event hub. 
+
+The specific AAD pattern used in this sample is ["Authenticate an appliction"](https://docs.microsoft.com/en-us/azure/event-hubs/authenticate-application). Please follow the steps described to
+create an application (client) id and application (client) secret, obtain your directory (tenant) id, and give the application Data Owner access to your event hub.
+
+Once you have performed the previous steps, edit SendReceive.java to provide the necessary information. 
+
+```java
+    final java.net.URI namespace = new java.net.URI("YourEventHubsNamespace.servicebus.windows.net");
+    final String eventhub = "Your event hub";
+    final String authority = "https://login.windows.net/replaceWithTenantIdGuid";
+    final String clientId = "replaceWithClientIdGuid";
+    final String clientSecret = "replaceWithClientSecret";
+```
 
 ## Build and run
 
