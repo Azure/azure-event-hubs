@@ -9,7 +9,7 @@ This sample uses the [Microsoft Authentication Library (MSAL) for Java](https://
 Please refer to the Java sample overview README for setting up the sample environment, including creating an Event Hubs cloud namespace and an event hub. 
 
 The specific AAD pattern used in this sample is ["Authenticate an appliction"](https://docs.microsoft.com/en-us/azure/event-hubs/authenticate-application). Please follow the steps described to
-create an application (client) id and application (client) secret, obtain your directory (tenant) id, and give the application Data Owner access to your event hub.
+create an application (client) id and application (client) secret, obtain your directory (tenant) id, and assign the application the Data Owner role on your event hub.
 
 Once you have performed the previous steps, edit SendReceive.java to provide the necessary information. 
 
@@ -20,6 +20,12 @@ Once you have performed the previous steps, edit SendReceive.java to provide the
     final String clientId = "replaceWithClientIdGuid";
     final String clientSecret = "replaceWithClientSecret";
 ```
+
+The Azure Event Hubs Java SDK also has limited built-in support for Managed Identity: specifically, when running in a virtual machine with a system-assigned managed identity, the SDK can
+obtain and use that identity to perform role based access. This sample can demonstrate that ability when run in an
+[appropriately-configured virtual machine](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/qs-configure-portal-windows-vm) and the managed identity
+[has been assigned the Data Owner role on your event hub.](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-managed-service-identity)
+
 
 ## Build and run
 
