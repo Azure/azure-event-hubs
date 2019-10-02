@@ -47,12 +47,12 @@
 	<dependency>
 	    <groupId>com.microsoft.azure</groupId>
 	    <artifactId>azure-eventhubs</artifactId>
-	    <version>3.0.0</version>
+	    <version>3.0.1</version>
 	</dependency>
 	<dependency>
 	    <groupId>com.microsoft.azure</groupId>
 	    <artifactId>azure-eventhubs-eph</artifactId>
-	    <version>3.0.0</version>
+	    <version>3.0.1</version>
 	</dependency>
 	<dependency>
 	    <groupId>log4j</groupId>
