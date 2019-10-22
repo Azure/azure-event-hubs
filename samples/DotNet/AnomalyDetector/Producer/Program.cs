@@ -12,9 +12,9 @@ namespace Producer
 
     public class Program
     {        
-        private const string EventHubConnectionString = "Endpoint=sb://contosoehnamespace16385.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=fRX7PsaT3+SGIwYKoqtW50eFK3avTPPcvmhT9Xa9Hp4=";
+        private const string EventHubConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
 
-        private const string EventHubName = "ContosoEHhub8900";
+        private const string EventHubName = "<EVENT HUB NAME>";
 
         private const string TransactionsDumpFile = "mocktransactions.csv";
 
