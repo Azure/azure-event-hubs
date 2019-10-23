@@ -6,15 +6,15 @@ namespace Producer
     using System;
     using System.Text;
     using System.Threading.Tasks;
-    using Microsoft.Azure.EventHubs;
+    using Azure.Messaging.EventHubs;
     using System.Collections.Generic;
     using System.IO;
 
     public class Program
     {        
-        private const string EventHubConnectionString = "Event Hubs connection string";
+        private const string EventHubConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
 
-        private const string EventHubName = "Event Hub name";
+        private const string EventHubName = "<EVENT HUB NAME>";
 
         private const string TransactionsDumpFile = "mocktransactions.csv";
 
@@ -27,16 +27,10 @@ namespace Producer
 
         private static async Task<int> MainAsync(string[] args)
         {
-            // Creates an EventHubsConnectionStringBuilder object from a the connection string, and sets the EntityPath.
-            // Typically the connection string should have the Entity Path in it, but for the sake of this simple scenario
-            // we are using the connection string from the namespace.
-            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EventHubConnectionString)
-            {
-                EntityPath = EventHubName,
-            };
+            // create an Event Hubs client using the namespace connection string and the event hub name
+            eventHubClient = new EventHubClient(EventHubConnectionString, EventHubName);
 
-            eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
-
+            // send messages to the event hub
             await SendMessagesToEventHubAsync(1000);
 
             await eventHubClient.CloseAsync();
@@ -63,6 +57,9 @@ namespace Producer
             File.AppendAllText(
                 TransactionsDumpFile, 
                 $"CreditCardId,Timestamp,Location,Amount,Type{Environment.NewLine}");
+
+            // create a producer object that you can use to produce or send messages to the event hub
+            EventHubProducer producer = eventHubClient.CreateProducer();
 
             foreach (var t in transactions)
             {
@@ -93,7 +90,9 @@ namespace Producer
                     File.AppendAllText(TransactionsDumpFile, line);
 
                     var ed = new EventData(Encoding.UTF8.GetBytes(message));
-                    await eventHubClient.SendAsync(ed);
+
+                    // send the message to the event hub using the producer object
+                    await producer.SendAsync(ed);
                 }
                 catch (Exception ex)
                 {
