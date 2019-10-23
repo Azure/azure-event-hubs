@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.Azure.EventHubs;
+using Azure.Messaging.EventHubs;
 
 namespace WindTurbineDataGenerator
 {
@@ -39,12 +39,11 @@ namespace WindTurbineDataGenerator
         {
             var random = new Random((int)DateTimeOffset.UtcNow.Ticks);
 
-            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EventHubConnectionString)
-            {
-                EntityPath = EventHubName
-            };
+            // create an Event Hubs client using the namespace connection string and the event hub name
+            EventHubClient client = new EventHubClient(EventHubConnectionString, EventHubName);
 
-            EventHubClient client = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            // create a producer object to send messages to the event hub
+            EventHubProducer producer = client.CreateProducer();
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -62,7 +61,9 @@ namespace WindTurbineDataGenerator
                     }
 
                     Console.Write(".");
-                    await client.SendAsync(devicesData);
+
+                    // send the message to the event hub
+                    await producer.SendAsync(devicesData);
                 }
                 catch (Exception ex)
                 {
