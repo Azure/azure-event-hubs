@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="SendReceive.aspx.cs" Inherits="ManagedIdentityWebApp.SendReceive" %>
+﻿<%@ Page Async="true" Language="C#" AutoEventWireup="true" CodeBehind="SendReceive.aspx.cs" Inherits="ManagedIdentityWebApp.SendReceive" %>
 
 <!DOCTYPE html>
 
@@ -15,9 +15,6 @@
             </div>
             <div>
                 <label>Event Hub Name</label><asp:TextBox ID="txtEventHub" runat="server" Text=""/>
-            </div>
-            <div>
-                <label>Partition count</label><asp:TextBox ID="txtPartitions" runat="server"  Text="2"/>
             </div>
             <div>
                 <label>Data to Send</label> <asp:TextBox ID="txtData" runat="server" TextMode="MultiLine" Width="500px"/>

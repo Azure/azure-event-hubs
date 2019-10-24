@@ -7,11 +7,13 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace ManagedIdentityWebApp {
-    
-    
-    public partial class SendReceive {
-        
+namespace ManagedIdentityWebApp
+{
+
+
+    public partial class SendReceive
+    {
+
         /// <summary>
         /// form1 control.
         /// </summary>
@@ -20,7 +22,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.HtmlControls.HtmlForm form1;
-        
+
         /// <summary>
         /// txtNamespace control.
         /// </summary>
@@ -29,7 +31,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.TextBox txtNamespace;
-        
+
         /// <summary>
         /// txtEventHub control.
         /// </summary>
@@ -38,16 +40,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.TextBox txtEventHub;
-        
-        /// <summary>
-        /// txtPartitions control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtPartitions;
-        
+
         /// <summary>
         /// txtData control.
         /// </summary>
@@ -56,7 +49,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.TextBox txtData;
-        
+
         /// <summary>
         /// btnSend control.
         /// </summary>
@@ -65,7 +58,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnSend;
-        
+
         /// <summary>
         /// btnReceive control.
         /// </summary>
@@ -74,7 +67,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnReceive;
-        
+
         /// <summary>
         /// txtOutput control.
         /// </summary>
@@ -83,7 +76,7 @@ namespace ManagedIdentityWebApp {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.TextBox txtOutput;
-        
+
         /// <summary>
         /// hiddenStartingOffset control.
         /// </summary>
