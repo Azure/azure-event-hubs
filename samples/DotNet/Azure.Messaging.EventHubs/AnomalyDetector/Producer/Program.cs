@@ -18,7 +18,7 @@ namespace Producer
 
         private const string TransactionsDumpFile = "mocktransactions.csv";
 
-        private static EventHubClient eventHubClient;
+        private static EventHubProducerClient producerClient;
 
         public static int Main(string[] args)
         {
@@ -27,13 +27,13 @@ namespace Producer
 
         private static async Task<int> MainAsync(string[] args)
         {
-            // create an Event Hubs client using the namespace connection string and the event hub name
-            eventHubClient = new EventHubClient(EventHubConnectionString, EventHubName);
+            // create an Event Hubs Producer client using the namespace connection string and the event hub name
+            producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
 
             // send messages to the event hub
             await SendMessagesToEventHubAsync(1000);
 
-            await eventHubClient.CloseAsync();
+            await producerClient.CloseAsync();
 
             Console.WriteLine("Press [enter] to exit.");
             Console.ReadLine();
@@ -57,9 +57,6 @@ namespace Producer
             File.AppendAllText(
                 TransactionsDumpFile, 
                 $"CreditCardId,Timestamp,Location,Amount,Type{Environment.NewLine}");
-
-            // create a producer object that you can use to produce or send messages to the event hub
-            EventHubProducer producer = eventHubClient.CreateProducer();
 
             foreach (var t in transactions)
             {
@@ -92,7 +89,7 @@ namespace Producer
                     var ed = new EventData(Encoding.UTF8.GetBytes(message));
 
                     // send the message to the event hub using the producer object
-                    await producer.SendAsync(ed);
+                    await producerClient.SendAsync(ed);
                 }
                 catch (Exception ex)
                 {
