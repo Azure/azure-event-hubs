@@ -13,9 +13,9 @@ namespace WindTurbineDataGenerator
     internal class Program
     {
         private const string EventHubConnectionString =
-            "[provide the EH connection string]";
+            "<EVENT HUBS NAMESPACE CONNECTION STRING>";
 
-        private const string EventHubName = "[provide the EH name]";
+        private const string EventHubName = "<EVENT HUB NAME>";
         
         private static int Main(string[] args)
         {
@@ -39,11 +39,8 @@ namespace WindTurbineDataGenerator
         {
             var random = new Random((int)DateTimeOffset.UtcNow.Ticks);
 
-            // create an Event Hubs client using the namespace connection string and the event hub name
-            EventHubClient client = new EventHubClient(EventHubConnectionString, EventHubName);
-
-            // create a producer object to send messages to the event hub
-            EventHubProducer producer = client.CreateProducer();
+            // create an Event Hubs Producer client using the namespace connection string and the event hub name
+            EventHubProducerClient producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -63,7 +60,7 @@ namespace WindTurbineDataGenerator
                     Console.Write(".");
 
                     // send the message to the event hub
-                    await producer.SendAsync(devicesData);
+                    await producerClient.SendAsync(devicesData);
                 }
                 catch (Exception ex)
                 {
