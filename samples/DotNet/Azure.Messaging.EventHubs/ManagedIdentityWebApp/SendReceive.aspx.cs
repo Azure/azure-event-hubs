@@ -18,8 +18,7 @@ namespace ManagedIdentityWebApp
 
         protected async void btnSend_Click(object sender, EventArgs e)
         {
-            EventHubClient client = new EventHubClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential());
-            await using (EventHubProducer producer = client.CreateProducer())
+            await using (EventHubProducerClient producer = new EventHubProducerClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
             {
                 var eventsToPublish = new EventData[]
                 {
@@ -33,24 +32,31 @@ namespace ManagedIdentityWebApp
 
         protected async void btnReceive_Click(object sender, EventArgs e)
         {
-            EventHubClient client = new EventHubClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential());
-            string firstPartition = (await client.GetPartitionIdsAsync()).First();
-            var totalReceived = 0;
-            var receiver = client.CreateConsumer(EventHubConsumer.DefaultConsumerGroupName, firstPartition, EventPosition.Earliest);
-            var messages = receiver.ReceiveAsync(int.MaxValue, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult();
-
-            if (messages != null)
+            await using (EventHubConsumerClient consumerClient = new EventHubConsumerClient("$Default", "0", EventPosition.Earliest, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
             {
-                foreach (var message in messages)
-                {
-                    txtOutput.Text = $"{DateTime.Now} - RECEIVED PartitionId: {firstPartition} data:{Encoding.UTF8.GetString(message.Body.ToArray())}{Environment.NewLine}" + txtOutput.Text;
-                }
-
-                Interlocked.Add(ref totalReceived, messages.Count());
+                string firstPartition = (await consumerClient.GetPartitionIdsAsync()).First();
             }
 
-            receiver.Close();
-            txtOutput.Text = $"{DateTime.Now} - RECEIVED TOTAL = {totalReceived}{Environment.NewLine}" + txtOutput.Text;
-        }
+                /*
+                EventHubConsumerClient receiver = new EventHubConsumerClient("$Default", "0", EventPosition.Earliest, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential());
+
+                string firstPartition = "0";
+                var totalReceived = 0;
+                var messages = receiver.ReceiveAsync(int.MaxValue, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult();
+
+                if (messages != null)
+                {
+                    foreach (var message in messages)
+                    {
+                        txtOutput.Text = $"{DateTime.Now} - RECEIVED PartitionId: {firstPartition} data:{Encoding.UTF8.GetString(message.Body.ToArray())}{Environment.NewLine}" + txtOutput.Text;
+                    }
+
+                    Interlocked.Add(ref totalReceived, messages.Count());
+                }
+
+                receiver.Close();
+                txtOutput.Text = $"{DateTime.Now} - RECEIVED TOTAL = {totalReceived}{Environment.NewLine}" + txtOutput.Text;
+                */
+            }
     }
 }

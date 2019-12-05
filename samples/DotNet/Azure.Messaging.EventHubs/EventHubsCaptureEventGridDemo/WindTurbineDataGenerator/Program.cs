@@ -17,7 +17,7 @@ namespace WindTurbineDataGenerator
 
         private const string EventHubName = "<EVENT HUB NAME>";
         
-        private static int Main(string[] args)
+        private static int Main()
         {
             Console.WriteLine("Starting wind turbine generator. Press <ENTER> to exit");
 
@@ -47,20 +47,21 @@ namespace WindTurbineDataGenerator
                 try
                 {
                     // Simulate sending data from 100 weather sensors
-                    var devicesData = new List<EventData>();
-
+                    // prepare a batch of events to send to the event hub. 
+                    EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
                     for (int i = 0; i < 100; i++)
                     {
                         int scaleFactor = random.Next(0, 25);
                         var windTurbineMeasure = GenerateTurbineMeasure("Turbine_" + i, scaleFactor);
                         EventData evData = SerializeWindTurbineToEventData(windTurbineMeasure);
-                        devicesData.Add(evData);
+                        // add the event to the batch
+                        eventBatch.TryAdd(evData);
                     }
 
                     Console.Write(".");
 
-                    // send the message to the event hub
-                    await producerClient.SendAsync(devicesData);
+                    // send the batch of events to the event hub
+                    await producerClient.SendAsync(eventBatch);
                 }
                 catch (Exception ex)
                 {

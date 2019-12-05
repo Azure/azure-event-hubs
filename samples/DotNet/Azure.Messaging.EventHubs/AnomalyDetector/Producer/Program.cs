@@ -13,19 +13,17 @@ namespace Producer
     public class Program
     {        
         private const string EventHubConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
-
         private const string EventHubName = "<EVENT HUB NAME>";
-
         private const string TransactionsDumpFile = "mocktransactions.csv";
 
         private static EventHubProducerClient producerClient;
 
-        public static int Main(string[] args)
+        public static int Main()
         {
-            return MainAsync(args).GetAwaiter().GetResult();
+            return MainAsync().GetAwaiter().GetResult();
         }
 
-        private static async Task<int> MainAsync(string[] args)
+        private static async Task<int> MainAsync()
         {
             // create an Event Hubs Producer client using the namespace connection string and the event hub name
             producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
@@ -86,10 +84,12 @@ namespace Producer
 
                     File.AppendAllText(TransactionsDumpFile, line);
 
-                    var ed = new EventData(Encoding.UTF8.GetBytes(message));
+                    // prepare a batch of events to send to the event hub. only one event in this case. 
+                    EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                    eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(message)));
 
                     // send the message to the event hub using the producer object
-                    await producerClient.SendAsync(ed);
+                    await producerClient.SendAsync(eventBatch);
                 }
                 catch (Exception ex)
                 {

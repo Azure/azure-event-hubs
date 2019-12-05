@@ -32,11 +32,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Azure.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=92742159e12e44c8, processorArchitecture=MSIL">
-      <HintPath>..\packages\Azure.Core.1.0.0\lib\netstandard2.0\Azure.Core.dll</HintPath>
+    <Reference Include="Azure.Core, Version=1.0.1.0, Culture=neutral, PublicKeyToken=92742159e12e44c8, processorArchitecture=MSIL">
+      <HintPath>..\packages\Azure.Core.1.0.1\lib\netstandard2.0\Azure.Core.dll</HintPath>
     </Reference>
     <Reference Include="Azure.Messaging.EventHubs, Version=5.0.0.0, Culture=neutral, PublicKeyToken=92742159e12e44c8, processorArchitecture=MSIL">
-      <HintPath>..\packages\Azure.Messaging.EventHubs.5.0.0-preview.5\lib\netstandard2.0\Azure.Messaging.EventHubs.dll</HintPath>
+      <HintPath>..\packages\Azure.Messaging.EventHubs.5.0.0-preview.6\lib\netstandard2.0\Azure.Messaging.EventHubs.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Azure.Amqp, Version=2.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Azure.Amqp.2.4.2\lib\net45\Microsoft.Azure.Amqp.dll</HintPath>
