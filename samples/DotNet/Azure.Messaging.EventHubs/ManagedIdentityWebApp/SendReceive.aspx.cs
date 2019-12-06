@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using Azure.Messaging.EventHubs;
 using Azure.Identity;
+using System.Threading.Tasks;
 
 // Always add app to IAM roles
 // Don't use on deployment slots but only on root
@@ -18,45 +19,41 @@ namespace ManagedIdentityWebApp
 
         protected async void btnSend_Click(object sender, EventArgs e)
         {
-            await using (EventHubProducerClient producer = new EventHubProducerClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
+            await using (EventHubProducerClient producerClient = new EventHubProducerClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
             {
-                var eventsToPublish = new EventData[]
-                {
-                    new EventData(Encoding.UTF8.GetBytes(txtData.Text))
-                };
+                // create a batch
+                EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
 
-                await producer.SendAsync(eventsToPublish);
+                // add events to the batch. only one in this case. 
+                eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(txtData.Text)));
+                
+                // send the batch to the event hub
+                await producerClient.SendAsync(eventBatch);
+
                 txtOutput.Text = $"{DateTime.Now} - SENT{Environment.NewLine}" + txtOutput.Text;
             }
         }
-
         protected async void btnReceive_Click(object sender, EventArgs e)
         {
-            await using (EventHubConsumerClient consumerClient = new EventHubConsumerClient("$Default", "0", EventPosition.Earliest, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
+            await using (var consumerClient = new EventHubConsumerClient(EventHubConsumerClient.DefaultConsumerGroupName, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
             {
-                string firstPartition = (await consumerClient.GetPartitionIdsAsync()).First();
-            }
-
-                /*
-                EventHubConsumerClient receiver = new EventHubConsumerClient("$Default", "0", EventPosition.Earliest, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential());
-
-                string firstPartition = "0";
-                var totalReceived = 0;
-                var messages = receiver.ReceiveAsync(int.MaxValue, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult();
-
-                if (messages != null)
+                int eventsRead = 0;
+                try
                 {
-                    foreach (var message in messages)
+                    using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+                    cancellationSource.CancelAfter(TimeSpan.FromSeconds(5));
+
+                    await foreach (PartitionEvent partitionEvent in consumerClient.ReadEventsAsync(cancellationSource.Token))
                     {
-                        txtOutput.Text = $"{DateTime.Now} - RECEIVED PartitionId: {firstPartition} data:{Encoding.UTF8.GetString(message.Body.ToArray())}{Environment.NewLine}" + txtOutput.Text;
+                        txtOutput.Text = $"Event Read: { Encoding.UTF8.GetString(partitionEvent.Data.Body.ToArray()) }{ Environment.NewLine}" + txtOutput.Text;
+                        eventsRead++;
                     }
-
-                    Interlocked.Add(ref totalReceived, messages.Count());
                 }
-
-                receiver.Close();
-                txtOutput.Text = $"{DateTime.Now} - RECEIVED TOTAL = {totalReceived}{Environment.NewLine}" + txtOutput.Text;
-                */
+                catch (TaskCanceledException ex)
+                {
+                    txtOutput.Text = $"Number of events read: {eventsRead}{ Environment.NewLine}" + txtOutput.Text;
+                }
             }
+        }
     }
 }
