@@ -25,13 +25,15 @@ namespace ManagedIdentityWebApp
             await using (EventHubProducerClient producerClient = new EventHubProducerClient(txtNamespace.Text, txtEventHub.Text, new DefaultAzureCredential()))
             {
                 // create a batch
-                EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                using (EventDataBatch eventBatch = await producerClient.CreateBatchAsync())
+                {
 
-                // add events to the batch. only one in this case. 
-                eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(txtData.Text)));
-                
-                // send the batch to the event hub
-                await producerClient.SendAsync(eventBatch);
+                    // add events to the batch. only one in this case. 
+                    eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(txtData.Text)));
+
+                    // send the batch to the event hub
+                    await producerClient.SendAsync(eventBatch);
+                }
 
                 txtOutput.Text = $"{DateTime.Now} - SENT{Environment.NewLine}{txtOutput.Text}";
             }
