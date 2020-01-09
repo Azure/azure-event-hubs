@@ -11,7 +11,7 @@
     <form id="form1" runat="server">
         <div style="white-space: pre">
             <div>
-                <label>Event Hubs Namespace</label><asp:TextBox ID="txtNamespace" runat="server" Text="" />
+                <label>Event Hubs Namespace - Fully qualified </label><asp:TextBox ID="txtNamespace" runat="server" Text="" />
             </div>
             <div>
                 <label>Event Hub Name</label><asp:TextBox ID="txtEventHub" runat="server" Text=""/>

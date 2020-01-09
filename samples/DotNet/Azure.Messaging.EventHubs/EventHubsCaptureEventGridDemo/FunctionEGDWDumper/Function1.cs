@@ -8,20 +8,22 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
-using Avro.File;
-using Avro.Generic;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.EventGrid;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Host;
-using Microsoft.WindowsAzure.Storage;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace FunctionEGDWDumper
 {
+    using System.Text;
+    using Avro.File;
+    using Avro.Generic;
+    using Microsoft.Azure.WebJobs;
+    using Microsoft.Azure.WebJobs.Extensions.EventGrid;
+    using Microsoft.Azure.WebJobs.Host;
+    using Microsoft.WindowsAzure.Storage;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
+
 
     public static class Function1
     {

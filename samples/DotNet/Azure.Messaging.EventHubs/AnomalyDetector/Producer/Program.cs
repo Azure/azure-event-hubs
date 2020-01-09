@@ -11,22 +11,17 @@ namespace Producer
     using System.IO;
 
     public class Program
-    {        
-        private const string EventHubConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
+    {
+        private const string EventHubNamespaceConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
         private const string EventHubName = "<EVENT HUB NAME>";
         private const string TransactionsDumpFile = "mocktransactions.csv";
 
         private static EventHubProducerClient producerClient;
 
-        public static int Main()
-        {
-            return MainAsync().GetAwaiter().GetResult();
-        }
-
-        private static async Task<int> MainAsync()
+        static async Task Main()
         {
             // create an Event Hubs Producer client using the namespace connection string and the event hub name
-            producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
+            producerClient = new EventHubProducerClient(EventHubNamespaceConnectionString, EventHubName);
 
             // send messages to the event hub
             await SendMessagesToEventHubAsync(1000);
@@ -35,8 +30,6 @@ namespace Producer
 
             Console.WriteLine("Press [enter] to exit.");
             Console.ReadLine();
-
-            return 0;
         }
 
         // Creates an Event Hub client and sends messages to the event hub.
@@ -52,19 +45,22 @@ namespace Producer
                 File.Delete(TransactionsDumpFile);
             }
 
-            File.AppendAllText(
+            await File.AppendAllTextAsync(
                 TransactionsDumpFile, 
                 $"CreditCardId,Timestamp,Location,Amount,Type{Environment.NewLine}");
 
-            foreach (var t in transactions)
+            int numSuccessfulMessages = 0;
+            try
             {
-                try
+                // create a batch using the producer client
+                EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                foreach (var t in transactions)
                 {
                     // we don't send the transaction type as part of the message.
                     // that is up to the downstream analytics to figure out!
                     // we just pretty print them here so they can easily be compared with the downstream
                     // analytics results.
-                    var message = t.Data.ToJson(); 
+                    var message = t.Data.ToJson();
 
                     if (t.Type == TransactionType.Suspect)
                     {
@@ -84,22 +80,21 @@ namespace Producer
 
                     File.AppendAllText(TransactionsDumpFile, line);
 
-                    // prepare a batch of events to send to the event hub. only one event in this case. 
-                    EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                    // add the message to the batch
                     eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(message)));
-
-                    // send the message to the event hub using the producer object
-                    await producerClient.SendAsync(eventBatch);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{t.ToJson()}{Environment.NewLine}Exception: {ex.Message}");
+                    numSuccessfulMessages++;
                 }
 
+                // send the batch of messages to the event hub using the producer object
+                await producerClient.SendAsync(eventBatch);
                 await Task.Delay(10);
             }
-
-            Console.WriteLine($"{numMessagesToSend} messages sent.");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{Environment.NewLine}Exception: {ex.Message}");
+            }
+            Console.WriteLine();
+            Console.WriteLine($"{numSuccessfulMessages} messages sent successfully.");
         }
     }
 }

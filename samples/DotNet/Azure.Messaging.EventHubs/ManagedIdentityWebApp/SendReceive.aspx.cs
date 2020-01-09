@@ -1,15 +1,18 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using Azure.Messaging.EventHubs;
-using Azure.Identity;
-using System.Threading.Tasks;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 
 // Always add app to IAM roles
 // Don't use on deployment slots but only on root
 namespace ManagedIdentityWebApp
 {
+    using System;
+    using System.Text;
+    using System.Threading;
+    using Azure.Messaging.EventHubs;
+    using Azure.Identity;
+    using System.Threading.Tasks;
+
     public partial class SendReceive : System.Web.UI.Page
     {
         protected void Page_Load(object sender, EventArgs e)
@@ -19,7 +22,7 @@ namespace ManagedIdentityWebApp
 
         protected async void btnSend_Click(object sender, EventArgs e)
         {
-            await using (EventHubProducerClient producerClient = new EventHubProducerClient($"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
+            await using (EventHubProducerClient producerClient = new EventHubProducerClient(txtNamespace.Text, txtEventHub.Text, new DefaultAzureCredential()))
             {
                 // create a batch
                 EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
@@ -30,7 +33,7 @@ namespace ManagedIdentityWebApp
                 // send the batch to the event hub
                 await producerClient.SendAsync(eventBatch);
 
-                txtOutput.Text = $"{DateTime.Now} - SENT{Environment.NewLine}" + txtOutput.Text;
+                txtOutput.Text = $"{DateTime.Now} - SENT{Environment.NewLine}{txtOutput.Text}";
             }
         }
         protected async void btnReceive_Click(object sender, EventArgs e)
