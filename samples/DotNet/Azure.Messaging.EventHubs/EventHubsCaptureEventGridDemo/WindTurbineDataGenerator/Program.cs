@@ -1,22 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Azure.Messaging.EventHubs;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace WindTurbineDataGenerator
 {
+    using System;
+    using System.Diagnostics;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Newtonsoft.Json;
+    using Azure.Messaging.EventHubs;
+
+
     internal class Program
     {
-        private const string EventHubConnectionString =
-            "<EVENT HUBS NAMESPACE CONNECTION STRING>";
-
+        private const string EventHubNamespaceConnectionString = "<EVENT HUBS NAMESPACE CONNECTION STRING>";
         private const string EventHubName = "<EVENT HUB NAME>";
-        
+
         private static int Main()
         {
             Console.WriteLine("Starting wind turbine generator. Press <ENTER> to exit");
@@ -40,7 +40,7 @@ namespace WindTurbineDataGenerator
             var random = new Random((int)DateTimeOffset.UtcNow.Ticks);
 
             // create an Event Hubs Producer client using the namespace connection string and the event hub name
-            EventHubProducerClient producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
+            EventHubProducerClient producerClient = new EventHubProducerClient(EventHubNamespaceConnectionString, EventHubName);
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -55,7 +55,8 @@ namespace WindTurbineDataGenerator
                         var windTurbineMeasure = GenerateTurbineMeasure("Turbine_" + i, scaleFactor);
                         EventData evData = SerializeWindTurbineToEventData(windTurbineMeasure);
                         // add the event to the batch
-                        eventBatch.TryAdd(evData);
+                        if (eventBatch.TryAdd(evData) == false)
+                            break;
                     }
 
                     Console.Write(".");

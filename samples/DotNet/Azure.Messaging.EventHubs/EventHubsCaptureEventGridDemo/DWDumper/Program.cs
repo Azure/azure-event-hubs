@@ -1,17 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Avro.File;
-using Avro.Generic;
-using Newtonsoft.Json;
-using Microsoft.WindowsAzure.Storage;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace DWDumper
 {
+    using System;
+    using System.Data;
+    using System.Data.SqlClient;
+    using System.Text;
+    using Avro.File;
+    using Avro.Generic;
+    using Newtonsoft.Json;
+    using Azure.Storage.Blobs;
+    using System.IO;
+
     /// <summary>
     /// A simple test program to dump a single Avro blob file created by EventHubs Capture into a SQL data warehouse (DW).
     /// This is useful for testing connections with your SQL DW before integrating this DW dumping code with Azure Functions
@@ -19,8 +20,10 @@ namespace DWDumper
     class Program
     {
         private const string StorageConnectionString = "[provide your storage connection string]";
-        private const string EventHubsCaptureAvroBlobUri = "[provide the blob path to a single blob file just to test if it can be parsed and dumped to the DW]";
+        private const string EventHubsCaptureAvroBlobContainer = "<< Blobs container>>";
+        private const string EventHubsCaptureAvroBlobName = "<<Blob name>>";
         private const string SqlDwConnection = "[provide the SQL DW connection string]";
+
 
         private static int Main(string[] args)
         {
@@ -33,14 +36,17 @@ namespace DWDumper
         public void Dump()
         {
             // Get the blob reference
-            var storageAccount = CloudStorageAccount.Parse(StorageConnectionString);
-            var blobClient = storageAccount.CreateCloudBlobClient();
-            var blob = blobClient.GetBlobReferenceFromServer(new Uri(EventHubsCaptureAvroBlobUri));
+            BlobContainerClient blobContainer = new BlobContainerClient(StorageConnectionString, EventHubsCaptureAvroBlobContainer);
+            BlobClient blob = blobContainer.GetBlobClient(EventHubsCaptureAvroBlobName);
+
+            // Download the content to a memory stream
+            Stream blobStream = new MemoryStream();
+            blob.DownloadToAsync(blobStream);
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
                 // Parse the Avro File
-                using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blob.OpenRead()))
+                using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blobStream))
                 {
                     while (avroReader.HasNext())
                     {
