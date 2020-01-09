@@ -40,29 +40,31 @@ namespace DWDumper
             BlobClient blob = blobContainer.GetBlobClient(EventHubsCaptureAvroBlobName);
 
             // Download the content to a memory stream
-            Stream blobStream = new MemoryStream();
-            blob.DownloadToAsync(blobStream);
-
-            using (var dataTable = GetWindTurbineMetricsTable())
+            using (Stream blobStream = new MemoryStream())
             {
-                // Parse the Avro File
-                using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blobStream))
+                blob.DownloadToAsync(blobStream);
+
+                using (var dataTable = GetWindTurbineMetricsTable())
                 {
-                    while (avroReader.HasNext())
+                    // Parse the Avro File
+                    using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blobStream))
                     {
-                        GenericRecord r = avroReader.Next();
+                        while (avroReader.HasNext())
+                        {
+                            GenericRecord r = avroReader.Next();
 
-                        byte[] body = (byte[]) r["Body"];
-                        var windTurbineMeasure = DeserializeToWindTurbineMeasure(body);
+                            byte[] body = (byte[])r["Body"];
+                            var windTurbineMeasure = DeserializeToWindTurbineMeasure(body);
 
-                        // Add the row to in memory table
-                        AddWindTurbineMetricToTable(dataTable, windTurbineMeasure);
+                            // Add the row to in memory table
+                            AddWindTurbineMetricToTable(dataTable, windTurbineMeasure);
+                        }
                     }
-                }
 
-                if (dataTable.Rows.Count > 0)
-                {
-                    BatchInsert(dataTable);
+                    if (dataTable.Rows.Count > 0)
+                    {
+                        BatchInsert(dataTable);
+                    }
                 }
             }
         }

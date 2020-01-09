@@ -53,41 +53,42 @@ namespace Producer
             try
             {
                 // create a batch using the producer client
-                EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
-                foreach (var t in transactions)
+                using (EventDataBatch eventBatch = await producerClient.CreateBatchAsync())
                 {
-                    // we don't send the transaction type as part of the message.
-                    // that is up to the downstream analytics to figure out!
-                    // we just pretty print them here so they can easily be compared with the downstream
-                    // analytics results.
-                    var message = t.Data.ToJson();
-
-                    if (t.Type == TransactionType.Suspect)
+                    foreach (var t in transactions)
                     {
-                        var fc = Console.ForegroundColor;
-                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        // we don't send the transaction type as part of the message.
+                        // that is up to the downstream analytics to figure out!
+                        // we just pretty print them here so they can easily be compared with the downstream
+                        // analytics results.
+                        var message = t.Data.ToJson();
 
-                        Console.WriteLine($"Suspect transaction: {message}");
+                        if (t.Type == TransactionType.Suspect)
+                        {
+                            var fc = Console.ForegroundColor;
+                            Console.ForegroundColor = ConsoleColor.Yellow;
 
-                        Console.ForegroundColor = fc; // reset to original
+                            Console.WriteLine($"Suspect transaction: {message}");
+
+                            Console.ForegroundColor = fc; // reset to original
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Regular transaction: {message}");
+                        }
+
+                        var line = $"{t.Data.CreditCardId},{t.Data.Timestamp.ToString("o")},{t.Data.Location},{t.Data.Amount},{t.Type}{Environment.NewLine}";
+
+                        File.AppendAllText(TransactionsDumpFile, line);
+
+                        // add the message to the batch
+                        eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(message)));
+                        numSuccessfulMessages++;
                     }
-                    else
-                    {
-                        Console.WriteLine($"Regular transaction: {message}");
-                    }
-
-                    var line = $"{t.Data.CreditCardId},{t.Data.Timestamp.ToString("o")},{t.Data.Location},{t.Data.Amount},{t.Type}{Environment.NewLine}";
-
-                    File.AppendAllText(TransactionsDumpFile, line);
-
-                    // add the message to the batch
-                    eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(message)));
-                    numSuccessfulMessages++;
+                    // send the batch of messages to the event hub using the producer object
+                    await producerClient.SendAsync(eventBatch);
+                    await Task.Delay(10);
                 }
-
-                // send the batch of messages to the event hub using the producer object
-                await producerClient.SendAsync(eventBatch);
-                await Task.Delay(10);
             }
             catch (Exception ex)
             {
