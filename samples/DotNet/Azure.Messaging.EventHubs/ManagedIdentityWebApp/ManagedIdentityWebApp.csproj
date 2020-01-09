@@ -183,7 +183,7 @@
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\ManagedIdentityWebApp20190718022551 - Web Deploy.pubxml" />
     <None Include="Properties\PublishProfiles\ManagedIdentityWebApp20191023043107 - Web Deploy.pubxml" />
-    <None Include="Properties\PublishProfiles\ManagedIdentityWebApp20191206110036 - Web Deploy.pubxml" />
+    <None Include="Properties\PublishProfiles\ManagedIdentityWebApp20200109042759 - Web Deploy.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
