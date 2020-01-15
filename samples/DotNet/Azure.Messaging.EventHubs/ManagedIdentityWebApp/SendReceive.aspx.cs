@@ -40,7 +40,7 @@ namespace ManagedIdentityWebApp
         }
         protected async void btnReceive_Click(object sender, EventArgs e)
         {
-            await using (var consumerClient = new EventHubConsumerClient(EventHubConsumerClient.DefaultConsumerGroupName, $"{txtNamespace.Text}.servicebus.windows.net", txtEventHub.Text, new DefaultAzureCredential()))
+            await using (var consumerClient = new EventHubConsumerClient(EventHubConsumerClient.DefaultConsumerGroupName, txtNamespace.Text, txtEventHub.Text, new DefaultAzureCredential()))
             {
                 int eventsRead = 0;
                 try
