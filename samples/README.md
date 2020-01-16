@@ -1,25 +1,27 @@
 # Azure Event Hubs samples
 
 ## .NET
+The [.NET](./DotNet) folder contains samples that use Azure Event Hubs .NET SDK. 
+
+### Azure.Messaging.EventHubs (latest)
+This sub-folder in the .NET folder contains samples that uses the new Azure.Messaging.EventHubs library. We recommend that you use this library. 
 
 ### Microsoft.Azure.EventHubs
-Any samples within the `Azure.Microsoft.EventHubs` folder target the newer .NET Standard library.
+This sub-folder in the .NET folder contains samples that uses the Microsoft.Azure.EventHubs library. 
 
-#### SampleSender
-
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleSender/readme.md) shows how to write a .NET Core console application that sends a set of messages to an Event Hub.
-
-#### SampleEphReceiver
-
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleEphReceiver/readme.md) shows how to write a .NET Core console application that receives messages from an Event Hub using the **EventProcessorHost**.
+### Microsoft.ServiceBus 
+This sub-folder in the .NET folder contains samples that uses the Microsoft.ServiceBus library. 
 
 ## Java
+The [Java](./Java) folder contains samples that use Azure Event Hubs Java SDK. 
 
-[Go here](./Java) for the Java language samples.
+## e2e
+The [e2e](./e2e) folder contains samples that use Azure Event Hubs in an end-to-end scenario. 
+
+## Management
+The [Management](./Management) folder contains PowerShell, Azure CLI, and .NET samples that show how to perform management operations such as creating Event Hub namespaces and entities.
 
 ## Miscellaneous
 
-### proton-c-sender-dotnet-framework-receiver
-
-[This sample](./Miscellaneous/proton-c-sender-dotnet-framework-receiver/README.md) shows how to use Azure Event Hubs with clients that use different protocols. This scenario sends using an Apache Proton C++ client, and receives using the .NET Framework client.
+This folder has a [proton-c-sender-dotnet-framework-receiver](./Miscellaneous/proton-c-sender-dotnet-framework-receiver/README.md) that shows how to use Azure Event Hubs with clients that use different protocols. This scenario sends using an Apache Proton C++ client, and receives using the .NET Framework client.
 
