@@ -1,4 +1,6 @@
 # Managed Service Identity sample #
+This sample provides a web application that you can use to send/receive events to/from an event hub using a managed identity. 
+
 To use this sample, do the following steps: 
 
 1. Create an Event Hubs namespace and an event hub.

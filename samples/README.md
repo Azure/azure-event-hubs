@@ -1,21 +1,21 @@
 # Azure Event Hubs samples
 
 ## .NET
-The [.NET](./DotNet) folder contains samples that use Azure Event Hubs .NET SDK. 
+The [.NET](./DotNet) folder contains samples that use the Azure Event Hubs .NET SDK. 
 
 ### Azure.Messaging.EventHubs (latest)
-This sub-folder in the .NET folder contains samples that uses the new Azure.Messaging.EventHubs library. We recommend that you use this library. 
+This subfolder in the .NET folder contains samples that use the new Azure.Messaging.EventHubs library. We recommend that you use this library. 
 
 ### Microsoft.Azure.EventHubs
-This sub-folder in the .NET folder contains samples that uses the Microsoft.Azure.EventHubs library. 
+This subfolder in the .NET folder contains samples that use the Microsoft.Azure.EventHubs library. 
 
 ### Microsoft.ServiceBus 
-This sub-folder in the .NET folder contains samples that uses the Microsoft.ServiceBus library. 
+This subfolder in the .NET folder contains samples that use the Microsoft.ServiceBus library. 
 
 ## Java
-The [Java](./Java) folder contains samples that use Azure Event Hubs Java SDK. 
+The [Java](./Java) folder contains samples that use the Azure Event Hubs Java SDK. 
 
-## e2e
+## e2e (end-to-end)
 The [e2e](./e2e) folder contains samples that use Azure Event Hubs in an end-to-end scenario. 
 
 ## Management
