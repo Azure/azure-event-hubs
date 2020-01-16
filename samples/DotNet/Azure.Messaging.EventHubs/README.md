@@ -10,5 +10,9 @@ This sample shows you how to capture data from your event hub into a SQL data wa
 
 The WindTurbineGenerator app uses the new Azure.Messaging.EventHubs library to send data to an event hub.
 
+See this [tutorial article](https://docs.microsoft.com/azure/event-hubs/store-captured-data-data-warehouse) for details on using this sample.
+
 ### ManagedIdentityWebApp
 This sample provides a web application that you can use to send/receive events to/from an event hub using a managed identity. 
+
+For more information on Managed Service Identity (MSI) and how to run this sample follow [this article](https://docs.microsoft.com/azure/event-hubs/authenticate-managed-identity#test-the-web-application).
