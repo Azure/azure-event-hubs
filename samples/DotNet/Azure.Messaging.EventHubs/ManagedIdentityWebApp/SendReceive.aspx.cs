@@ -10,6 +10,8 @@ namespace ManagedIdentityWebApp
     using System.Text;
     using System.Threading;
     using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Producer;
+    using Azure.Messaging.EventHubs.Consumer;
     using Azure.Identity;
     using System.Threading.Tasks;
 

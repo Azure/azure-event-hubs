@@ -10,6 +10,7 @@ namespace WindTurbineDataGenerator
     using System.Threading.Tasks;
     using Newtonsoft.Json;
     using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Producer;
 
 
     internal class Program

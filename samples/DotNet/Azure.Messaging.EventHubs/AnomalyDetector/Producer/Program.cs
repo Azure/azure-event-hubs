@@ -7,6 +7,7 @@ namespace Producer
     using System.Text;
     using System.Threading.Tasks;
     using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Producer;
     using System.Collections.Generic;
     using System.IO;
 
