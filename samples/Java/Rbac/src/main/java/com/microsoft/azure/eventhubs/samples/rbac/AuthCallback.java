@@ -23,7 +23,8 @@ class AuthCallback implements AzureActiveDirectoryTokenProvider.AuthenticationCa
     @Override
     public CompletableFuture<String> acquireToken(String audience, String authority, Object state) {
         try {
-            ConfidentialClientApplication app = ConfidentialClientApplication.builder(this.clientId, new ClientSecret(this.clientSecret))
+            ConfidentialClientApplication app = ConfidentialClientApplication.builder(this.clientId,
+                ClientCredentialFactory.createFromSecret(this.clientSecret))
                     .authority(authority)
                     .build();
             ClientCredentialParameters parameters = ClientCredentialParameters.builder(Collections.singleton(audience + ".default")).build();

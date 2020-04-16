@@ -30,7 +30,8 @@ class CustomTokenProvider implements ITokenProvider {
     @Override
     public CompletableFuture<SecurityToken> getToken(String resource, Duration timeout) {
         try {
-            ConfidentialClientApplication app = ConfidentialClientApplication.builder(this.clientId, new ClientSecret(this.clientSecret))
+            ConfidentialClientApplication app = ConfidentialClientApplication.builder(this.clientId,
+                ClientCredentialFactory.createFromSecret(this.clientSecret))
                     .authority(authority)
                     .build();
             ClientCredentialParameters parameters = ClientCredentialParameters.builder(Collections.singleton(audience + ".default")).build();
