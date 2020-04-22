@@ -24,7 +24,7 @@ mvn clean package
 and then run with (or just from VS Code or another Java IDE)
 
 ```bash
-java -jar ./target/send-1.0.0-jar-with-dependencies.jar
+java -jar ./target/asyncsend-1.0.0-jar-with-dependencies.jar
 ```
 
 ## Understanding Async Send
