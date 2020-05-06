@@ -2,7 +2,7 @@
   <img src="event-hubs.png" alt="Microsoft Azure Event Hubs" width="100"/>
 </p>
 
-<h1 align="center">Microsoft Azure Event Hubs
+<h1 align="center">Azure Event Hubs samples
 <p align="center">
   <a href="#star-our-repo">
         <img src="https://img.shields.io/github/stars/azure/azure-event-hubs.svg?style=social&label=Stars"
@@ -12,23 +12,27 @@
             alt="follow on Twitter"></a>
 </p></h1>
 
-We're happy to host our client SDKs and integrations on GitHub as free, open-source projects. We currently support:
+This repository contains samples for Azure Event Hubs. 
 
-* [Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka)
-* [.NET](https://github.com/azure/azure-event-hubs-dotnet)
-* [Java](https://github.com/azure/azure-event-hubs-java)
-* [C](https://github.com/azure/azure-event-hubs-c)
-* [Node.js](https://github.com/azure/azure-event-hubs-node)
-* [Python](https://github.com/azure/azure-event-hubs-python)
-* [Go](https://github.com/azure/azure-event-hubs-go)
-* [Apache Spark connector](https://github.com/Azure/azure-event-hubs-spark)
+## Client SDK samples
+The .NET and Java client SDK samples in this repository use **old SDKs**. For samples that use new SDKs, see the following repositories. 
+
+- [.NET](https://github.com/Azure/azure-sdk-for-net/tree/master/sdk/eventhub/Azure.Messaging.EventHubs/samples)
+- [Java](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs/src/samples/java/com/azure/messaging/eventhubs)
+
+You can find samples for other languages and frameworks in the following repositories: 
+- [JavaScript](https://github.com/Azure/azure-sdk-for-js/tree/master/sdk/eventhub/event-hubs/samples)
+- [Python](https://github.com/Azure/azure-sdk-for-python/tree/master/sdk/eventhub/azure-eventhub/samples)
+- [C](https://github.com/azure/azure-event-hubs-c)
+- [Go](https://github.com/azure/azure-event-hubs-go)
+- [Apache Spark connector](https://github.com/Azure/azure-event-hubs-spark)
+- [Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka)
 
 If you have any feedback, questions, or comments, go to the respective repo and file an issue. **Your involvement is welcome and encouraged!**
 
-## What is Event Hubs?
+## Management SDK samples
+This repository also contains [management samples](https://github.com/Azure/azure-event-hubs/tree/master/samples/Management) that use the .NET management SDK, PowerShell, and CLI. 
 
-Azure Event Hubs is a hyper-scale data ingestion service, fully-managed by Microsoft, that enables you to collect, store and process trillions of events from websites, apps, IoT devices, and any stream of data. To learn more, please visit our [marketing page](https://azure.microsoft.com/services/event-hubs/).
 
-## Azure Event Hubs for Apache Kafka
-
-Event Hubs now provides a Kafka endpoint that can be used by your existing Kafka-based applications as an alternative to running your own Kafka cluster. To learn more, check out the new [Azure Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka) repo!
+## See also
+To learn about Event Hubs, see our [Event Hubs documentation](https://docs.microsoft.com/en-us/azure/event-hubs/).
