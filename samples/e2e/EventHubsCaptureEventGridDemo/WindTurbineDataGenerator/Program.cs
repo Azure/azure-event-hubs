@@ -13,9 +13,9 @@ namespace WindTurbineDataGenerator
     internal class Program
     {
         private const string EventHubConnectionString =
-            "[provide the EH connection string]";
+            "<EVENT HUBS NAMESPACE CONNECTION STRING>";
 
-        private const string EventHubName = "[provide the EH name]";
+        private const string EventHubName = "<EVENT HUB NAME>";
         
         private static int Main(string[] args)
         {

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "name": "spegridehubgrp",
+      "location": "eastus",
+      "apiVersion": "2019-10-01"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat('spegridehubgrpDeployment', uniqueString(subscription().subscriptionId))]",
+      "resourceGroup": "spegridehubgrp",
+      "apiVersion": "2019-10-01",
+      "dependsOn": [
+        "spegridehubgrp"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+              },
+              "kind": "Storage",
+              "name": "spegridehubstorage",
+              "type": "Microsoft.Storage/storageAccounts",
+              "location": "eastus",
+              "apiVersion": "2017-10-01"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
