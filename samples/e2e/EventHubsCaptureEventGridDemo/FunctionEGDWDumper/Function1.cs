@@ -5,6 +5,7 @@ using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -62,17 +63,18 @@ namespace FunctionEGDWDumper
         /// Dumps the data from the Avro blob to the data warehouse (DW). 
         /// Before running this, ensure that the DW has the required <see cref="TableName"/> table created.
         /// </summary>   
-        private static void Dump(Uri fileUri)
+        private static async void Dump(Uri fileUri)
         {
             // Get the blob reference
             var storageAccount = CloudStorageAccount.Parse(StorageConnectionString);
             var blobClient = storageAccount.CreateCloudBlobClient();
-            var blob = blobClient.GetBlobReferenceFromServer(fileUri);
+            var blob = await blobClient.GetBlobReferenceFromServerAsync(fileUri);
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
                 // Parse the Avro File
-                using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blob.OpenRead()))
+                Stream blobStream = await blob.OpenReadAsync(null, null, null);
+                using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blobStream))
                 {
                     while (avroReader.HasNext())
                     {
