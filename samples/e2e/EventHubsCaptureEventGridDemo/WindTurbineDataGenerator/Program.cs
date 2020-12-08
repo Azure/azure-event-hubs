@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Azure.Messaging.EventHubs;
+using Azure.Messaging.EventHubs.Producer;
 
 namespace WindTurbineDataGenerator
 {
@@ -39,31 +40,30 @@ namespace WindTurbineDataGenerator
         {
             var random = new Random((int)DateTimeOffset.UtcNow.Ticks);
 
-            // create an Event Hubs client using the namespace connection string and the event hub name
-            EventHubClient client = new EventHubClient(EventHubConnectionString, EventHubName);
-
-            // create a producer object to send messages to the event hub
-            EventHubProducer producer = client.CreateProducer();
+            // create an Event Hubs Producer client using the namespace connection string and the event hub name
+            EventHubProducerClient producerClient = new EventHubProducerClient(EventHubConnectionString, EventHubName);
 
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     // Simulate sending data from 100 weather sensors
-                    var devicesData = new List<EventData>();
-
+                    // prepare a batch of events to send to the event hub. 
+                    EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
                     for (int i = 0; i < 100; i++)
                     {
                         int scaleFactor = random.Next(0, 25);
                         var windTurbineMeasure = GenerateTurbineMeasure("Turbine_" + i, scaleFactor);
                         EventData evData = SerializeWindTurbineToEventData(windTurbineMeasure);
-                        devicesData.Add(evData);
+                        // add the event to the batch
+                        if (eventBatch.TryAdd(evData) == false)
+                            break;
                     }
 
                     Console.Write(".");
 
-                    // send the message to the event hub
-                    await producer.SendAsync(devicesData);
+                    // send the batch of events to the event hub
+                    await producerClient.SendAsync(eventBatch);
                 }
                 catch (Exception ex)
                 {
@@ -73,7 +73,7 @@ namespace WindTurbineDataGenerator
 
                 await Task.Delay(1000, cancellationToken);
             }
-        }       
+        }
 
         private static WindTurbineMeasure GenerateTurbineMeasure(string turbineId, int scaleFactor)
         {
