@@ -1,12 +1,5 @@
 # Receive events with the Event Processor Host in .NET Standard with a custom role which grants Listen claim for Event Hubs and blob claims for Storage accounts.
 
-## Prerequisites
-
-* [Microsoft Visual Studio 2015 or 2017](http://www.visualstudio.com).
-* [.NET Core Visual Studio 2015 or 2017 tools](http://www.microsoft.com/net/core).
-* An Azure subscription.
-* [An event hub namespace and an event hub](event-hubs-quickstart-namespace-portal.md).
-* An Azure Storage account.
 
 ## Run the sample
 
@@ -43,3 +36,19 @@ To run the sample, follow these steps:
 6. Update the sample with Event Hubs namespace and Storage account name.
 7. Run [Sender application](https://github.com/Azure/azure-event-hubs/tree/serkar.AddCustomRbacEhSample/samples/DotNet/Microsoft.Azure.EventHubs/SampleSender) to send some number of messages to your event hub.
 8. Run the CustomRole sample to receive those events back.
+
+**Note:** This sample uses the legacy Event Hubs library `Microsoft.Azure.EventHubs`. We strongly recommend you to use the new library `Azure.Messaging.EventHubs`. 
+
+See [this](https://github.com/Azure/azure-sdk-for-net/blob/master/sdk/identity/Azure.Identity/samples/DefiningCustomCredentialTypes.md#authenticating-with-the-on-behalf-of-flow) sample that uses the new library to authenticate after the environment variables for client id and secret are set. 
+
+
+
+## Prerequisites
+
+* [Microsoft Visual Studio 2015 or 2017](http://www.visualstudio.com).
+* [.NET Core Visual Studio 2015 or 2017 tools](http://www.microsoft.com/net/core).
+* An Azure subscription.
+* [An event hub namespace and an event hub](event-hubs-quickstart-namespace-portal.md).
+* An Azure Storage account.
+
+

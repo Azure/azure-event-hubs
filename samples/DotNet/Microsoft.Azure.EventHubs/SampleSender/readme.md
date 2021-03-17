@@ -2,6 +2,9 @@
 
 This sample shows how to write a .NET Core console application that sends a set of events to an event hub. You can run the solution as-is, replacing the `EhConnectionString` and `EhEntityPath` strings with your event hub values. The sample is also [available as a tutorial](https://docs.microsoft.com/azure/event-hubs/event-hubs-dotnet-standard-getstarted-send).
 
+**Note:** This sample uses the legacy Event Hubs library `Microsoft.Azure.EventHubs`. We strongly encourage you to use the new library `Azure.Messaging.EventHubs`. Here is the corresponding sample using the new library: [link](https://github.com/Azure/azure-sdk-for-net/blob/master/sdk/eventhub/Azure.Messaging.EventHubs/samples/Sample04_PublishingEvents.md).
+
+
 ## Prerequisites
 
 * [Microsoft Visual Studio 2015 or 2017](http://www.visualstudio.com).
