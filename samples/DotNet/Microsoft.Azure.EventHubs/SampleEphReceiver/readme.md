@@ -2,6 +2,8 @@
 
 This sample shows how to write a .NET Core console application that receives a set of events from an event hub by using the **Event Processor Host** library. You can run the solution as-is, replacing the strings with your event hub and storage account values. The sample is also [available as a tutorial](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-dotnet-standard-getstarted-receive-eph).
 
+**Note:** This sample uses the legacy Event Hubs library `Microsoft.Azure.EventHubs`. We strongly encourage you to use the new library `Azure.Messaging.EventHubs`. Here is the corresponding sample using the new library: [link](https://github.com/Azure/azure-sdk-for-net/blob/master/sdk/eventhub/Azure.Messaging.EventHubs.Processor/samples/Sample04_ProcessingEvents.md).
+
 ## Prerequisites
 
 * [Microsoft Visual Studio 2015 or 2017](http://www.visualstudio.com).
