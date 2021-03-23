@@ -52,7 +52,7 @@ For more information on creating a Service Principal, refer to the following art
 The Geo DR actions could be
 
 *	CreatePairing
-For creating a paired region. After this, you should see metadata (i.e. event hubs, consumer groups, throughput units etc. replicated to the secondary namespace).
+For creating a paired region. After this, you should see metadata (i.e. Event Hubs, consumer groups, throughput units etc. replicated to the secondary namespace).
 
 *	FailOver
 Simulating a failover. After this action, the secondary namespace becomes the primary
@@ -64,7 +64,7 @@ For breaking the pairing between a primary and secondary namespace
 For deleting an alias, that contains information about the primary-secondary pairing
 
 *	GetConnectionStrings
-In a Geo DR enabled namespace, the Event Hubs should be accessed only via the alias. This is because, the alias can point to either the primary event hub or the failed over event hub. This way, the user does not have to adjust the connection strings in his/her apps to point to a different event hub in the case of a failover.
+In a Geo DR enabled namespace, the Event Hubs should be accessed only via the alias. This is because, the alias can point to either the primary Event Hub or the failed over Event Hub. This way, the user does not have to adjust the connection strings in his/her apps to point to a different Event Hub in the case of a failover.
 
 Examples
 *	EventHubsGeoDRManagementSample.exe CreatePairing GeoDRSampleConfig.json
@@ -86,7 +86,7 @@ The following section describes the steps for performing Geo-diaster recovery,
 	    d. Changing the names of an alias is not allowed.
 	    e. Changing the secondary namespace is not allowed.
 3.	Create an alias and provide the primary and secondary namespaces to complete the pairing.
-4.	Get the required connection strings on the alias to connect to your event hubs.
+4.	Get the required connection strings on the alias to connect to your Event Hubs.
 5.	Once the namespaces are paired with an alias, the metadata is replicated periodically in both namespaces.
 
 **Note:** Creating a pairing, failing over, breaking the pairing, deleting the alias have all retries build in. All before mentioned operations will retry 10 times with 10 minutes in between each attempt.
@@ -95,7 +95,7 @@ The following section describes the steps for performing Geo-diaster recovery,
 After this step, the seconday namespace becomes the primary namespace.
 
 1.	Initiate a fail-over. This step is only performed on the secondary namespace. The geo-pairing is broken and the alias now points to the secondary namespace. **Note:** The Failover can take a few minutes to complete.
-2.	Senders and receivers still connect to the event hubs using the alias. The failover does not disrupt the connection.
+2.	Senders and receivers still connect to the Event Hubs using the alias. The failover does not disrupt the connection.
 3.	Because the pairing is broken, the old primary namespace no longer has a replication status associated with it.
 4.	The metadata synchronization between the primary and secondary namespaces also stops
 

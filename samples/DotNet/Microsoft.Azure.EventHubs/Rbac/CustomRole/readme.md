@@ -3,10 +3,14 @@
 
 ## Run the sample
 
-To run the sample, follow these steps:
+**Note:** This sample uses the legacy Event Hubs library `Microsoft.Azure.EventHubs`. We strongly recommend you to use the current library `Azure.Messaging.EventHubs`. 
+
+See [sample](https://github.com/Azure/azure-sdk-for-net/blob/master/sdk/identity/Azure.Identity/samples/DefiningCustomCredentialTypes.md#authenticating-with-the-on-behalf-of-flow) that uses the new library to authenticate after the environment variables for client id and secret are set. 
+
+To run the sample in this folder, which uses the legacy library, follow these steps:
 
 1. Clone or download this GitHub repo.
-2. [Create an Event Hubs namespace and an event hub](https://docs.microsoft.com/azure/event-hubs/event-hubs-create).
+2. [Create an Event Hubs namespace and an Event Hub](https://docs.microsoft.com/azure/event-hubs/event-hubs-create).
 3. Create a Storage account to host a blob container, needed for lease management by the Event Processor Host.
 3. [Create a new custom role](https://docs.microsoft.com/en-us/azure/role-based-access-control/custom-roles) with the definition below.
 4. [Create a new AAD (Azure Active Directory) application](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
@@ -34,21 +38,16 @@ To run the sample, follow these steps:
 ```
 
 6. Update the sample with Event Hubs namespace and Storage account name.
-7. Run [Sender application](https://github.com/Azure/azure-event-hubs/tree/serkar.AddCustomRbacEhSample/samples/DotNet/Microsoft.Azure.EventHubs/SampleSender) to send some number of messages to your event hub.
+7. Run [Sender application](https://github.com/Azure/azure-event-hubs/tree/serkar.AddCustomRbacEhSample/samples/DotNet/Microsoft.Azure.EventHubs/SampleSender) to send some number of messages to your Event Hub.
 8. Run the CustomRole sample to receive those events back.
-
-**Note:** This sample uses the legacy Event Hubs library `Microsoft.Azure.EventHubs`. We strongly recommend you to use the new library `Azure.Messaging.EventHubs`. 
-
-See [this](https://github.com/Azure/azure-sdk-for-net/blob/master/sdk/identity/Azure.Identity/samples/DefiningCustomCredentialTypes.md#authenticating-with-the-on-behalf-of-flow) sample that uses the new library to authenticate after the environment variables for client id and secret are set. 
-
 
 
 ## Prerequisites
 
 * [Microsoft Visual Studio 2015 or 2017](http://www.visualstudio.com).
-* [.NET Core Visual Studio 2015 or 2017 tools](http://www.microsoft.com/net/core).
+* [.NET Core SDK](http://www.microsoft.com/net/core).
 * An Azure subscription.
-* [An event hub namespace and an event hub](event-hubs-quickstart-namespace-portal.md).
+* [An Event Hub namespace and an Event Hub](event-hubs-quickstart-namespace-portal.md).
 * An Azure Storage account.
 
 
