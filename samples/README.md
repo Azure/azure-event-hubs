@@ -1,20 +1,17 @@
 # Azure Event Hubs samples
 
-This repository holds samples for the below libraries that can be used to interact with Azure Event Hubs for .NET and Java developers.
+**Note:** This repository holds samples for the legacy libraries for Azure Event Hubs for .NET and Java developers. We highly recommend you to upgrade to the newer packages.
 
-.NET packages
+.NET legacy packages
 
 - Microsoft.Azure.EventHubs (**legacy**)
 - Microsoft.Azure.EventHubs.Processor (**legacy**)
 - WindowsAzure.ServiceBus (**legacy**)
-- Microsoft.Azure.Management.EventHub
 
-Java packages
+Java legacy packages
 
 - com.microsoft.azure:azure-eventhubs (**legacy**)
 - com.microsoft.azure:azure-eventhubs-eph (**legacy**)
-
-We highly recommend to upgrading newer libraries for Azure Event Hubs that are available as of February 2020.
 
 Samples for **latest** .NET packages for Azure Event Hubs
 
@@ -27,6 +24,10 @@ Samples for **latest** Java packages for Azure Event Hubs
 - [com.azure:azure-messaging-eventhubs-checkpointstore-blob](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs-checkpointstore-blob/src/samples)
 
 ## Miscellaneous
+
+### Manage Event Hubs resources
+
+The samples under the folder `Management` in this repository show how to manage your Event Hubs resources via CLI, the .NET package `Microsoft.Azure.Management.EventHub` and PowerShell
 
 ### proton-c-sender-dotnet-framework-receiver
 
