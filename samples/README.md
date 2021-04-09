@@ -1,25 +1,33 @@
 # Azure Event Hubs samples
 
-## .NET
+This repository holds samples for the below libraries that can be used to interact with Azure Event Hubs for .NET and Java developers.
 
-### Microsoft.Azure.EventHubs
-Any samples within the `Azure.Microsoft.EventHubs` folder target the newer .NET Standard library.
+.NET packages
 
-#### SampleSender
+- Microsoft.Azure.EventHubs (**legacy**)
+- Microsoft.Azure.EventHubs.Processor (**legacy**)
+- WindowsAzure.ServiceBus (**legacy**)
+- Microsoft.Azure.Management.EventHub
 
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleSender/readme.md) shows how to write a .NET Core console application that sends a set of messages to an Event Hub.
+Java packages
 
-#### SampleEphReceiver
+- com.microsoft.azure:azure-eventhubs (**legacy**)
+- com.microsoft.azure:azure-eventhubs-eph (**legacy**)
 
-[This sample](./DotNet/Microsoft.Azure.EventHubs/SampleEphReceiver/readme.md) shows how to write a .NET Core console application that receives messages from an Event Hub using the **EventProcessorHost**.
+We highly recommend to upgrading newer libraries for Azure Event Hubs that are available as of February 2020.
 
-## Java
+Samples for **latest** .NET packages for Azure Event Hubs
 
-[Go here](./Java) for the Java language samples.
+- [Azure.Messaging.EventHubs](https://docs.microsoft.com/samples/azure/azure-sdk-for-net/azuremessagingeventhubs-samples/)
+- [Azure.Messaging.EventHubs.Processor](https://docs.microsoft.com/samples/azure/azure-sdk-for-net/azuremessagingeventhubsprocessor-samples/)
+
+Samples for **latest** Java packages for Azure Event Hubs
+
+- [com.azure:azure-messaging-eventhubs](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs/src/samples)
+- [com.azure:azure-messaging-eventhubs-checkpointstore-blob](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs-checkpointstore-blob/src/samples)
 
 ## Miscellaneous
 
 ### proton-c-sender-dotnet-framework-receiver
 
 [This sample](./Miscellaneous/proton-c-sender-dotnet-framework-receiver/README.md) shows how to use Azure Event Hubs with clients that use different protocols. This scenario sends using an Apache Proton C++ client, and receives using the .NET Framework client.
-
