@@ -17,7 +17,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
-using Microsoft.WindowsAzure.Storage;
+using Azure.Storage.Blobs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -66,14 +66,18 @@ namespace FunctionEGDWDumper
         private static async void Dump(Uri fileUri)
         {
             // Get the blob reference
-            var storageAccount = CloudStorageAccount.Parse(StorageConnectionString);
-            var blobClient = storageAccount.CreateCloudBlobClient();
-            var blob = await blobClient.GetBlobReferenceFromServerAsync(fileUri);
+            string connectionString = "ConnectionString";
+            string containerName = "containerName";
+            string blobName = "blobName";
+
+            BlobContainerClient container = new BlobContainerClient(connectionString, containerName);
+            container.Create();
+            BlobClient blob = container.GetBlobClient(blobName);
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
                 // Parse the Avro File
-                Stream blobStream = await blob.OpenReadAsync(null, null, null);
+                Stream blobStream = await blob.OpenReadAsync(null);
                 using (var avroReader = DataFileReader<GenericRecord>.OpenReader(blobStream))
                 {
                     while (avroReader.HasNext())
