@@ -66,13 +66,7 @@ namespace FunctionEGDWDumper
         private static async void Dump(Uri fileUri)
         {
             // Get the blob reference
-            string connectionString = "ConnectionString";
-            string containerName = "containerName";
-            string blobName = "blobName";
-
-            BlobContainerClient container = new BlobContainerClient(connectionString, containerName);
-            container.Create();
-            BlobClient blob = container.GetBlobClient(blobName);
+            BlobClient blob = new BlobClient(fileUri);
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {

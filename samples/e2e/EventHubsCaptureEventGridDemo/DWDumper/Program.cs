@@ -32,14 +32,9 @@ namespace DWDumper
 
         public void Dump()
         {
-            // Get the blob reference
-            string connectionString = "ConnectionString";
-            string containerName = "containerName";
-            string blobName = "blobName";
+            // Get the blob reference           
 
-            BlobContainerClient container = new BlobContainerClient(connectionString, containerName);
-            container.Create();
-            BlobClient blob = container.GetBlobClient(blobName);
+            BlobClient blob = new BlobClient(new Uri(EventHubsCaptureAvroBlobUri));
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
