@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Avro.File;
 using Avro.Generic;
 using Newtonsoft.Json;
-using Microsoft.WindowsAzure.Storage;
+using Azure.Storage.Blobs;
 
 namespace DWDumper
 {
@@ -32,10 +32,9 @@ namespace DWDumper
 
         public void Dump()
         {
-            // Get the blob reference
-            var storageAccount = CloudStorageAccount.Parse(StorageConnectionString);
-            var blobClient = storageAccount.CreateCloudBlobClient();
-            var blob = blobClient.GetBlobReferenceFromServer(new Uri(EventHubsCaptureAvroBlobUri));
+            // Get the blob reference           
+
+            BlobClient blob = new BlobClient(new Uri(EventHubsCaptureAvroBlobUri));
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
