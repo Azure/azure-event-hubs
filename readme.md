@@ -15,10 +15,29 @@
 This repository contains samples for Azure Event Hubs. 
 
 ## Client SDK samples
-The .NET and Java client SDK samples in this repository use **old SDKs**. For samples that use new SDKs, see the following repositories. 
 
-- [.NET](https://github.com/Azure/azure-sdk-for-net/tree/master/sdk/eventhub/Azure.Messaging.EventHubs/samples)
-- [Java](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs/src/samples/java/com/azure/messaging/eventhubs)
+> **Note:** This repository holds samples for the legacy libraries for Azure Event Hubs for .NET and Java developers. We highly recommend you to upgrade to the newer packages.
+
+.NET legacy packages
+
+- Microsoft.Azure.EventHubs (**legacy**)
+- Microsoft.Azure.EventHubs.Processor (**legacy**)
+- WindowsAzure.ServiceBus (**legacy**)
+
+Java legacy packages
+
+- com.microsoft.azure:azure-eventhubs (**legacy**)
+- com.microsoft.azure:azure-eventhubs-eph (**legacy**)
+
+Samples for **latest** .NET packages for Azure Event Hubs
+
+- [Azure.Messaging.EventHubs](https://docs.microsoft.com/samples/azure/azure-sdk-for-net/azuremessagingeventhubs-samples/)
+- [Azure.Messaging.EventHubs.Processor](https://docs.microsoft.com/samples/azure/azure-sdk-for-net/azuremessagingeventhubsprocessor-samples/)
+
+Samples for **latest** Java packages for Azure Event Hubs
+
+- [com.azure:azure-messaging-eventhubs](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs/src/samples)
+- [com.azure:azure-messaging-eventhubs-checkpointstore-blob](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs/azure-messaging-eventhubs-checkpointstore-blob/src/samples)
 
 You can find samples for other languages and frameworks in the following repositories: 
 - [JavaScript](https://github.com/Azure/azure-sdk-for-js/tree/master/sdk/eventhub/event-hubs/samples)
