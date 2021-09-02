@@ -30,7 +30,8 @@
         <module>Basic/SendBatch</module>
         <module>Basic/SimpleSend</module>
         <module>Basic/AsyncSend</module>
-        <module>Basic/SimpleProxy</module>
+	<module>Basic/SimpleProxy</module>
+	<module>Basic/Log4jAppenderSample</module>
         <module>Benchmarks/AutoScaleOnIngress</module>
         <module>Benchmarks/IngressBenchmark</module>
     </modules>
