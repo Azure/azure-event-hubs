@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <Configuration status="all" packages="com.microsoft.azure.eventhubs.extensions.appender">
+	<Appenders>
+		<EventHub name="EventHub" ignoreExceptions="false" eventHubConnectionString="--event-hub-connection-string" immediateFlush="true">
+	    		<JSONLayout />
+		</EventHub>
+
+     		<Console name="console" target="SYSTEM_OUT">
+            		<PatternLayout pattern="%msg%n" />
+    		</Console>
+
+
+	</Appenders>
+
+    	<Loggers>
+       		 <Root level="all">
+			<appender-ref ref="console" />
+			<appender-ref ref="EventHub" />
+		</Root>
+
+      </Loggers>
+    </Configuration>
