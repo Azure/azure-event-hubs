@@ -5,7 +5,7 @@
     <UserSecretsId>c542a7d9-5d67-443a-b50f-0ea02bd96fcd</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.9.2" />
+    <PackageReference Include="Apache.Avro" Version="1.11.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.8.1" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventGrid" Version="2.1.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.3" />
