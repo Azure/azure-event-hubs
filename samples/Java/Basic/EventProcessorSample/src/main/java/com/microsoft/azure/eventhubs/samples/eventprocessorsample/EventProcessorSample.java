@@ -28,7 +28,7 @@ public class EventProcessorSample
     	// account. All instances of EventProcessorHost which will be consuming from the same Event Hub and consumer
     	// group must use the same Azure Storage account and container name.
     	String consumerGroupName = "$Default";
-    	String namespaceName = "----ServiceBusNamespaceName----";
+    	String namespaceName = "----EventHubNamespaceName----";
     	String eventHubName = "----EventHubName----";
     	String sasKeyName = "----SharedAccessSignatureKeyName----";
     	String sasKey = "----SharedAccessSignatureKey----";
