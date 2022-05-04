@@ -16,13 +16,14 @@ namespace WindTurbineDataGenerator
         private const string EventHubConnectionString =
             "<EVENT HUBS NAMESPACE CONNECTION STRING>";
 
-        private const string EventHubName = "<EVENT HUB NAME>";
+        private const string EventHubName = "hubdatamigration";
         
         private static int Main(string[] args)
         {
             Console.WriteLine("Starting wind turbine generator. Press <ENTER> to exit");
 
             // Start generation of events
+
             var cts = new CancellationTokenSource();
 
             var t0 = StartEventGenerationAsync(cts.Token);
