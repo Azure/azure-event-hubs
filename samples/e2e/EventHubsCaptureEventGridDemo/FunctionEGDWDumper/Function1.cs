@@ -1,32 +1,30 @@
-// This is the default URL for triggering event grid function in the local environment.
-// http://localhost:7071/admin/extensions/EventGridExtensionConfig?functionName={functionname} 
-
+// Default URL for triggering event grid function in the local environment.
+// http://localhost:7071/runtime/webhooks/EventGrid?functionName={functionname}
 using System;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.EventGrid;
+using Microsoft.Extensions.Logging;
+
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
 using Avro.File;
 using Avro.Generic;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.EventGrid;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Host;
 using Azure.Storage.Blobs;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+
+using Azure.Messaging.EventGrid;
+using Azure;
+using Azure.Storage;
 
 namespace FunctionEGDWDumper
 {
-
     public static class Function1
     {
-        private static readonly string StorageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
+        private static readonly string StorageAccountName = Environment.GetEnvironmentVariable("StorageAccountName");
+        private static readonly string StorageAccessKey = Environment.GetEnvironmentVariable("StorageAccessKey");
         private static readonly string SqlDwConnection = Environment.GetEnvironmentVariable("SqlDwConnection");
 
         /// <summary>
@@ -34,28 +32,27 @@ namespace FunctionEGDWDumper
         /// </summary>  
         private const string TableName = "dbo.Fact_WindTurbineMetrics";
 
-        [FunctionName("EventGridTriggerMigrateData")]
-        public static void Run([EventGridTrigger]JObject eventGridEvent, TraceWriter log)
+        [FunctionName("MyEventGridTriggerMigrateData")]
+        public static void Run([EventGridTrigger]EventGridEvent eventGridEvent, ILogger log)
         {
-            log.Info("C# EventGrid trigger function processed a request.");
-            log.Info(eventGridEvent.ToString(Formatting.Indented));
+            log.LogInformation("C# EventGrid trigger function processed a request.");
+            log.LogInformation(eventGridEvent.Data.ToString());
 
             try
             {
-                // Copy to a static Album instance
-                EventGridEHEvent ehEvent = eventGridEvent.ToObject<EventGridEHEvent>();
-
                 // Get the URL from the event that points to the Capture file
-                var uri = new Uri(ehEvent.data.fileUrl);
+                Data data = eventGridEvent.Data.ToObjectFromJson<Data>();
+                var uri = new Uri(data.fileUrl);
+                log.LogInformation($"file URL: {data.fileUrl}");
 
                 // Get data from the file and migrate to data warehouse
-                Dump(uri);
+                Dump(uri, log);
             }
             catch (Exception e)
             {
                 string s = string.Format(CultureInfo.InvariantCulture,
                     "Error processing request. Exception: {0}, Request: {1}", e, eventGridEvent.ToString());
-                log.Error(s);
+                log.LogError(s);
             }
         }
 
@@ -63,10 +60,10 @@ namespace FunctionEGDWDumper
         /// Dumps the data from the Avro blob to the data warehouse (DW). 
         /// Before running this, ensure that the DW has the required <see cref="TableName"/> table created.
         /// </summary>   
-        private static async void Dump(Uri fileUri)
+        private static async void Dump(Uri fileUri, ILogger log)
         {
             // Get the blob reference
-            BlobClient blob = new BlobClient(fileUri);
+            BlobClient blob = new BlobClient(fileUri, new StorageSharedKeyCredential(StorageAccountName, StorageAccessKey));
 
             using (var dataTable = GetWindTurbineMetricsTable())
             {
@@ -88,7 +85,8 @@ namespace FunctionEGDWDumper
 
                 if (dataTable.Rows.Count > 0)
                 {
-                    BatchInsert(dataTable);
+                    log.LogInformation("Batch insert into the dedicated SQL pool.");
+                    BatchInsert(dataTable, log);
                 }
             }
         }
@@ -96,13 +94,14 @@ namespace FunctionEGDWDumper
         /// <summary>
         /// Open connection to data warehouse. Write the parsed data to the table. 
         /// </summary>   
-        private static void BatchInsert(DataTable table)
+        private static void BatchInsert(DataTable table, ILogger log)
         {
             // Write the data to SQL DW using SqlBulkCopy
             using (var sqlDwConnection = new SqlConnection(SqlDwConnection))
             {
                 sqlDwConnection.Open();
 
+                log.LogInformation("Bulk copying data.");
                 using (var bulkCopy = new SqlBulkCopy(sqlDwConnection))
                 {
                     bulkCopy.BulkCopyTimeout = 30;
@@ -147,7 +146,7 @@ namespace FunctionEGDWDumper
         /// </summary>  
         private static void AddWindTurbineMetricToTable(DataTable table, WindTurbineMeasure wtm)
         {
-            table.Rows.Add(wtm.DeviceId, wtm.MeasureTime, wtm.GeneratedPower, wtm.WindSpeed, wtm.TurbineSpeed);      
+            table.Rows.Add(wtm.DeviceId, wtm.MeasureTime, wtm.GeneratedPower, wtm.WindSpeed, wtm.TurbineSpeed);
         }
     }
 }
