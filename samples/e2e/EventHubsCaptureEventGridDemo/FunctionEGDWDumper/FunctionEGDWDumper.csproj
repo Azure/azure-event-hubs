@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Apache.Avro" Version="1.11.0" />
     <PackageReference Include="Azure.Messaging.EventGrid" Version="4.10.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.12.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.13.0" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventGrid" Version="3.2.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.1.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.3" />
