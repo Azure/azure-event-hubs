@@ -15,7 +15,7 @@ namespace SampleEphReceiver
         private const string StorageContainerName = "Storage account container name";
         private const string StorageAccountName = "Storage account name";
         private const string StorageAccountKey = "Storage account key";
-
+		
         private static readonly string StorageConnectionString = string.Format("DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1}", StorageAccountName, StorageAccountKey);
 
         public static void Main(string[] args)
