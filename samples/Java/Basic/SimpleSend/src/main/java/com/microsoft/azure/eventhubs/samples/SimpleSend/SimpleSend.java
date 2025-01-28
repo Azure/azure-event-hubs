@@ -4,64 +4,46 @@
  */
 package com.microsoft.azure.eventhubs.samples.SimpleSend;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.EventHubException;
-
-import java.io.IOException;
-import java.nio.charset.Charset;
+import com.azure.messaging.eventhubs.*;
 import java.time.Instant;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class SimpleSend {
+    private static final String connectionString = "<EVENT HUBS NAMESPACE - CONNECTION STRING>";
+    private static final String eventHubName = "<EVENT HUB NAME>";
 
-    public static void main(String[] args)
-            throws EventHubException, ExecutionException, InterruptedException, IOException {
+    public static void main(String[] args) {
+        publishEvents();
+    }
 
-        final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                .setNamespaceName("Your Event Hubs namespace name") // to target National clouds - use .setEndpoint(URI)
-                .setEventHubName("Your event hub")
-                .setSasKeyName("Your policy name")
-                .setSasKey("Your primary SAS key");
-
-        final Gson gson = new GsonBuilder().create();
-
-        // The Executor handles all asynchronous tasks and this is passed to the EventHubClient instance.
-        // This enables the user to segregate their thread pool based on the work load.
-        // This pool can then be shared across multiple EventHubClient instances.
-        // The following sample uses a single thread executor, as there is only one EventHubClient instance,
-        // handling different flavors of ingestion to Event Hubs here.
-        final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
-
-        // Each EventHubClient instance spins up a new TCP/SSL connection, which is expensive.
-        // It is always a best practice to reuse these instances. The following sample shows this.
-        final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString(), executorService);
+    /**
+     * Code sample for publishing events.
+     * @throws IllegalArgumentException if the EventData is bigger than the max batch size.
+     */
+    public static void publishEvents() {
+        // create a producer client
+        EventHubProducerClient producer = new EventHubClientBuilder()
+            .connectionString(connectionString, eventHubName)
+            .buildProducerClient();
 
         try {
-            for (int i = 0; i < 100; i++) {
+            // Start preparting a batch of events
+            EventDataBatch eventDataBatch = producer.createBatch();
+            producer.send(eventDataBatch);                
 
-                String payload = "Message " + Integer.toString(i);
-                //PayloadEvent payload = new PayloadEvent(i);
-                byte[] payloadBytes = gson.toJson(payload).getBytes(Charset.defaultCharset());
-                EventData sendEvent = EventData.create(payloadBytes);
+            for (int i = 0; i < 5; i++) {
 
-                // Send - not tied to any partition
-                // Event Hubs service will round-robin the events across all Event Hubs partitions.
-                // This is the recommended & most reliable way to send to Event Hubs.
-                ehClient.sendSync(sendEvent);
+                // prepare data for the event
+                EventData eventData = new EventData("Message " + Integer.toString(i));
+                // add the event to the batch
+                eventDataBatch.tryAdd(eventData);
+                // send event to the event hub
+                producer.send(eventDataBatch);                
             }
 
             System.out.println(Instant.now() + ": Send Complete...");
-            System.out.println("Press Enter to stop.");
-            System.in.read();
         } finally {
-            ehClient.closeSync();
-            executorService.shutdown();
-        }
+            producer.close();
+        }     
     }
 }
+
