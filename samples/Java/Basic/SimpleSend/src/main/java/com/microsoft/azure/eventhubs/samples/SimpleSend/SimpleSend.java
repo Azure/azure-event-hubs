@@ -28,18 +28,15 @@ public class SimpleSend {
         try {
             // Start preparting a batch of events
             EventDataBatch eventDataBatch = producer.createBatch();
-            producer.send(eventDataBatch);                
-
             for (int i = 0; i < 5; i++) {
-
                 // prepare data for the event
                 EventData eventData = new EventData("Message " + Integer.toString(i));
                 // add the event to the batch
                 eventDataBatch.tryAdd(eventData);
-                // send event to the event hub
-                producer.send(eventDataBatch);                
             }
-
+            // send the batch of events to the event hub
+            producer.send(eventDataBatch);                
+            
             System.out.println(Instant.now() + ": Send Complete...");
         } finally {
             producer.close();
