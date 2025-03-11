@@ -43,7 +43,7 @@ You can find samples for other languages and frameworks in the following reposit
 - [JavaScript](https://github.com/Azure/azure-sdk-for-js/tree/master/sdk/eventhub/event-hubs/samples)
 - [Python](https://github.com/Azure/azure-sdk-for-python/tree/master/sdk/eventhub/azure-eventhub/samples)
 - [C](https://github.com/azure/azure-event-hubs-c)
-- [Go](https://github.com/azure/azure-event-hubs-go)
+- [Go](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs#section-documentation)
 - [Apache Spark connector](https://github.com/Azure/azure-event-hubs-spark)
 - [Event Hubs for Apache Kafka](https://github.com/Azure/azure-event-hubs-for-kafka)
 
